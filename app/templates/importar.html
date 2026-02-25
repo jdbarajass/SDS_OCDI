@@ -4,6 +4,13 @@
 
 {% block content %}
 
+<!-- Mensaje de base de datos limpiada -->
+{% if msg == 'bd_limpiada' %}
+<div class="alert alert-success">
+    ✅ Base de datos eliminada correctamente. Ya puede importar el Excel actualizado.
+</div>
+{% endif %}
+
 <div class="import-layout">
 
     <!-- Panel de instrucciones -->
@@ -20,6 +27,12 @@
         <div class="info-box">
             <strong>⚠️ Nota:</strong> Las columnas de "Alertas de vencimiento" (calculadas en Excel) no se importan.
             El sistema las calcula automáticamente.
+        </div>
+
+        <div class="info-box info-box-tip" style="margin-top:10px; border-left-color:#e67e22; background:#fff8f0">
+            <strong>💡 ¿Actualizó el Excel?</strong> Si el Excel ya fue modificado y quiere que la BD refleje
+            esos cambios, primero <strong>borre la base de datos</strong> y luego importe el Excel nuevo.
+            El sistema no actualiza registros ya existentes, solo agrega los que no existen.
         </div>
     </div>
 
@@ -78,6 +91,56 @@
     </div>
     {% endif %}
 
+    <!-- Panel de borrado total -->
+    <div class="card" style="border: 2px solid #e74c3c; margin-top: 8px;">
+        <h3 style="color:#c0392b">🗑️ Zona de Peligro — Borrar Base de Datos</h3>
+        <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap">
+            <div style="flex:1; min-width:220px">
+                <p style="margin:0 0 6px 0; color:#555">
+                    Elimina <strong>todos</strong> los expedientes, escaneos y actuaciones registradas.
+                    Esta acción <strong>no se puede deshacer</strong>.
+                </p>
+                <p style="margin:0; font-size:13px; color:#888">
+                    Expedientes actuales en la base de datos:
+                    <strong style="color:#c0392b; font-size:16px"> {{ total_bd }}</strong>
+                </p>
+            </div>
+            <button type="button" class="btn btn-danger" onclick="confirmarBorrado()">
+                🗑️ Borrar toda la base de datos
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL de confirmación -->
+<div id="modal-borrado" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:440px; border-top: 4px solid #e74c3c">
+        <div class="modal-header">
+            <h3 style="color:#c0392b">⚠️ Confirmar borrado total</h3>
+        </div>
+        <div style="padding: 16px 0">
+            <p>Está a punto de eliminar <strong>todos los expedientes</strong> de la base de datos.</p>
+            <p>Esta acción es <strong>irreversible</strong>. Asegúrese de tener el Excel actualizado antes de continuar.</p>
+            <p style="margin-top:16px; font-size:13px; color:#888">
+                Para confirmar, escriba <strong>BORRAR</strong> en el campo de abajo:
+            </p>
+            <input type="text" id="input-confirmar" placeholder="Escriba BORRAR"
+                   style="width:100%; padding:8px; font-size:15px; border:2px solid #e74c3c;
+                          border-radius:6px; margin-top:6px; box-sizing:border-box"
+                   oninput="validarConfirmacion()">
+        </div>
+        <div class="modal-actions">
+            <form method="post" action="/importar/limpiar-bd" id="form-borrado">
+                <button type="submit" id="btn-confirmar-borrado" class="btn btn-danger" disabled>
+                    🗑️ Sí, borrar todo
+                </button>
+            </form>
+            <button type="button" class="btn btn-outline" onclick="cerrarModalBorrado()">
+                Cancelar
+            </button>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -96,6 +159,26 @@ document.getElementById('form-importar').addEventListener('submit', function() {
     const btn = document.getElementById('btn-importar');
     btn.textContent = '⏳ Importando...';
     btn.disabled = true;
+});
+
+function confirmarBorrado() {
+    document.getElementById('input-confirmar').value = '';
+    document.getElementById('btn-confirmar-borrado').disabled = true;
+    document.getElementById('modal-borrado').style.display = 'flex';
+    document.getElementById('input-confirmar').focus();
+}
+
+function cerrarModalBorrado() {
+    document.getElementById('modal-borrado').style.display = 'none';
+}
+
+function validarConfirmacion() {
+    const val = document.getElementById('input-confirmar').value.trim().toUpperCase();
+    document.getElementById('btn-confirmar-borrado').disabled = (val !== 'BORRAR');
+}
+
+document.getElementById('modal-borrado').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalBorrado();
 });
 </script>
 {% endblock %}

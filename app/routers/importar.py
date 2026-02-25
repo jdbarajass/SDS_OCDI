@@ -121,12 +121,30 @@ def _mapear_fila(row) -> dict:
 
 
 @router.get("/importar", response_class=HTMLResponse)
-async def importar_form(request: Request):
+async def importar_form(request: Request, msg: str = ""):
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    conn.close()
     return templates.TemplateResponse("importar.html", {
         "request": request,
         "active": "importar",
         "resultado": None,
+        "total_bd": total,
+        "msg": msg,
     })
+
+
+@router.post("/importar/limpiar-bd")
+async def limpiar_base_datos():
+    conn = get_db()
+    conn.execute("DELETE FROM actuaciones")
+    conn.execute("DELETE FROM escaneos")
+    conn.execute("DELETE FROM expedientes")
+    # Resetear los autoincrement para que los IDs empiecen desde 1
+    conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('expedientes','escaneos','actuaciones')")
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/importar?msg=bd_limpiada", status_code=303)
 
 
 @router.post("/importar", response_class=HTMLResponse)
@@ -229,8 +247,13 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...)):
     except Exception as e:
         resultado["errores"].append(f"Error al leer el archivo: {str(e)}")
 
+    conn2 = get_db()
+    total = conn2.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    conn2.close()
     return templates.TemplateResponse("importar.html", {
         "request": request,
         "active": "importar",
         "resultado": resultado,
+        "total_bd": total,
+        "msg": "",
     })

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Control de Autos{% endblock %}
+{% block heading %}Control de Autos {{ anio_sel }}{% endblock %}
+
+{% block header_actions %}
+<a href="/autos/exportar?anio={{ anio_sel }}" class="btn btn-outline">📤 Exportar Excel</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Selector de año -->
+<form method="get" action="/autos" class="filtros-card" style="margin-bottom:16px">
+    <div class="filtros-grid">
+        <div class="field-group">
+            <label>Año</label>
+            <select name="anio" onchange="this.form.submit()">
+                {% for a in anios %}
+                <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filtros-actions">
+            <span class="text-muted" style="font-size:12px">
+                Total de autos en {{ anio_sel }}: <strong>{{ total_general }}</strong>
+            </span>
+        </div>
+    </div>
+</form>
+
+<!-- TABLA POR TIPO Y MES -->
+<div class="card" style="margin-bottom:16px">
+    <h3 class="stat-card-title">Autos por Tipo y Mes — {{ anio_sel }}</h3>
+    <div class="table-wrapper" style="box-shadow:none; border:none; overflow-x:auto">
+        <table class="data-table autos-table">
+            <thead>
+                <tr>
+                    <th class="autos-tipo-col">TIPO DE AUTO</th>
+                    {% for mes in meses %}
+                    <th class="autos-mes-col">{{ mes[:3] }}</th>
+                    {% endfor %}
+                    <th class="autos-total-col">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tipo in tipos_auto %}
+                <tr>
+                    <td class="autos-tipo-cell"><strong>{{ tipo }}</strong></td>
+                    {% for mes in meses %}
+                    {% set v = tabla[tipo][mes] %}
+                    <td class="autos-num-cell {% if v > 0 %}autos-has-val{% endif %}">
+                        {{ v if v > 0 else '' }}
+                    </td>
+                    {% endfor %}
+                    <td class="autos-total-cell">
+                        <strong>{{ totales_tipo[tipo] }}</strong>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="autos-total-row">
+                    <td><strong>TOTAL POR MES</strong></td>
+                    {% for mes in meses %}
+                    <td class="autos-num-cell">
+                        <strong>{{ totales_mes[mes] if totales_mes[mes] > 0 else '' }}</strong>
+                    </td>
+                    {% endfor %}
+                    <td class="autos-total-cell"><strong>{{ total_general }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- TABLA POR ABOGADO -->
+{% if tabla_abogado %}
+<div class="card">
+    <h3 class="stat-card-title">Autos por Abogado — {{ anio_sel }}</h3>
+    <div class="table-wrapper" style="box-shadow:none; border:none; overflow-x:auto">
+        <table class="data-table autos-table">
+            <thead>
+                <tr>
+                    <th class="autos-abog-col">ABOGADO</th>
+                    {% for tipo in tipos_auto %}
+                    <th class="autos-tipo-head" title="{{ tipo }}">{{ tipo | truncate(22) }}</th>
+                    {% endfor %}
+                    <th class="autos-total-col">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for abogado, tipos in tabla_abogado.items() | sort %}
+                {% set total_ab = tipos.values() | sum %}
+                {% if total_ab > 0 %}
+                <tr>
+                    <td class="autos-abog-cell">{{ abogado }}</td>
+                    {% for tipo in tipos_auto %}
+                    {% set v = tipos.get(tipo, 0) %}
+                    <td class="autos-num-cell {% if v > 0 %}autos-has-val{% endif %}">
+                        {{ v if v > 0 else '' }}
+                    </td>
+                    {% endfor %}
+                    <td class="autos-total-cell"><strong>{{ total_ab }}</strong></td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

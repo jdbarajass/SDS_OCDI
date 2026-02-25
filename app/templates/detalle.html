@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Expediente #{{ exp.n_expediente }}{% endblock %}
+{% block heading %}Expediente #{{ exp.n_expediente }} — {{ exp.anio }}{% endblock %}
+
+{% block header_actions %}
+<a href="/expediente/{{ exp.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+<a href="/" class="btn btn-outline">← Volver al listado</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ENCABEZADO DE ESTADO -->
+<div class="detail-header">
+    <div class="detail-meta">
+        {% if exp.etapa %}
+        <span class="etapa-badge etapa-grande">{{ exp.etapa }}</span>
+        {% endif %}
+        {% if exp.estado_proceso %}
+        <span class="estado-badge">{{ exp.estado_proceso }}</span>
+        {% endif %}
+    </div>
+    <div class="detail-alertas">
+        {% if exp.fecha_vencimiento_ind %}
+        <div class="alerta-card alerta-{{ exp.alerta_ind.clase }}">
+            <span class="alerta-label">Vencimiento Indagación</span>
+            <span class="alerta-fecha">{{ exp.fecha_vencimiento_ind }}</span>
+            <span class="alerta-texto">{{ exp.alerta_ind.texto }}</span>
+        </div>
+        {% endif %}
+        {% if exp.fecha_vencimiento_inv %}
+        <div class="alerta-card alerta-{{ exp.alerta_inv.clase }}">
+            <span class="alerta-label">Vencimiento Investigación</span>
+            <span class="alerta-fecha">{{ exp.fecha_vencimiento_inv }}</span>
+            <span class="alerta-texto">{{ exp.alerta_inv.texto }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- GRILLA DE DETALLE -->
+<div class="detail-sections">
+
+    <!-- Bloque 1 -->
+    <div class="detail-card">
+        <h3 class="detail-card-title">1. Identificación</h3>
+        <div class="detail-grid">
+            {% macro campo(label, valor) %}
+            <div class="detail-field">
+                <span class="detail-label">{{ label }}</span>
+                <span class="detail-value">{{ valor or '—' }}</span>
+            </div>
+            {% endmacro %}
+            {{ campo('N° Expediente', exp.n_expediente) }}
+            {{ campo('Año', exp.anio) }}
+            {{ campo('Mes', exp.mes) }}
+            {{ campo('Origen del Proceso', exp.origen_proceso) }}
+            {{ campo('N° Radicado', exp.n_radicado) }}
+            {{ campo('Fecha Radicado', exp.fecha_radicado) }}
+            {{ campo('Fecha SIIAS', exp.fecha_siias) }}
+            {{ campo('Ingreso SIIAS', exp.ingreso_siias) }}
+            {{ campo('Ingreso SIAD', exp.ingreso_siad) }}
+            {{ campo('Fecha Ingreso SIAD', exp.fecha_ingreso_siad) }}
+            {{ campo('Ingreso SID4', exp.ingreso_sid4) }}
+        </div>
+    </div>
+
+    <!-- Bloque 2 -->
+    <div class="detail-card">
+        <h3 class="detail-card-title">2. Partes</h3>
+        <div class="detail-grid">
+            {{ campo('Abogado Asignado', exp.nombre_abogado) }}
+            {{ campo('Impedimento', exp.impedimento) }}
+            {{ campo('Investigado', exp.investigado) }}
+            {{ campo('Perfil del Indagado', exp.perfil_indagado) }}
+            {{ campo('Entidad Origen', exp.entidad_origen) }}
+            {{ campo('Quejoso / Informante', exp.quejoso) }}
+        </div>
+    </div>
+
+    <!-- Bloque 3 -->
+    <div class="detail-card detail-card-full">
+        <h3 class="detail-card-title">3. Asunto y Tipología</h3>
+        <div class="detail-grid">
+            <div class="detail-field detail-field-full">
+                <span class="detail-label">Asunto</span>
+                <span class="detail-value detail-textarea">{{ exp.asunto or '—' }}</span>
+            </div>
+            {{ campo('Tipología', exp.tipologia) }}
+            {{ campo('Fecha de los Hechos', exp.fecha_hechos) }}
+            {{ campo('Valores Institucionales', exp.valores_institucionales) }}
+            {{ campo('Siniestro/Pérdida', exp.relacionado_siniestro) }}
+            {% if exp.responsable_siniestro %}{{ campo('Responsable Siniestro', exp.responsable_siniestro) }}{% endif %}
+            {{ campo('Maltrato/Acoso', exp.relacionado_acoso) }}
+            {% if exp.responsable_acoso %}{{ campo('Responsable Acoso', exp.responsable_acoso) }}{% endif %}
+            {{ campo('Corrupción', exp.relacionado_corrupcion) }}
+            <div class="detail-field detail-field-full">
+                <span class="detail-label">Descripción Tipología</span>
+                <span class="detail-value detail-textarea">{{ exp.descripcion_tipologia or '—' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bloque 4 -->
+    <div class="detail-card">
+        <h3 class="detail-card-title">4. Indagación Previa</h3>
+        <div class="detail-grid">
+            {{ campo('Fecha Apertura', exp.fecha_apertura_indagacion) }}
+            {{ campo('N° Auto Apertura', exp.numero_auto_apertura_ind) }}
+            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_ind) }}
+            {{ campo('Plazo (días)', exp.plazo_ind) }}
+            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_ind) }}
+            {{ campo('N° Auto Traslado', exp.numero_auto_traslado_ind) }}
+            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_ind) }}
+            {{ campo('N° Auto Archivo', exp.numero_auto_archivo_ind) }}
+            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_ind) }}
+        </div>
+    </div>
+
+    <!-- Bloque 5 (solo si tiene datos) -->
+    {% if exp.fecha_apertura_investigacion or exp.numero_auto_apertura_inv %}
+    <div class="detail-card">
+        <h3 class="detail-card-title">5. Investigación Disciplinaria</h3>
+        <div class="detail-grid">
+            {{ campo('Fecha Apertura', exp.fecha_apertura_investigacion) }}
+            {{ campo('N° Auto Apertura', exp.numero_auto_apertura_inv) }}
+            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_inv) }}
+            {{ campo('Plazo (días)', exp.plazo_inv) }}
+            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_inv) }}
+            {{ campo('N° Auto Traslado', exp.numero_auto_traslado_inv) }}
+            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_inv) }}
+            {{ campo('N° Auto Archivo', exp.numero_auto_archivo_inv) }}
+            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_inv) }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bloque 6 -->
+    <div class="detail-card detail-card-full">
+        <h3 class="detail-card-title">6. Cierre</h3>
+        <div class="detail-grid">
+            {{ campo('Etapa', exp.etapa) }}
+            {{ campo('Estado del Proceso', exp.estado_proceso) }}
+            {{ campo('Registrado por', exp.created_by) }}
+            {{ campo('Fecha creación', exp.created_at) }}
+            {{ campo('Última actualización', exp.updated_at) }}
+            <div class="detail-field detail-field-full">
+                <span class="detail-label">Observaciones Finales</span>
+                <span class="detail-value detail-textarea">{{ exp.observaciones_finales or '—' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Escaneos -->
+    {% if escaneos %}
+    <div class="detail-card detail-card-full">
+        <h3 class="detail-card-title">7. Escaneos y Folios</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>#</th><th>Fecha Escáner</th><th>Folio</th><th>Responsable</th></tr>
+            </thead>
+            <tbody>
+                {% for esc in escaneos %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ esc.fecha_escaner or '—' }}</td>
+                    <td>{{ esc.folio or '—' }}</td>
+                    <td>{{ esc.responsable or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Botón de eliminar al pie -->
+<div class="form-footer">
+    <a href="/expediente/{{ exp.id }}/editar" class="btn btn-primary">✏️ Editar Expediente</a>
+    <form method="post" action="/expediente/{{ exp.id }}/eliminar" style="display:inline"
+          onsubmit="return confirm('¿Eliminar este expediente? Esta acción no se puede deshacer.')">
+        <button type="submit" class="btn btn-danger">🗑 Eliminar Expediente</button>
+    </form>
+</div>
+
+{% endblock %}

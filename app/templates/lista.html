@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Expedientes{% endblock %}
+{% block heading %}Expedientes <span class="badge-count">{{ total }}</span>{% endblock %}
+
+{% block header_actions %}
+<a href="/expediente/nuevo" class="btn btn-primary">➕ Nuevo Expediente</a>
+<a href="/exportar" class="btn btn-outline">📤 Exportar Excel</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTROS -->
+<form method="get" action="/" class="filtros-card">
+    <div class="filtros-grid">
+        <div class="field-group">
+            <label>Buscar</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="N° expediente, investigado, asunto…">
+        </div>
+        <div class="field-group">
+            <label>Año</label>
+            <select name="anio">
+                <option value="">Todos</option>
+                {% for a in anios %}
+                <option value="{{ a }}" {% if anio_filtro == a|string %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Etapa</label>
+            <select name="etapa">
+                <option value="">Todas</option>
+                {% for e in etapas %}
+                <option value="{{ e }}" {% if etapa_filtro == e %}selected{% endif %}>{{ e }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Abogado</label>
+            <select name="abogado">
+                <option value="">Todos</option>
+                {% for ab in abogados %}
+                <option value="{{ ab }}" {% if abogado_filtro == ab %}selected{% endif %}>{{ ab }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filtros-actions">
+            <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+            <a href="/" class="btn btn-outline">✖ Limpiar</a>
+        </div>
+    </div>
+</form>
+
+<!-- TABLA -->
+{% if expedientes %}
+<div class="table-wrapper">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>N° Exp.</th>
+                <th>Año</th>
+                <th>Investigado</th>
+                <th>Abogado</th>
+                <th>Etapa</th>
+                <th>Estado</th>
+                <th>Vencimiento Ind.</th>
+                <th>Vencimiento Inv.</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in expedientes %}
+            <tr>
+                <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
+                <td>{{ exp.anio }}</td>
+                <td class="td-texto">{{ exp.investigado or '—' }}</td>
+                <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
+                <td>
+                    {% if exp.etapa %}
+                    <span class="etapa-badge etapa-{{ exp.etapa | lower | replace(' ','_') | replace('á','a') | replace('é','e') | replace('ó','o') | replace('ú','u') | replace('ñ','n') | truncate(15, True, '') }}">
+                        {{ exp.etapa }}
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ exp.estado_proceso or '—' }}</td>
+                <td>
+                    {% if exp.fecha_vencimiento_ind %}
+                    <span class="alerta-badge alerta-{{ exp.alerta_ind.clase }}">
+                        {{ exp.fecha_vencimiento_ind }}<br>
+                        <small>{{ exp.alerta_ind.texto }}</small>
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if exp.fecha_vencimiento_inv %}
+                    <span class="alerta-badge alerta-{{ exp.alerta_inv.clase }}">
+                        {{ exp.fecha_vencimiento_inv }}<br>
+                        <small>{{ exp.alerta_inv.texto }}</small>
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="td-acciones">
+                    <a href="/expediente/{{ exp.id }}" class="btn-sm btn-ver">👁 Ver</a>
+                    <a href="/expediente/{{ exp.id }}/editar" class="btn-sm btn-editar">✏️ Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <h3>No hay expedientes</h3>
+    {% if q or anio_filtro or etapa_filtro or abogado_filtro %}
+    <p>No se encontraron resultados con los filtros aplicados.</p>
+    <a href="/" class="btn btn-outline">Ver todos</a>
+    {% else %}
+    <p>Aún no hay expedientes registrados.</p>
+    <a href="/expediente/nuevo" class="btn btn-primary">➕ Crear el primero</a>
+    <span class="separator"> o </span>
+    <a href="/importar" class="btn btn-outline">📥 Importar desde Excel</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

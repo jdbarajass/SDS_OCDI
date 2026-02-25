@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Importar Excel{% endblock %}
+{% block heading %}Importar desde Excel{% endblock %}
+
+{% block content %}
+
+<div class="import-layout">
+
+    <!-- Panel de instrucciones -->
+    <div class="import-info card">
+        <h3>📋 Instrucciones</h3>
+        <ol>
+            <li>Seleccione el archivo Excel (<code>.xlsx</code>) con los expedientes.</li>
+            <li>El sistema buscará la hoja <strong>ENCABEZADO</strong>. Si no existe, usará la primera hoja.</li>
+            <li>La primera fila del archivo se toma como encabezado y se omite.</li>
+            <li>Los expedientes con el mismo <strong>N° Expediente + Año</strong> ya existentes <em>se omiten</em> para no duplicar datos.</li>
+            <li>Puede repetir la importación con el mismo archivo sin problemas.</li>
+        </ol>
+
+        <div class="info-box">
+            <strong>⚠️ Nota:</strong> Las columnas de "Alertas de vencimiento" (calculadas en Excel) no se importan.
+            El sistema las calcula automáticamente.
+        </div>
+    </div>
+
+    <!-- Formulario de carga -->
+    <div class="import-form card">
+        <h3>📥 Seleccionar Archivo</h3>
+        <form method="post" action="/importar" enctype="multipart/form-data" id="form-importar">
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon">📄</div>
+                <p>Arrastre el archivo aquí o haga clic para seleccionar</p>
+                <input type="file" id="archivo" name="archivo" accept=".xlsx,.xls"
+                       onchange="mostrarNombreArchivo(this)" required>
+                <span class="upload-filename" id="upload-filename"></span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg" id="btn-importar">
+                📥 Importar
+            </button>
+        </form>
+    </div>
+
+    <!-- Resultado de la importación -->
+    {% if resultado %}
+    <div class="import-result card">
+        <h3>📊 Resultado de la Importación</h3>
+        <div class="result-stats">
+            <div class="stat-card stat-success">
+                <span class="stat-num">{{ resultado.insertados }}</span>
+                <span class="stat-label">Expedientes importados</span>
+            </div>
+            <div class="stat-card stat-warning">
+                <span class="stat-num">{{ resultado.omitidos }}</span>
+                <span class="stat-label">Omitidos (ya existen)</span>
+            </div>
+            <div class="stat-card stat-info">
+                <span class="stat-label">Hoja usada</span>
+                <span class="stat-num-sm">{{ resultado.hoja_usada }}</span>
+            </div>
+        </div>
+
+        {% if resultado.errores %}
+        <div class="result-errors">
+            <h4>⚠️ Filas con error ({{ resultado.errores | length }})</h4>
+            <ul class="error-list">
+                {% for err in resultado.errores %}
+                <li>{{ err }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if resultado.insertados > 0 %}
+        <div class="result-actions">
+            <a href="/" class="btn btn-primary">📋 Ver Expedientes</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function mostrarNombreArchivo(input) {
+    const span = document.getElementById('upload-filename');
+    if (input.files.length > 0) {
+        span.textContent = '✅ ' + input.files[0].name;
+        document.getElementById('upload-zone').classList.add('has-file');
+    }
+}
+
+document.getElementById('form-importar').addEventListener('submit', function() {
+    const btn = document.getElementById('btn-importar');
+    btn.textContent = '⏳ Importando...';
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+# Base de datos (se genera automáticamente al iniciar)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Entorno virtual
+venv/
+env/
+.env
+.venv/
+
+# IDE / herramientas locales
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de referencia / documentos locales (no son parte del código)
+*.pdf
+*.xlsx
+*.xls
+*.jpg
+*.jpeg
+*.png
+*.gif
+Prompt SDS.txt
+
+# Windows
+Thumbs.db
+desktop.ini

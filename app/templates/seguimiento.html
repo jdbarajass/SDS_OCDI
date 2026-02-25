@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Seguimiento Mensual{% endblock %}
+{% block heading %}Seguimiento Mensual {{ anio_sel }}{% endblock %}
+
+{% block header_actions %}
+<a href="/seguimiento/exportar?anio={{ anio_sel }}" class="btn btn-outline">📤 Exportar</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTROS -->
+<form method="get" action="/seguimiento" class="filtros-card">
+    <div class="filtros-grid">
+        <div class="field-group">
+            <label>Año</label>
+            <select name="anio">
+                {% for a in anios %}
+                <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Abogado</label>
+            <select name="abogado">
+                <option value="">Todos</option>
+                {% for ab in abogados %}
+                <option value="{{ ab }}" {% if ab == abogado_sel %}selected{% endif %}>{{ ab }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Buscar expediente</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="N° exp. o investigado…">
+        </div>
+        <div class="filtros-actions">
+            <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<div class="seg-instruccion">
+    <strong>💡 Instrucción:</strong> Haga clic en cualquier celda para agregar o editar la actuación de ese mes.
+    Los cambios se guardan individualmente.
+</div>
+
+<!-- TABLA DE SEGUIMIENTO -->
+{% if expedientes %}
+<div class="seg-wrapper">
+    <table class="seg-table">
+        <thead>
+            <tr class="seg-head-row">
+                <th class="seg-col-exp sticky-col">Expediente</th>
+                <th class="seg-col-abogado">Abogado</th>
+                {% for mes in meses %}
+                <th class="seg-col-mes">{{ mes[:3] }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in expedientes %}
+            <tr class="seg-row">
+                <td class="sticky-col seg-exp-cell">
+                    <a href="/expediente/{{ exp.id }}">
+                        <strong>#{{ exp.n_expediente }}</strong>
+                    </a>
+                    <small class="seg-exp-detail">{{ exp.etapa or '' }}</small>
+                </td>
+                <td class="seg-abogado-cell">
+                    <span title="{{ exp.nombre_abogado or '' }}">
+                        {{ (exp.nombre_abogado or '—') | truncate(18) }}
+                    </span>
+                </td>
+                {% for mes in meses %}
+                {% set key = (exp.id, mes) %}
+                {% set act = acts_map.get(key) %}
+                <td class="seg-mes-cell {% if act and act.descripcion %}seg-has-act{% endif %}"
+                    onclick="abrirModal({{ exp.id }}, '{{ exp.n_expediente }}', '{{ mes }}', '{{ anio_sel }}', this)"
+                    title="{% if act %}{{ act.descripcion }}{% else %}Clic para agregar actuación{% endif %}">
+                    {% if act and act.descripcion %}
+                    <span class="seg-act-preview">{{ act.descripcion | truncate(30) }}</span>
+                    {% else %}
+                    <span class="seg-act-empty">+</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>No hay expedientes</h3>
+    <p>No se encontraron expedientes con los filtros aplicados.</p>
+</div>
+{% endif %}
+
+<!-- MODAL DE EDICIÓN -->
+<div id="seg-modal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modal-titulo">Actuación</h3>
+            <button type="button" class="modal-close" onclick="cerrarModal()">✖</button>
+        </div>
+        <form method="post" action="/seguimiento/guardar">
+            <input type="hidden" name="expediente_id" id="modal-exp-id">
+            <input type="hidden" name="anio" id="modal-anio">
+            <input type="hidden" name="mes"  id="modal-mes">
+            <div class="field-group" style="margin-bottom:12px">
+                <label for="modal-desc">Descripción de la actuación</label>
+                <textarea id="modal-desc" name="descripcion" rows="6"
+                          placeholder="Describa la actuación realizada en este mes…
+Ej: Se realizó inspección de expediente. Se notificó al investigado."></textarea>
+            </div>
+            <div class="field-group" style="margin-bottom:16px">
+                <label for="modal-by">Registrado por</label>
+                <input type="text" id="modal-by" name="created_by" placeholder="Nombre del funcionario">
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary">💾 Guardar</button>
+                <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn btn-danger" id="btn-borrar"
+                        onclick="document.getElementById('modal-desc').value=''">
+                    🗑 Borrar actuación
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _celdaActual = null;
+
+function abrirModal(expId, nExp, mes, anio, celda) {
+    document.getElementById('modal-exp-id').value = expId;
+    document.getElementById('modal-anio').value = anio;
+    document.getElementById('modal-mes').value = mes;
+    document.getElementById('modal-titulo').textContent =
+        'Expediente #' + nExp + ' — ' + mes + ' ' + anio;
+
+    // Cargar texto existente de la celda
+    const preview = celda.querySelector('.seg-act-preview');
+    // El texto completo no está en el DOM; usar fetch para obtenerlo
+    // Por simplicidad, usamos el title (descripción completa del servidor)
+    const titleText = celda.getAttribute('title');
+    if (titleText && titleText !== 'Clic para agregar actuación') {
+        document.getElementById('modal-desc').value = titleText;
+    } else {
+        document.getElementById('modal-desc').value = '';
+    }
+
+    _celdaActual = celda;
+    document.getElementById('seg-modal').style.display = 'flex';
+    document.getElementById('modal-desc').focus();
+}
+
+function cerrarModal() {
+    document.getElementById('seg-modal').style.display = 'none';
+    _celdaActual = null;
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('seg-modal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+});
+</script>
+{% endblock %}

@@ -485,6 +485,13 @@ async def exportar_filtrado_form(request: Request):
     abogados = [r[0] for r in conn.execute(
         "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado"
     ).fetchall()]
+    # Cargar valores reales desde BD para que los filtros coincidan exactamente
+    etapas_bd = [r[0] for r in conn.execute(
+        "SELECT DISTINCT etapa FROM expedientes WHERE etapa IS NOT NULL ORDER BY etapa"
+    ).fetchall()]
+    estados_bd = [r[0] for r in conn.execute(
+        "SELECT DISTINCT estado_proceso FROM expedientes WHERE estado_proceso IS NOT NULL ORDER BY estado_proceso"
+    ).fetchall()]
     total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     conn.close()
 
@@ -493,8 +500,8 @@ async def exportar_filtrado_form(request: Request):
         "active": "exportar",
         "anios": anios,
         "abogados": abogados,
-        "etapas": ETAPAS,
-        "estados": ESTADOS,
+        "etapas": etapas_bd,
+        "estados": estados_bd,
         "total_preview": total,
         "filtros": {
             "anios": [], "abogados": [], "etapas": [], "estados": [],

@@ -105,13 +105,15 @@
         <h3 class="panel-title">📊 Bloques a incluir</h3>
         <p class="panel-desc">Seleccione qué secciones quiere en el reporte.</p>
 
+        <!-- Identificación siempre incluido: se envía como hidden para que no se pueda omitir -->
+        <input type="hidden" name="bloques" value="identificacion">
         <div class="bloque-check">
-            <label class="bloque-item">
-                <input type="checkbox" name="bloques" value="identificacion" checked disabled>
+            <label class="bloque-item" style="opacity:0.7; cursor:default">
+                <input type="checkbox" checked disabled style="cursor:default">
                 <span class="bloque-icon">📋</span>
                 <div>
                     <strong>Bloque 1 — Identificación</strong>
-                    <small>N° Expediente, año, mes, origen, radicado, plataformas</small>
+                    <small>N° Expediente, año, mes, origen, radicado, plataformas — <em>siempre incluido</em></small>
                 </div>
             </label>
             <label class="bloque-item">

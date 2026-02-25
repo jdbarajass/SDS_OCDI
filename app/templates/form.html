@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
+
+{% block header_actions %}
+{% if modos == 'editar' %}
+<a href="/expediente/{{ exp.id }}" class="btn btn-outline">← Cancelar</a>
+{% else %}
+<a href="/" class="btn btn-outline">← Volver</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if errores %}
+<div class="alert alert-danger">
+    <strong>Por favor corrija los siguientes errores:</strong>
+    <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% set action = '/expediente/nuevo' if modos == 'nuevo' else '/expediente/' ~ exp.id ~ '/editar' %}
+<form method="post" action="{{ action }}" id="exp-form">
+
+    <!-- NAVEGACIÓN DE SECCIONES -->
+    <div class="form-tabs" id="form-tabs">
+        <button type="button" class="tab-btn active" data-target="sec-1">1. Identificación</button>
+        <button type="button" class="tab-btn" data-target="sec-2">2. Partes</button>
+        <button type="button" class="tab-btn" data-target="sec-3">3. Asunto</button>
+        <button type="button" class="tab-btn" data-target="sec-4">4. Indagación Previa</button>
+        <button type="button" class="tab-btn" data-target="sec-5" id="tab-inv">5. Investigación Disc.</button>
+        <button type="button" class="tab-btn" data-target="sec-6">6. Cierre</button>
+        <button type="button" class="tab-btn" data-target="sec-7">7. Escaneos</button>
+    </div>
+
+    <!-- ── SECCIÓN 1: IDENTIFICACIÓN ─────────────────────────────────── -->
+    <div class="form-section active" id="sec-1">
+        <h2 class="section-title">1. Identificación del Expediente</h2>
+        <div class="form-grid">
+            <div class="field-group required">
+                <label for="n_expediente">N° de Expediente *</label>
+                <input type="text" id="n_expediente" name="n_expediente"
+                       value="{{ exp.n_expediente or '' }}" required>
+            </div>
+            <div class="field-group required">
+                <label for="anio">Año *</label>
+                <input type="number" id="anio" name="anio" min="2000" max="2099"
+                       value="{{ exp.anio or '' }}" required>
+            </div>
+            <div class="field-group">
+                <label for="mes">Mes</label>
+                <select id="mes" name="mes">
+                    <option value="">— Seleccione —</option>
+                    {% for m in meses %}
+                    <option value="{{ m }}" {% if exp.mes == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="origen_proceso">Origen del Proceso</label>
+                <input type="text" id="origen_proceso" name="origen_proceso"
+                       value="{{ exp.origen_proceso or '' }}" placeholder="Ej: SDQS, PGN">
+            </div>
+            <div class="field-group">
+                <label for="n_radicado">N° Radicado Comunicación Inicial</label>
+                <input type="text" id="n_radicado" name="n_radicado"
+                       value="{{ exp.n_radicado or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_radicado">Fecha Radicado</label>
+                <input type="date" id="fecha_radicado" name="fecha_radicado"
+                       value="{{ exp.fecha_radicado or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_siias">Fecha SIIAS</label>
+                <input type="date" id="fecha_siias" name="fecha_siias"
+                       value="{{ exp.fecha_siias or '' }}">
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Plataformas</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label>Ingreso SIIAS</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="ingreso_siias" value="SI" {% if exp.ingreso_siias == 'SI' %}checked{% endif %}> SI</label>
+                    <label><input type="radio" name="ingreso_siias" value="NO" {% if exp.ingreso_siias != 'SI' %}checked{% endif %}> NO</label>
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Ingreso SIAD (Personería)</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="ingreso_siad" value="SI" {% if exp.ingreso_siad == 'SI' %}checked{% endif %} onchange="toggleField('fecha_ingreso_siad_wrap', this.value)"> SI</label>
+                    <label><input type="radio" name="ingreso_siad" value="NO" {% if exp.ingreso_siad != 'SI' %}checked{% endif %} onchange="toggleField('fecha_ingreso_siad_wrap', this.value)"> NO</label>
+                </div>
+            </div>
+            <div class="field-group" id="fecha_ingreso_siad_wrap" {% if exp.ingreso_siad != 'SI' %}style="display:none"{% endif %}>
+                <label for="fecha_ingreso_siad">Fecha Ingreso SIAD</label>
+                <input type="date" id="fecha_ingreso_siad" name="fecha_ingreso_siad"
+                       value="{{ exp.fecha_ingreso_siad or '' }}">
+            </div>
+            <div class="field-group">
+                <label>Ingreso SID4</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="ingreso_sid4" value="SI" {% if exp.ingreso_sid4 == 'SI' %}checked{% endif %}> SI</label>
+                    <label><input type="radio" name="ingreso_sid4" value="NO" {% if exp.ingreso_sid4 != 'SI' %}checked{% endif %}> NO</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 2: PARTES ──────────────────────────────────────────── -->
+    <div class="form-section" id="sec-2">
+        <h2 class="section-title">2. Asignación y Partes</h2>
+        <div class="form-grid">
+            <div class="field-group">
+                <label for="nombre_abogado">Abogado Asignado</label>
+                <input type="text" id="nombre_abogado" name="nombre_abogado"
+                       value="{{ exp.nombre_abogado or '' }}" placeholder="Nombre completo del abogado">
+            </div>
+            <div class="field-group">
+                <label>Impedimento</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="impedimento" value="SI" {% if exp.impedimento == 'SI' %}checked{% endif %}> SI</label>
+                    <label><input type="radio" name="impedimento" value="NO" {% if exp.impedimento != 'SI' %}checked{% endif %}> NO</label>
+                </div>
+            </div>
+            <div class="field-group field-full">
+                <label for="investigado">Investigado</label>
+                <input type="text" id="investigado" name="investigado"
+                       value="{{ exp.investigado or '' }}"
+                       placeholder="Nombre del investigado o 'EN AVERIGUACIÓN DE RESPONSABLES'">
+            </div>
+            <div class="field-group">
+                <label for="perfil_indagado">Perfil del Indagado/Investigado</label>
+                <input type="text" id="perfil_indagado" name="perfil_indagado"
+                       value="{{ exp.perfil_indagado or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="entidad_origen">Entidad Origen del Proceso</label>
+                <input type="text" id="entidad_origen" name="entidad_origen"
+                       value="{{ exp.entidad_origen or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="quejoso">Quejoso y/o Informante</label>
+                <input type="text" id="quejoso" name="quejoso"
+                       value="{{ exp.quejoso or '' }}" placeholder="Nombre o 'ANÓNIMO'">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 3: ASUNTO ──────────────────────────────────────────── -->
+    <div class="form-section" id="sec-3">
+        <h2 class="section-title">3. Asunto y Tipología</h2>
+        <div class="form-grid">
+            <div class="field-group field-full">
+                <label for="asunto">Asunto</label>
+                <textarea id="asunto" name="asunto" rows="4"
+                          placeholder="Descripción del asunto del proceso">{{ exp.asunto or '' }}</textarea>
+            </div>
+            <div class="field-group">
+                <label for="tipologia">Tipología</label>
+                <input type="text" id="tipologia" name="tipologia"
+                       value="{{ exp.tipologia or '' }}">
+            </div>
+            <div class="field-group field-full">
+                <label for="descripcion_tipologia">Descripción de Tipologías Específicas</label>
+                <textarea id="descripcion_tipologia" name="descripcion_tipologia" rows="3">{{ exp.descripcion_tipologia or '' }}</textarea>
+            </div>
+            <div class="field-group">
+                <label for="fecha_hechos">Fecha de los Hechos</label>
+                <input type="text" id="fecha_hechos" name="fecha_hechos"
+                       value="{{ exp.fecha_hechos or '' }}" placeholder="Ej: ENERO DE 2023">
+            </div>
+            <div class="field-group">
+                <label for="valores_institucionales">Valores Institucionales Comprometidos</label>
+                <input type="text" id="valores_institucionales" name="valores_institucionales"
+                       value="{{ exp.valores_institucionales or '' }}">
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Relacionados</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label>¿Relacionado con siniestro o pérdida?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="relacionado_siniestro" value="SI" {% if exp.relacionado_siniestro == 'SI' %}checked{% endif %} onchange="toggleField('resp_siniestro_wrap', this.value)"> SI</label>
+                    <label><input type="radio" name="relacionado_siniestro" value="NO" {% if exp.relacionado_siniestro != 'SI' %}checked{% endif %} onchange="toggleField('resp_siniestro_wrap', this.value)"> NO</label>
+                </div>
+            </div>
+            <div class="field-group" id="resp_siniestro_wrap" {% if exp.relacionado_siniestro != 'SI' %}style="display:none"{% endif %}>
+                <label for="responsable_siniestro">Responsable del Bien Siniestro</label>
+                <input type="text" id="responsable_siniestro" name="responsable_siniestro"
+                       value="{{ exp.responsable_siniestro or '' }}">
+            </div>
+        </div>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label>¿Relacionado con maltrato o acoso laboral?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="relacionado_acoso" value="SI" {% if exp.relacionado_acoso == 'SI' %}checked{% endif %} onchange="toggleField('resp_acoso_wrap', this.value)"> SI</label>
+                    <label><input type="radio" name="relacionado_acoso" value="NO" {% if exp.relacionado_acoso != 'SI' %}checked{% endif %} onchange="toggleField('resp_acoso_wrap', this.value)"> NO</label>
+                </div>
+            </div>
+            <div class="field-group" id="resp_acoso_wrap" {% if exp.relacionado_acoso != 'SI' %}style="display:none"{% endif %}>
+                <label for="responsable_acoso">Responsable del Acoso</label>
+                <input type="text" id="responsable_acoso" name="responsable_acoso"
+                       value="{{ exp.responsable_acoso or '' }}">
+            </div>
+        </div>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label>¿Relacionado con hecho de corrupción?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="relacionado_corrupcion" value="SI" {% if exp.relacionado_corrupcion == 'SI' %}checked{% endif %}> SI</label>
+                    <label><input type="radio" name="relacionado_corrupcion" value="NO" {% if exp.relacionado_corrupcion != 'SI' %}checked{% endif %}> NO</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 4: INDAGACIÓN PREVIA ──────────────────────────────── -->
+    <div class="form-section" id="sec-4">
+        <h2 class="section-title">4. Indagación Previa</h2>
+        <div class="form-grid">
+            <div class="field-group">
+                <label for="fecha_apertura_indagacion">Fecha Apertura Indagación</label>
+                <input type="date" id="fecha_apertura_indagacion" name="fecha_apertura_indagacion"
+                       value="{{ exp.fecha_apertura_indagacion or '' }}"
+                       onchange="calcularVencimiento('ind')">
+            </div>
+            <div class="field-group">
+                <label for="numero_auto_apertura_ind">N° Auto de Apertura</label>
+                <input type="text" id="numero_auto_apertura_ind" name="numero_auto_apertura_ind"
+                       value="{{ exp.numero_auto_apertura_ind or '' }}" placeholder="Ej: 010-2023">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_apertura_ind">Fecha Auto de Apertura</label>
+                <input type="date" id="fecha_auto_apertura_ind" name="fecha_auto_apertura_ind"
+                       value="{{ exp.fecha_auto_apertura_ind or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="plazo_ind">Plazo (días)</label>
+                <input type="number" id="plazo_ind" name="plazo_ind" min="1"
+                       value="{{ exp.plazo_ind or 180 }}"
+                       onchange="calcularVencimiento('ind')">
+            </div>
+            <div class="field-group">
+                <label for="fecha_vencimiento_ind">Fecha Vencimiento</label>
+                <input type="date" id="fecha_vencimiento_ind" name="fecha_vencimiento_ind"
+                       value="{{ exp.fecha_vencimiento_ind or '' }}"
+                       class="campo-calculado">
+                <small class="field-hint">Se calcula automáticamente desde Fecha Apertura + Plazo</small>
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Traslado</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label for="numero_auto_traslado_ind">N° Auto de Traslado</label>
+                <input type="text" id="numero_auto_traslado_ind" name="numero_auto_traslado_ind"
+                       value="{{ exp.numero_auto_traslado_ind or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_traslado_ind">Fecha Auto Traslado</label>
+                <input type="date" id="fecha_auto_traslado_ind" name="fecha_auto_traslado_ind"
+                       value="{{ exp.fecha_auto_traslado_ind or '' }}">
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Archivo (de Indagación Previa)</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label for="numero_auto_archivo_ind">N° Auto de Archivo</label>
+                <input type="text" id="numero_auto_archivo_ind" name="numero_auto_archivo_ind"
+                       value="{{ exp.numero_auto_archivo_ind or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_archivo_ind">Fecha Auto de Archivo</label>
+                <input type="date" id="fecha_auto_archivo_ind" name="fecha_auto_archivo_ind"
+                       value="{{ exp.fecha_auto_archivo_ind or '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 5: INVESTIGACIÓN DISCIPLINARIA (condicional) ──────── -->
+    <div class="form-section" id="sec-5">
+        <h2 class="section-title">5. Investigación Disciplinaria
+            <span class="section-badge" id="inv-badge">Solo si aplica</span>
+        </h2>
+        <div class="form-grid">
+            <div class="field-group">
+                <label for="fecha_apertura_investigacion">Fecha Apertura Investigación</label>
+                <input type="date" id="fecha_apertura_investigacion" name="fecha_apertura_investigacion"
+                       value="{{ exp.fecha_apertura_investigacion or '' }}"
+                       onchange="calcularVencimiento('inv')">
+            </div>
+            <div class="field-group">
+                <label for="numero_auto_apertura_inv">N° Auto de Apertura</label>
+                <input type="text" id="numero_auto_apertura_inv" name="numero_auto_apertura_inv"
+                       value="{{ exp.numero_auto_apertura_inv or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_apertura_inv">Fecha Auto de Apertura</label>
+                <input type="date" id="fecha_auto_apertura_inv" name="fecha_auto_apertura_inv"
+                       value="{{ exp.fecha_auto_apertura_inv or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="plazo_inv">Plazo (días)</label>
+                <input type="number" id="plazo_inv" name="plazo_inv" min="1"
+                       value="{{ exp.plazo_inv or 180 }}"
+                       onchange="calcularVencimiento('inv')">
+            </div>
+            <div class="field-group">
+                <label for="fecha_vencimiento_inv">Fecha Vencimiento</label>
+                <input type="date" id="fecha_vencimiento_inv" name="fecha_vencimiento_inv"
+                       value="{{ exp.fecha_vencimiento_inv or '' }}"
+                       class="campo-calculado">
+                <small class="field-hint">Se calcula automáticamente</small>
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Traslado</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label for="numero_auto_traslado_inv">N° Auto de Traslado</label>
+                <input type="text" id="numero_auto_traslado_inv" name="numero_auto_traslado_inv"
+                       value="{{ exp.numero_auto_traslado_inv or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_traslado_inv">Fecha Auto Traslado</label>
+                <input type="date" id="fecha_auto_traslado_inv" name="fecha_auto_traslado_inv"
+                       value="{{ exp.fecha_auto_traslado_inv or '' }}">
+            </div>
+        </div>
+
+        <h3 class="subsection-title">Archivo (de Investigación)</h3>
+        <div class="form-grid form-grid-3">
+            <div class="field-group">
+                <label for="numero_auto_archivo_inv">N° Auto de Archivo</label>
+                <input type="text" id="numero_auto_archivo_inv" name="numero_auto_archivo_inv"
+                       value="{{ exp.numero_auto_archivo_inv or '' }}">
+            </div>
+            <div class="field-group">
+                <label for="fecha_auto_archivo_inv">Fecha Auto de Archivo</label>
+                <input type="date" id="fecha_auto_archivo_inv" name="fecha_auto_archivo_inv"
+                       value="{{ exp.fecha_auto_archivo_inv or '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 6: CIERRE ──────────────────────────────────────────── -->
+    <div class="form-section" id="sec-6">
+        <h2 class="section-title">6. Estado y Cierre</h2>
+        <div class="form-grid">
+            <div class="field-group">
+                <label for="etapa">Etapa Actual</label>
+                <select id="etapa" name="etapa" onchange="toggleInvestigacion(this.value)">
+                    <option value="">— Seleccione —</option>
+                    {% for e in etapas %}
+                    <option value="{{ e }}" {% if exp.etapa and e in exp.etapa %}selected{% endif %}>{{ e }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="estado_proceso">Estado del Proceso</label>
+                <select id="estado_proceso" name="estado_proceso">
+                    <option value="">— Seleccione —</option>
+                    {% for es in estados %}
+                    <option value="{{ es }}" {% if exp.estado_proceso == es %}selected{% endif %}>{{ es }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="created_by">Registrado por</label>
+                <input type="text" id="created_by" name="created_by"
+                       value="{{ exp.created_by or '' }}" placeholder="Nombre del funcionario">
+            </div>
+            <div class="field-group field-full">
+                <label for="observaciones_finales">Observaciones Finales</label>
+                <textarea id="observaciones_finales" name="observaciones_finales" rows="4">{{ exp.observaciones_finales or '' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECCIÓN 7: ESCANEOS ────────────────────────────────────────── -->
+    <div class="form-section" id="sec-7">
+        <h2 class="section-title">7. Escaneos y Folios</h2>
+        <div id="escaneos-container">
+            {% if escaneos %}
+                {% for esc in escaneos %}
+                <div class="escaneo-row" data-idx="{{ loop.index0 }}">
+                    <div class="form-grid form-grid-3">
+                        <div class="field-group">
+                            <label>Fecha Escáner</label>
+                            <input type="date" name="escaner_fecha_{{ loop.index0 }}"
+                                   value="{{ esc.fecha_escaner or '' }}">
+                        </div>
+                        <div class="field-group">
+                            <label>Folio</label>
+                            <input type="text" name="escaner_folio_{{ loop.index0 }}"
+                                   value="{{ esc.folio or '' }}">
+                        </div>
+                        <div class="field-group">
+                            <label>Responsable</label>
+                            <input type="text" name="escaner_responsable_{{ loop.index0 }}"
+                                   value="{{ esc.responsable or '' }}">
+                        </div>
+                    </div>
+                    <button type="button" class="btn-remove-row" onclick="quitarEscaneo(this)">✖ Quitar</button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <button type="button" class="btn btn-outline" onclick="agregarEscaneo()">➕ Agregar Escaneo</button>
+    </div>
+
+    <!-- BOTONES GLOBALES -->
+    <div class="form-footer">
+        <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Expediente</button>
+        {% if modos == 'editar' %}
+        <a href="/expediente/{{ exp.id }}" class="btn btn-outline btn-lg">Cancelar</a>
+        <form method="post" action="/expediente/{{ exp.id }}/eliminar" style="display:inline"
+              onsubmit="return confirm('¿Eliminar este expediente? Esta acción no se puede deshacer.')">
+            <button type="submit" class="btn btn-danger btn-lg">🗑 Eliminar</button>
+        </form>
+        {% endif %}
+    </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializar estado de la sección de investigación según etapa actual
+    document.addEventListener('DOMContentLoaded', function() {
+        const etapaVal = document.getElementById('etapa').value;
+        toggleInvestigacion(etapaVal);
+    });
+</script>
+{% endblock %}

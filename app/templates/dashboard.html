@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+
+{% block header_actions %}
+<a href="/expediente/nuevo" class="btn btn-primary">➕ Nuevo Expediente</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── TARJETAS RESUMEN ──────────────────────────────── -->
+<div class="dash-cards">
+    <div class="dash-card dash-card-blue">
+        <div class="dash-card-num">{{ total }}</div>
+        <div class="dash-card-label">Total Expedientes</div>
+        <a href="/" class="dash-card-link">Ver todos →</a>
+    </div>
+    <div class="dash-card dash-card-danger">
+        <div class="dash-card-num">{{ vencidos }}</div>
+        <div class="dash-card-label">Vencidos</div>
+        <a href="/?etapa=INDAGACIÓN" class="dash-card-link">Ver →</a>
+    </div>
+    <div class="dash-card dash-card-warning">
+        <div class="dash-card-num">{{ prox30 }}</div>
+        <div class="dash-card-label">Vencen en 30 días</div>
+        <a href="/exportar-filtrado?proximos_30=1" class="dash-card-link">Exportar →</a>
+    </div>
+    <div class="dash-card dash-card-info">
+        <div class="dash-card-num">{{ prox60 }}</div>
+        <div class="dash-card-label">Vencen en 31–60 días</div>
+        <a href="/exportar-filtrado?proximos_60=1" class="dash-card-link">Exportar →</a>
+    </div>
+</div>
+
+<!-- ── FILA DE ESTADÍSTICAS ─────────────────────────── -->
+<div class="dash-stats-row">
+
+    <!-- Por etapa -->
+    <div class="dash-stat-card card">
+        <h3 class="stat-card-title">Expedientes por Etapa</h3>
+        {% for item in por_etapa %}
+        <div class="bar-item">
+            <span class="bar-label" title="{{ item.etapa }}">
+                {{ item.etapa | truncate(30) }}
+            </span>
+            <div class="bar-track">
+                <div class="bar-fill bar-blue"
+                     style="width: {{ (item.cantidad / total * 100) | int }}%">
+                </div>
+            </div>
+            <span class="bar-count">{{ item.cantidad }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Por estado -->
+    <div class="dash-stat-card card">
+        <h3 class="stat-card-title">Expedientes por Estado</h3>
+        {% for item in por_estado %}
+        <div class="bar-item">
+            <span class="bar-label" title="{{ item.estado }}">
+                {{ item.estado | truncate(28) }}
+            </span>
+            <div class="bar-track">
+                <div class="bar-fill bar-green"
+                     style="width: {{ (item.cantidad / total * 100) | int }}%">
+                </div>
+            </div>
+            <span class="bar-count">{{ item.cantidad }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Por año -->
+    <div class="dash-stat-card card">
+        <h3 class="stat-card-title">Expedientes por Año</h3>
+        {% for item in por_anio %}
+        <div class="bar-item">
+            <span class="bar-label">{{ item.anio }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-purple"
+                     style="width: {{ (item.cantidad / total * 100) | int }}%">
+                </div>
+            </div>
+            <span class="bar-count">{{ item.cantidad }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- ── POR ABOGADO ───────────────────────────────────── -->
+<div class="dash-abogados card">
+    <h3 class="stat-card-title">Carga por Abogado</h3>
+    <div class="abogado-grid">
+        {% for item in por_abogado %}
+        <div class="abogado-card">
+            <div class="abogado-name">{{ item.abogado }}</div>
+            <div class="abogado-num">{{ item.cantidad }}</div>
+            <div class="abogado-bar">
+                <div class="abogado-bar-fill"
+                     style="width: {{ (item.cantidad / por_abogado[0].cantidad * 100) | int }}%">
+                </div>
+            </div>
+            <a href="/?abogado={{ item.abogado | urlencode }}" class="abogado-link">Ver →</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ── PRÓXIMOS A VENCER ─────────────────────────────── -->
+{% if proximos_lista %}
+<div class="card" style="margin-top:16px">
+    <h3 class="stat-card-title">⚠️ Próximos a Vencer / Vencidos (60 días)</h3>
+    <div class="table-wrapper" style="box-shadow:none; border:none">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>N° Exp.</th>
+                    <th>Año</th>
+                    <th>Investigado</th>
+                    <th>Abogado</th>
+                    <th>Etapa</th>
+                    <th>Venc. Indagación</th>
+                    <th>Venc. Investigación</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in proximos_lista %}
+                <tr>
+                    <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
+                    <td>{{ exp.anio }}</td>
+                    <td class="td-texto">{{ exp.investigado or '—' }}</td>
+                    <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
+                    <td><span class="etapa-badge">{{ exp.etapa or '—' }}</span></td>
+                    <td>
+                        {% if exp.fecha_vencimiento_ind %}
+                        <span class="alerta-badge alerta-{{ exp.alerta_ind.clase }}">
+                            {{ exp.fecha_vencimiento_ind }}<br>
+                            <small>{{ exp.alerta_ind.texto }}</small>
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if exp.fecha_vencimiento_inv %}
+                        <span class="alerta-badge alerta-{{ exp.alerta_inv.clase }}">
+                            {{ exp.fecha_vencimiento_inv }}<br>
+                            <small>{{ exp.alerta_inv.texto }}</small>
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <a href="/expediente/{{ exp.id }}" class="btn-sm btn-ver">👁 Ver</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── EXPEDIENTES RECIENTES ─────────────────────────── -->
+<div class="card" style="margin-top:16px">
+    <h3 class="stat-card-title">🕐 Últimos Registrados</h3>
+    <div class="table-wrapper" style="box-shadow:none; border:none">
+        <table class="data-table">
+            <thead>
+                <tr><th>N° Exp.</th><th>Año</th><th>Investigado</th><th>Abogado</th><th>Estado</th><th>Registrado</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for exp in recientes %}
+                <tr>
+                    <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
+                    <td>{{ exp.anio }}</td>
+                    <td class="td-texto">{{ exp.investigado or '—' }}</td>
+                    <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
+                    <td>{{ exp.estado_proceso or '—' }}</td>
+                    <td style="font-size:11px; color:var(--text-muted)">{{ exp.created_at or '—' }}</td>
+                    <td><a href="/expediente/{{ exp.id }}" class="btn-sm btn-ver">👁 Ver</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

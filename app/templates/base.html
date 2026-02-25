@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OCDI{% endblock %} — SDS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">⚖️</div>
+            <div class="brand-text">
+                <span class="brand-title">OCDI</span>
+                <span class="brand-sub">Control Disciplinario</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">PRINCIPAL</div>
+            <a href="/dashboard" class="nav-link {% if active == 'dashboard' %}active{% endif %}">
+                <span class="nav-ico">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/" class="nav-link {% if active == 'lista' %}active{% endif %}">
+                <span class="nav-ico">📋</span>
+                <span>Expedientes</span>
+            </a>
+            <a href="/expediente/nuevo" class="nav-link {% if active == 'nuevo' %}active{% endif %}">
+                <span class="nav-ico">➕</span>
+                <span>Nuevo Expediente</span>
+            </a>
+
+            <div class="nav-section-label">SEGUIMIENTO</div>
+            <a href="/seguimiento" class="nav-link {% if active == 'seguimiento' %}active{% endif %}">
+                <span class="nav-ico">🗓</span>
+                <span>Seguimiento Mensual</span>
+            </a>
+            <a href="/autos" class="nav-link {% if active == 'autos' %}active{% endif %}">
+                <span class="nav-ico">⚖️</span>
+                <span>Control de Autos</span>
+            </a>
+
+            <div class="nav-section-label">REPORTES</div>
+            <a href="/importar" class="nav-link {% if active == 'importar' %}active{% endif %}">
+                <span class="nav-ico">📥</span>
+                <span>Importar Excel</span>
+            </a>
+            <a href="/exportar" class="nav-link {% if active == 'exportar_total' %}active{% endif %}">
+                <span class="nav-ico">📊</span>
+                <span>Exportar Reporte Total</span>
+            </a>
+            <a href="/exportar-filtrado" class="nav-link {% if active == 'exportar' %}active{% endif %}">
+                <span class="nav-ico">📤</span>
+                <span>Exportar Reporte Personalizado</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>SDS · OCDI v1.0</span>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main">
+        <div class="page-header">
+            <h1 class="page-title">{% block heading %}{% endblock %}</h1>
+            <div class="page-actions">{% block header_actions %}{% endblock %}</div>
+        </div>
+
+        {% if msg %}
+        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+            {% if msg == 'creado' %}✅ Expediente creado correctamente.
+            {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
+            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
+            {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
+            {% else %}{{ msg }}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="page-body">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+</div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

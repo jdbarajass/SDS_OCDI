@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Exportar Reporte{% endblock %}
+{% block heading %}Exportar Reporte Personalizado{% endblock %}
+
+{% block content %}
+<form method="get" action="/exportar-filtrado/descargar" id="form-export">
+
+<div class="export-layout">
+
+    <!-- ── PANEL IZQUIERDO: FILTROS ──────────────────────── -->
+    <div class="export-panel card">
+        <h3 class="panel-title">🔍 Filtros de datos</h3>
+        <p class="panel-desc">Solo se exportarán los expedientes que cumplan <strong>todos</strong> los filtros seleccionados.</p>
+
+        <div class="filter-section">
+            <label class="filter-label">Año(s)</label>
+            <div class="check-group">
+                {% for a in anios %}
+                <label class="check-item">
+                    <input type="checkbox" name="anios" value="{{ a }}"
+                           {% if a|string in filtros.anios %}checked{% endif %}>
+                    {{ a }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label class="filter-label">Abogado(s)</label>
+            <div class="check-group check-group-cols">
+                {% for ab in abogados %}
+                <label class="check-item">
+                    <input type="checkbox" name="abogados" value="{{ ab }}"
+                           {% if ab in filtros.abogados %}checked{% endif %}>
+                    {{ ab }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label class="filter-label">Etapa(s)</label>
+            <div class="check-group">
+                {% for e in etapas %}
+                <label class="check-item">
+                    <input type="checkbox" name="etapas" value="{{ e }}"
+                           {% if e in filtros.etapas %}checked{% endif %}>
+                    {{ e }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label class="filter-label">Estado del proceso</label>
+            <div class="check-group">
+                {% for es in estados %}
+                <label class="check-item">
+                    <input type="checkbox" name="estados" value="{{ es }}"
+                           {% if es in filtros.estados %}checked{% endif %}>
+                    {{ es }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label class="filter-label">Fecha Radicado</label>
+            <div class="form-grid form-grid-2">
+                <div class="field-group">
+                    <label>Desde</label>
+                    <input type="date" name="fecha_desde" value="{{ filtros.fecha_desde }}">
+                </div>
+                <div class="field-group">
+                    <label>Hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label class="filter-label">Alertas de vencimiento</label>
+            <div class="check-group">
+                <label class="check-item">
+                    <input type="checkbox" name="solo_vencidos" value="1"
+                           {% if filtros.solo_vencidos %}checked{% endif %}>
+                    Solo vencidos
+                </label>
+                <label class="check-item">
+                    <input type="checkbox" name="proximos_30" value="1"
+                           {% if filtros.proximos_30 %}checked{% endif %}>
+                    Próximos a vencer (30 días)
+                </label>
+                <label class="check-item">
+                    <input type="checkbox" name="proximos_60" value="1"
+                           {% if filtros.proximos_60 %}checked{% endif %}>
+                    Próximos a vencer (60 días)
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── PANEL DERECHO: COLUMNAS ───────────────────────── -->
+    <div class="export-panel card">
+        <h3 class="panel-title">📊 Bloques a incluir</h3>
+        <p class="panel-desc">Seleccione qué secciones quiere en el reporte.</p>
+
+        <div class="bloque-check">
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="identificacion" checked disabled>
+                <span class="bloque-icon">📋</span>
+                <div>
+                    <strong>Bloque 1 — Identificación</strong>
+                    <small>N° Expediente, año, mes, origen, radicado, plataformas</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="partes"
+                       {% if 'partes' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">👤</span>
+                <div>
+                    <strong>Bloque 2 — Partes</strong>
+                    <small>Abogado, investigado, perfil, entidad, quejoso</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="asunto"
+                       {% if 'asunto' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">📝</span>
+                <div>
+                    <strong>Bloque 3 — Asunto y Tipología</strong>
+                    <small>Asunto, tipología, siniestro, acoso, corrupción</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="indagacion"
+                       {% if 'indagacion' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">🔍</span>
+                <div>
+                    <strong>Bloque 4 — Indagación Previa</strong>
+                    <small>Autos, fechas, plazos y vencimiento de indagación</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="investigacion"
+                       {% if 'investigacion' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">⚖️</span>
+                <div>
+                    <strong>Bloque 5 — Investigación Disciplinaria</strong>
+                    <small>Autos, fechas, plazos y vencimiento de investigación</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="cierre"
+                       {% if 'cierre' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">🏁</span>
+                <div>
+                    <strong>Bloque 6 — Cierre</strong>
+                    <small>Etapa, estado del proceso, observaciones</small>
+                </div>
+            </label>
+            <label class="bloque-item">
+                <input type="checkbox" name="bloques" value="escaneos"
+                       {% if 'escaneos' not in filtros.bloques_off %}checked{% endif %}>
+                <span class="bloque-icon">📄</span>
+                <div>
+                    <strong>Bloque 7 — Escaneos / Folios</strong>
+                    <small>Se agrega como hoja separada en el Excel</small>
+                </div>
+            </label>
+        </div>
+
+        <!-- VISTA PREVIA -->
+        <div class="preview-box">
+            <h4>📈 Vista previa</h4>
+            <p id="preview-count">
+                Se exportarán <strong>{{ total_preview }}</strong> expediente(s)
+                con los filtros actuales.
+            </p>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="export-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                📥 Descargar Excel
+            </button>
+            <a href="/exportar-filtrado" class="btn btn-outline">
+                ✖ Limpiar filtros
+            </a>
+        </div>
+    </div>
+
+</div>
+</form>
+{% endblock %}

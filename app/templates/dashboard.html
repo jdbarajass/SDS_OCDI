@@ -8,6 +8,26 @@
 
 {% block content %}
 
+<!-- MODAL EXPORTAR -->
+<div id="modal-export" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Exportar expedientes</h3>
+      <button class="modal-close" onclick="cerrarModal()">&times;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px" id="modal-desc"></p>
+    <div class="modal-actions">
+      <a id="btn-solo"  href="#" class="btn btn-primary">📥 Solo los filtrados</a>
+      <a id="btn-todos" href="#" class="btn btn-outline">📊 Todo + indicador de filtro</a>
+      <a id="btn-ver"   href="#" class="btn btn-outline">🔍 Ver en lista</a>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:12px">
+      <strong>Solo filtrados:</strong> descarga únicamente los expedientes del filtro.<br>
+      <strong>Todo + indicador:</strong> descarga todos con columna EN&nbsp;FILTRO (SI/NO); use AutoFiltro de Excel para ver solo los del filtro o quitarlo para ver todo.
+    </p>
+  </div>
+</div>
+
 <!-- ── TARJETAS RESUMEN ──────────────────────────────── -->
 <div class="dash-cards">
     <div class="dash-card dash-card-blue">
@@ -18,17 +38,17 @@
     <div class="dash-card dash-card-danger">
         <div class="dash-card-num">{{ vencidos }}</div>
         <div class="dash-card-label">Vencidos</div>
-        <a href="/?etapa=INDAGACIÓN" class="dash-card-link">Ver →</a>
+        <a href="#" onclick="abrirModal('vencidos',{{ vencidos }},'solo_vencidos=1');return false" class="dash-card-link">Exportar →</a>
     </div>
     <div class="dash-card dash-card-warning">
         <div class="dash-card-num">{{ prox30 }}</div>
         <div class="dash-card-label">Vencen en 30 días</div>
-        <a href="/exportar-filtrado?proximos_30=1" class="dash-card-link">Exportar →</a>
+        <a href="#" onclick="abrirModal('prox30',{{ prox30 }},'proximos_30=1');return false" class="dash-card-link">Exportar →</a>
     </div>
     <div class="dash-card dash-card-info">
         <div class="dash-card-num">{{ prox60 }}</div>
         <div class="dash-card-label">Vencen en 31–60 días</div>
-        <a href="/exportar-filtrado?proximos_60=1" class="dash-card-link">Exportar →</a>
+        <a href="#" onclick="abrirModal('prox60',{{ prox60 }},'proximos_60=1');return false" class="dash-card-link">Exportar →</a>
     </div>
 </div>
 
@@ -40,13 +60,9 @@
         <h3 class="stat-card-title">Expedientes por Etapa</h3>
         {% for item in por_etapa %}
         <div class="bar-item">
-            <span class="bar-label" title="{{ item.etapa }}">
-                {{ item.etapa | truncate(30) }}
-            </span>
+            <span class="bar-label" title="{{ item.etapa }}">{{ item.etapa | truncate(30) }}</span>
             <div class="bar-track">
-                <div class="bar-fill bar-blue"
-                     style="width: {{ (item.cantidad / total * 100) | int }}%">
-                </div>
+                <div class="bar-fill bar-blue" style="width: {{ (item.cantidad / total * 100) | int }}%"></div>
             </div>
             <span class="bar-count">{{ item.cantidad }}</span>
         </div>
@@ -58,13 +74,9 @@
         <h3 class="stat-card-title">Expedientes por Estado</h3>
         {% for item in por_estado %}
         <div class="bar-item">
-            <span class="bar-label" title="{{ item.estado }}">
-                {{ item.estado | truncate(28) }}
-            </span>
+            <span class="bar-label" title="{{ item.estado }}">{{ item.estado | truncate(28) }}</span>
             <div class="bar-track">
-                <div class="bar-fill bar-green"
-                     style="width: {{ (item.cantidad / total * 100) | int }}%">
-                </div>
+                <div class="bar-fill bar-green" style="width: {{ (item.cantidad / total * 100) | int }}%"></div>
             </div>
             <span class="bar-count">{{ item.cantidad }}</span>
         </div>
@@ -78,9 +90,7 @@
         <div class="bar-item">
             <span class="bar-label">{{ item.anio }}</span>
             <div class="bar-track">
-                <div class="bar-fill bar-purple"
-                     style="width: {{ (item.cantidad / total * 100) | int }}%">
-                </div>
+                <div class="bar-fill bar-purple" style="width: {{ (item.cantidad / total * 100) | int }}%"></div>
             </div>
             <span class="bar-count">{{ item.cantidad }}</span>
         </div>
@@ -88,6 +98,68 @@
     </div>
 
 </div>
+
+<!-- ── ORIGEN Y TIPOLOGÍA ────────────────────────────── -->
+<div class="dash-stats-row" style="margin-bottom:16px">
+
+    <!-- Por origen -->
+    <div class="dash-stat-card card">
+        <h3 class="stat-card-title">Por Origen del Proceso</h3>
+        {% if por_origen %}
+        {% set max_origen = por_origen[0].cantidad %}
+        {% for item in por_origen %}
+        <div class="bar-item">
+            <span class="bar-label" title="{{ item.origen }}">{{ item.origen | truncate(28) }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-orange" style="width: {{ (item.cantidad / max_origen * 100) | int }}%"></div>
+            </div>
+            <span class="bar-count">{{ item.cantidad }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:var(--text-muted);font-size:12px">Sin datos de origen registrados</p>
+        {% endif %}
+    </div>
+
+    <!-- Por tipología -->
+    <div class="dash-stat-card card">
+        <h3 class="stat-card-title">Top Tipologías</h3>
+        {% if por_tipologia %}
+        {% set max_tip = por_tipologia[0].cantidad %}
+        {% for item in por_tipologia %}
+        <div class="bar-item">
+            <span class="bar-label" title="{{ item.tipologia }}">{{ item.tipologia | truncate(28) }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-teal" style="width: {{ (item.cantidad / max_tip * 100) | int }}%"></div>
+            </div>
+            <span class="bar-count">{{ item.cantidad }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:var(--text-muted);font-size:12px">Sin datos de tipología registrados</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ── TENDENCIA MENSUAL ───────────────────────────── -->
+{% if tendencia %}
+<div class="card" style="margin-bottom:16px">
+    <h3 class="stat-card-title">Tendencia Mensual de Ingreso</h3>
+    <div class="tendencia-chart">
+        {% for t in tendencia %}
+        <div class="tend-col">
+            <div class="tend-bar-wrap">
+                <div class="tend-bar" style="height: {{ (t.cantidad / tendencia_max * 100) | int }}%"
+                     title="{{ t.etiqueta }}: {{ t.cantidad }}"></div>
+            </div>
+            <div class="tend-label">{{ t.etiqueta }}</div>
+            <div class="tend-num">{{ t.cantidad }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <!-- ── POR ABOGADO ───────────────────────────────────── -->
 <div class="dash-abogados card">
@@ -99,8 +171,7 @@
             <div class="abogado-num">{{ item.cantidad }}</div>
             <div class="abogado-bar">
                 <div class="abogado-bar-fill"
-                     style="width: {{ (item.cantidad / por_abogado[0].cantidad * 100) | int }}%">
-                </div>
+                     style="width: {{ (item.cantidad / por_abogado[0].cantidad * 100) | int }}%"></div>
             </div>
             <a href="/?abogado={{ item.abogado | urlencode }}" class="abogado-link">Ver →</a>
         </div>
@@ -185,5 +256,23 @@
         </table>
     </div>
 </div>
+
+<script>
+function abrirModal(tipo, cantidad, filtroParam) {
+    var titulos = { vencidos:'Expedientes Vencidos', prox30:'Vencen en 30 días', prox60:'Vencen en 31–60 días' };
+    document.getElementById('modal-titulo').textContent = titulos[tipo] || 'Exportar';
+    document.getElementById('modal-desc').textContent = cantidad + ' expedientes con este filtro.';
+    var base = '/exportar-filtrado/descargar?' + filtroParam;
+    document.getElementById('btn-solo').href  = base;
+    document.getElementById('btn-todos').href = base + '&incluir_todos=1';
+    var alertaMap = { vencidos:'vencido', prox30:'proximo30', prox60:'proximo60' };
+    document.getElementById('btn-ver').href   = '/?alerta=' + (alertaMap[tipo] || '');
+    document.getElementById('modal-export').style.display = 'flex';
+}
+function cerrarModal() {
+    document.getElementById('modal-export').style.display = 'none';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') cerrarModal(); });
+</script>
 
 {% endblock %}

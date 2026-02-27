@@ -11,10 +11,11 @@
 
 <!-- FILTROS -->
 <form method="get" action="/" class="filtros-card">
+    <!-- Fila 1: búsqueda + campos base -->
     <div class="filtros-grid">
-        <div class="field-group">
-            <label>Buscar</label>
-            <input type="text" name="q" value="{{ q }}" placeholder="N° expediente, investigado, asunto…">
+        <div class="field-group" style="flex:2;min-width:220px">
+            <label>Buscar (N° exp., investigado, asunto, radicado, quejoso)</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Escriba para buscar…">
         </div>
         <div class="field-group">
             <label>Año</label>
@@ -43,27 +44,76 @@
                 {% endfor %}
             </select>
         </div>
+    </div>
+    <!-- Fila 2: filtros adicionales -->
+    <div class="filtros-grid" style="margin-top:8px">
+        <div class="field-group">
+            <label>Origen del proceso</label>
+            <select name="origen">
+                <option value="">Todos</option>
+                {% for o in origenes %}
+                <option value="{{ o }}" {% if origen_filtro == o %}selected{% endif %}>{{ o }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Alerta vencimiento</label>
+            <select name="alerta">
+                <option value="" {% if alerta_filtro == '' %}selected{% endif %}>Todos</option>
+                <option value="vencido"   {% if alerta_filtro == 'vencido' %}selected{% endif %}>🔴 Vencidos</option>
+                <option value="proximo30" {% if alerta_filtro == 'proximo30' %}selected{% endif %}>🟡 Vencen en 30 días</option>
+                <option value="proximo60" {% if alerta_filtro == 'proximo60' %}selected{% endif %}>🔵 Vencen en 31–60 días</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Radicado desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+        </div>
+        <div class="field-group">
+            <label>Radicado hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+        </div>
+        <div class="field-group">
+            <label>Mostrar</label>
+            <select name="por_pagina" onchange="this.form.submit()">
+                <option value="25"  {% if por_pagina == 25 %}selected{% endif %}>25 por página</option>
+                <option value="50"  {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                <option value="0"   {% if por_pagina == 0 %}selected{% endif %}>Todos</option>
+            </select>
+        </div>
+        <input type="hidden" name="orden" value="{{ orden }}">
+        <input type="hidden" name="dir_orden" value="{{ dir_orden }}">
         <div class="filtros-actions">
             <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
             <a href="/" class="btn btn-outline">✖ Limpiar</a>
+            {% if total > 0 %}
+            <a href="/exportar-filtrado?{% if q %}q={{ q }}&{% endif %}{% if anio_filtro %}anio={{ anio_filtro }}&{% endif %}{% if etapa_filtro %}etapa={{ etapa_filtro }}&{% endif %}{% if abogado_filtro %}abogado={{ abogado_filtro }}&{% endif %}{% if origen_filtro %}origen={{ origen_filtro }}&{% endif %}{% if alerta_filtro == 'vencido' %}solo_vencidos=1{% elif alerta_filtro == 'proximo30' %}proximos_30=1{% elif alerta_filtro == 'proximo60' %}proximos_60=1{% endif %}" class="btn btn-outline">📥 Exportar filtro</a>
+            {% endif %}
         </div>
     </div>
 </form>
 
 <!-- TABLA -->
 {% if expedientes %}
+
+{# Macro para construir URL de orden manteniendo otros filtros #}
+{% macro url_orden(col) %}/?q={{ q }}&anio={{ anio_filtro }}&etapa={{ etapa_filtro }}&abogado={{ abogado_filtro }}&origen={{ origen_filtro }}&alerta={{ alerta_filtro }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&por_pagina={{ por_pagina }}&orden={{ col }}&dir_orden={% if orden == col and dir_orden == 'asc' %}desc{% else %}asc{% endif %}&page=1{% endmacro %}
+
+{% macro flecha(col) %}{% if orden == col %}{% if dir_orden == 'asc' %} ↑{% else %} ↓{% endif %}{% else %} ⇅{% endif %}{% endmacro %}
+
 <div class="table-wrapper">
     <table class="data-table">
         <thead>
             <tr>
-                <th>N° Exp.</th>
-                <th>Año</th>
-                <th>Investigado</th>
-                <th>Abogado</th>
-                <th>Etapa</th>
-                <th>Estado</th>
-                <th>Vencimiento Ind.</th>
-                <th>Vencimiento Inv.</th>
+                <th><a href="{{ url_orden('exp') }}" class="sort-link">N° Exp.{{ flecha('exp') }}</a></th>
+                <th><a href="{{ url_orden('anio') }}" class="sort-link">Año{{ flecha('anio') }}</a></th>
+                <th><a href="{{ url_orden('investigado') }}" class="sort-link">Investigado{{ flecha('investigado') }}</a></th>
+                <th><a href="{{ url_orden('abogado') }}" class="sort-link">Abogado{{ flecha('abogado') }}</a></th>
+                <th><a href="{{ url_orden('etapa') }}" class="sort-link">Etapa{{ flecha('etapa') }}</a></th>
+                <th><a href="{{ url_orden('estado') }}" class="sort-link">Estado{{ flecha('estado') }}</a></th>
+                <th><a href="{{ url_orden('venc_ind') }}" class="sort-link">Venc. Ind.{{ flecha('venc_ind') }}</a></th>
+                <th><a href="{{ url_orden('venc_inv') }}" class="sort-link">Venc. Inv.{{ flecha('venc_inv') }}</a></th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -107,11 +157,48 @@
         </tbody>
     </table>
 </div>
+
+<!-- PAGINACIÓN -->
+{% if por_pagina > 0 and total_paginas > 1 %}
+{# URL base sin page ni dir_orden para reusar #}
+{% set url_base %}/?q={{ q }}&anio={{ anio_filtro }}&etapa={{ etapa_filtro }}&abogado={{ abogado_filtro }}&origen={{ origen_filtro }}&alerta={{ alerta_filtro }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&por_pagina={{ por_pagina }}&orden={{ orden }}&dir_orden={{ dir_orden }}{% endset %}
+<div class="pagination">
+    <span class="pag-info">
+        Mostrando {{ ((page-1)*por_pagina)+1 }}–{{ [page*por_pagina, total]|min }} de {{ total }}
+    </span>
+    <div class="pag-btns">
+        {% if page > 1 %}
+        <a href="{{ url_base }}&page=1" class="pag-btn">«</a>
+        <a href="{{ url_base }}&page={{ page - 1 }}" class="pag-btn">‹ Anterior</a>
+        {% else %}
+        <span class="pag-btn disabled">«</span>
+        <span class="pag-btn disabled">‹ Anterior</span>
+        {% endif %}
+
+        {% for p in range([1, page-2]|max, [total_paginas+1, page+3]|min) %}
+        <a href="{{ url_base }}&page={{ p }}" class="pag-btn {% if p == page %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+
+        {% if page < total_paginas %}
+        <a href="{{ url_base }}&page={{ page + 1 }}" class="pag-btn">Siguiente ›</a>
+        <a href="{{ url_base }}&page={{ total_paginas }}" class="pag-btn">»</a>
+        {% else %}
+        <span class="pag-btn disabled">Siguiente ›</span>
+        <span class="pag-btn disabled">»</span>
+        {% endif %}
+    </div>
+</div>
+{% elif por_pagina == 0 %}
+<div class="pagination">
+    <span class="pag-info">Mostrando todos: {{ total }} expedientes</span>
+</div>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">📂</div>
     <h3>No hay expedientes</h3>
-    {% if q or anio_filtro or etapa_filtro or abogado_filtro %}
+    {% if q or anio_filtro or etapa_filtro or abogado_filtro or origen_filtro or alerta_filtro %}
     <p>No se encontraron resultados con los filtros aplicados.</p>
     <a href="/" class="btn btn-outline">Ver todos</a>
     {% else %}

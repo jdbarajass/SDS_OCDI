@@ -651,3 +651,96 @@ textarea { resize: vertical; }
 .autos-total-cell{ text-align: center; padding: 8px 12px; background: var(--primary-bg); }
 .autos-total-row td { background: var(--primary-dark) !important; color: #fff; padding: 8px 4px; text-align: center; }
 .autos-total-row td:first-child { text-align: left; padding-left: 12px; }
+
+/* ── ORDENAMIENTO (sort links en encabezados) ─────── */
+.sort-link {
+    color: #fff;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.sort-link:hover { color: #cce0ff; text-decoration: none; }
+
+/* ── PAGINACIÓN ───────────────────────────────────── */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 4px;
+}
+.pag-info { font-size: 12.5px; color: var(--text-muted); }
+.pag-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+.pag-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--primary);
+    background: #fff;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.pag-btn:hover { background: var(--primary-bg); text-decoration: none; }
+.pag-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+.pag-btn.disabled { color: var(--border); cursor: default; pointer-events: none; }
+
+/* ── NUEVAS BARRAS DE COLOR ───────────────────────── */
+.bar-orange { background: #E67E22; }
+.bar-teal   { background: #16A085; }
+
+/* ── TENDENCIA MENSUAL ────────────────────────────── */
+.tendencia-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    min-height: 120px;
+}
+.tend-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    width: 52px;
+}
+.tend-bar-wrap {
+    width: 100%;
+    height: 90px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+.tend-bar {
+    width: 32px;
+    min-height: 4px;
+    background: var(--primary-light);
+    border-radius: 3px 3px 0 0;
+    transition: opacity 0.15s;
+    cursor: default;
+}
+.tend-bar:hover { opacity: 0.75; }
+.tend-label {
+    font-size: 9.5px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-all;
+}
+.tend-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}

@@ -47,7 +47,7 @@ def _enriquecer(exp: dict) -> dict:
     return exp
 
 
-# ── Listado ────────────────────────────────────────────────────────────────────
+# ── Listado ────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
 async def lista_expedientes(
@@ -56,16 +56,32 @@ async def lista_expedientes(
     anio: str = "",
     etapa: str = "",
     abogado: str = "",
+    origen: str = "",
+    alerta: str = "",
+    fecha_desde: str = "",
+    fecha_hasta: str = "",
+    orden: str = "anio",
+    dir_orden: str = "desc",
+    page: int = 1,
+    por_pagina: int = 50,
     msg: str = "",
 ):
     conn = get_db()
-
-    # Construcción dinámica de filtros
     filtros = []
     params = []
     if q:
-        filtros.append("(n_expediente LIKE ? OR investigado LIKE ? OR asunto LIKE ?)")
-        params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+        if q.strip().lstrip("0").isdigit() and q.strip().isdigit():
+            # búsqueda numérica: también comparar por valor entero para encontrar "46" con query "046"
+            q_int = int(q.strip())
+            filtros.append("""(
+                n_expediente LIKE ? OR CAST(n_expediente AS INTEGER) = ?
+                OR investigado LIKE ? OR asunto LIKE ?
+                OR n_radicado LIKE ? OR quejoso LIKE ?
+            )""")
+            params += [f"%{q}%", q_int, f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
+        else:
+            filtros.append("(n_expediente LIKE ? OR investigado LIKE ? OR asunto LIKE ? OR n_radicado LIKE ? OR quejoso LIKE ?)")
+            params += [f"%{q}%"] * 5
     if anio:
         filtros.append("anio = ?")
         params.append(int(anio))
@@ -75,34 +91,72 @@ async def lista_expedientes(
     if abogado:
         filtros.append("nombre_abogado LIKE ?")
         params.append(f"%{abogado}%")
+    if origen:
+        filtros.append("origen_proceso LIKE ?")
+        params.append(f"%{origen}%")
+    if fecha_desde:
+        filtros.append("fecha_radicado >= ?")
+        params.append(fecha_desde)
+    if fecha_hasta:
+        filtros.append("fecha_radicado <= ?")
+        params.append(fecha_hasta)
+    if alerta == "vencido":
+        # date() retorna NULL para valores no-fecha como "#VALUE!", evitando falsos positivos
+        filtros.append("""(
+            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) < date('now'))
+            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) < date('now'))
+        )""")
+    elif alerta == "proximo30":
+        filtros.append("""(
+            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) BETWEEN date('now') AND date('now','+30 days'))
+            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) BETWEEN date('now') AND date('now','+30 days'))
+        )""")
+    elif alerta == "proximo60":
+        filtros.append("""(
+            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) BETWEEN date('now') AND date('now','+60 days'))
+            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) BETWEEN date('now') AND date('now','+60 days'))
+        )""")
 
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
+    COLS = {"exp":"CAST(n_expediente AS INTEGER)","anio":"anio","investigado":"investigado",
+            "abogado":"nombre_abogado","venc_ind":"fecha_vencimiento_ind",
+            "venc_inv":"fecha_vencimiento_inv","etapa":"etapa","estado":"estado_proceso"}
+    sort_col = COLS.get(orden, "anio")
+    sort_dir = "ASC" if dir_orden == "asc" else "DESC"
+
     rows = conn.execute(
-        f"SELECT * FROM expedientes {where} ORDER BY anio DESC, n_expediente DESC",
+        f"SELECT * FROM expedientes {where} ORDER BY {sort_col} {sort_dir}, id DESC",
         params,
     ).fetchall()
 
     abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado"
-    ).fetchall()]
+        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado").fetchall()]
     anios = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
-    ).fetchall()]
-
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC").fetchall()]
+    origenes = [r[0] for r in conn.execute(
+        "SELECT DISTINCT origen_proceso FROM expedientes WHERE origen_proceso IS NOT NULL ORDER BY origen_proceso").fetchall()]
     conn.close()
 
-    expedientes = [_enriquecer(row_to_dict(r)) for r in rows]
+    total_filtrado = len(rows)
+    if por_pagina <= 0:
+        expedientes = [_enriquecer(row_to_dict(r)) for r in rows]
+        total_paginas = 1
+        page = 1
+    else:
+        total_paginas = max(1, (total_filtrado + por_pagina - 1) // por_pagina)
+        page = max(1, min(page, total_paginas))
+        offset = (page - 1) * por_pagina
+        expedientes = [_enriquecer(row_to_dict(r)) for r in rows[offset:offset + por_pagina]]
 
     return templates.TemplateResponse("lista.html", {
-        "request": request,
-        "expedientes": expedientes,
-        "total": len(expedientes),
+        "request": request, "expedientes": expedientes, "total": total_filtrado,
         "q": q, "anio_filtro": anio, "etapa_filtro": etapa, "abogado_filtro": abogado,
-        "abogados": abogados,
-        "anios": anios,
-        "etapas": ETAPAS,
-        "msg": msg,
-        "active": "lista",
+        "origen_filtro": origen, "alerta_filtro": alerta,
+        "fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta,
+        "orden": orden, "dir_orden": dir_orden,
+        "abogados": abogados, "anios": anios, "origenes": origenes, "etapas": ETAPAS,
+        "page": page, "total_paginas": total_paginas, "por_pagina": por_pagina,
+        "msg": msg, "active": "lista",
     })
 
 
@@ -480,35 +534,28 @@ async def eliminar_expediente(exp_id: int):
 async def exportar_filtrado_form(request: Request):
     conn = get_db()
     anios = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
-    ).fetchall()]
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC").fetchall()]
     abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado"
-    ).fetchall()]
-    # Cargar valores reales desde BD para que los filtros coincidan exactamente
+        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado").fetchall()]
     etapas_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT etapa FROM expedientes WHERE etapa IS NOT NULL ORDER BY etapa"
-    ).fetchall()]
+        "SELECT DISTINCT etapa FROM expedientes WHERE etapa IS NOT NULL ORDER BY etapa").fetchall()]
     estados_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT estado_proceso FROM expedientes WHERE estado_proceso IS NOT NULL ORDER BY estado_proceso"
-    ).fetchall()]
+        "SELECT DISTINCT estado_proceso FROM expedientes WHERE estado_proceso IS NOT NULL ORDER BY estado_proceso").fetchall()]
     total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     conn.close()
-
+    qp = request.query_params
+    filtros_pre = {
+        "anios": [], "abogados": [], "etapas": [], "estados": [],
+        "fecha_desde": "", "fecha_hasta": "",
+        "solo_vencidos": qp.get("solo_vencidos") == "1",
+        "proximos_30":   qp.get("proximos_30") == "1",
+        "proximos_60":   qp.get("proximos_60") == "1",
+        "bloques_off": [],
+    }
     return templates.TemplateResponse("exportar_filtrado.html", {
-        "request": request,
-        "active": "exportar",
-        "anios": anios,
-        "abogados": abogados,
-        "etapas": etapas_bd,
-        "estados": estados_bd,
-        "total_preview": total,
-        "filtros": {
-            "anios": [], "abogados": [], "etapas": [], "estados": [],
-            "fecha_desde": "", "fecha_hasta": "",
-            "solo_vencidos": False, "proximos_30": False, "proximos_60": False,
-            "bloques_off": [],
-        },
+        "request": request, "active": "exportar",
+        "anios": anios, "abogados": abogados, "etapas": etapas_bd, "estados": estados_bd,
+        "total_preview": total, "filtros": filtros_pre,
     })
 
 
@@ -538,6 +585,7 @@ async def exportar_filtrado_descargar(request: Request):
     solo_vencidos = params.get("solo_vencidos") == "1"
     proximos_30   = params.get("proximos_30") == "1"
     proximos_60   = params.get("proximos_60") == "1"
+    incluir_todos = params.get("incluir_todos") == "1"
 
     # Bloques por defecto: todos si no se seleccionó ninguno
     todos_bloques = ["identificacion", "partes", "asunto", "indagacion", "investigacion", "cierre", "escaneos"]
@@ -586,13 +634,28 @@ async def exportar_filtrado_descargar(request: Request):
     where = ("WHERE " + " AND ".join(filtros_sql)) if filtros_sql else ""
 
     conn = get_db()
-    rows = conn.execute(
+    rows_filtradas = conn.execute(
         f"SELECT * FROM expedientes {where} ORDER BY anio DESC, n_expediente DESC",
         params_sql,
     ).fetchall()
 
+    if incluir_todos:
+        ids_filtrados = {row_to_dict(r)["id"] for r in rows_filtradas}
+        all_rows = conn.execute(
+            "SELECT * FROM expedientes ORDER BY anio DESC, n_expediente DESC"
+        ).fetchall()
+        rows_con_flag = (
+            [(r, "SI") for r in all_rows if row_to_dict(r)["id"] in ids_filtrados] +
+            [(r, "NO") for r in all_rows if row_to_dict(r)["id"] not in ids_filtrados]
+        )
+    else:
+        all_rows = rows_filtradas
+        rows_con_flag = [(r, "SI") for r in rows_filtradas]
+
+    rows = rows_filtradas  # referencia para resumen y escaneos
+
     # Definición de bloques y sus columnas
-    col_defs = []
+    col_defs = [("EN FILTRO", "__en_filtro__")] if incluir_todos else []
     if "identificacion" in bloques_sel:
         col_defs += [
             ("N° EXPEDIENTE",    "n_expediente"),
@@ -688,14 +751,23 @@ async def exportar_filtrado_descargar(request: Request):
     vencido_fill  = PatternFill("solid", fgColor="FADADD")
     proximo_fill  = PatternFill("solid", fgColor="FFF9C4")
 
-    for ri, row in enumerate(rows, 2):
+    gray_fill = PatternFill("solid", fgColor="F0F0F0")
+    gray_font = Font(color="AAAAAA")
+
+    for ri, (row, en_filtro) in enumerate(rows_con_flag, 2):
         d = row_to_dict(row)
         alerta_ind = calcular_alerta(d.get("fecha_vencimiento_ind"))
         alerta_inv = calcular_alerta(d.get("fecha_vencimiento_inv"))
-        fila_fill  = alt_fill if ri % 2 == 0 else None
+
+        if en_filtro == "NO":
+            fila_fill = gray_fill
+        else:
+            fila_fill = alt_fill if ri % 2 == 0 else None
 
         for ci, (_, campo) in enumerate(col_defs, 1):
-            if campo == "__alerta_ind__":
+            if campo == "__en_filtro__":
+                valor = en_filtro
+            elif campo == "__alerta_ind__":
                 valor = alerta_ind["texto"]
             elif campo == "__alerta_inv__":
                 valor = alerta_inv["texto"]
@@ -706,14 +778,17 @@ async def exportar_filtrado_descargar(request: Request):
             cell.alignment = Alignment(vertical="center", wrap_text=False)
             if fila_fill:
                 cell.fill = fila_fill
+            if en_filtro == "NO":
+                cell.font = gray_font
 
-        # Colorear fila si hay vencimiento urgente
-        if alerta_ind["clase"] == "vencido" or alerta_inv["clase"] == "vencido":
-            for ci in range(1, len(col_defs) + 1):
-                ws.cell(row=ri, column=ci).fill = vencido_fill
-        elif alerta_ind["clase"] == "proximo" or alerta_inv["clase"] == "proximo":
-            for ci in range(1, len(col_defs) + 1):
-                ws.cell(row=ri, column=ci).fill = proximo_fill
+        # Colorear alertas solo en filas del filtro
+        if en_filtro == "SI":
+            if alerta_ind["clase"] == "vencido" or alerta_inv["clase"] == "vencido":
+                for ci in range(1, len(col_defs) + 1):
+                    ws.cell(row=ri, column=ci).fill = vencido_fill
+            elif alerta_ind["clase"] == "proximo" or alerta_inv["clase"] == "proximo":
+                for ci in range(1, len(col_defs) + 1):
+                    ws.cell(row=ri, column=ci).fill = proximo_fill
 
     # Anchos automáticos
     for col in ws.columns:
@@ -721,11 +796,12 @@ async def exportar_filtrado_descargar(request: Request):
         ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 45)
 
     ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
 
     # Hoja de escaneos (si aplica)
     if "escaneos" in bloques_sel:
         ws_esc = wb.create_sheet("ESCANEOS")
-        ids = [row_to_dict(r)["id"] for r in rows]
+        ids = [row_to_dict(r)["id"] for r in rows_filtradas]
         esc_headers = ["N° EXPEDIENTE", "AÑO", "FECHA ESCÁNER", "FOLIO", "RESPONSABLE"]
         for ci, h in enumerate(esc_headers, 1):
             cell = ws_esc.cell(row=1, column=ci, value=h)
@@ -734,7 +810,7 @@ async def exportar_filtrado_descargar(request: Request):
             cell.alignment = center
 
         ri_esc = 2
-        for exp_row in rows:
+        for exp_row in rows_filtradas:
             d = row_to_dict(exp_row)
             escs = conn.execute(
                 "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (d["id"],)
@@ -752,7 +828,6 @@ async def exportar_filtrado_descargar(request: Request):
     ws_res = wb.create_sheet("RESUMEN")
     ws_res.cell(row=1, column=1, value="REPORTE OCDI — RESUMEN").font = Font(bold=True, size=13)
     ws_res.cell(row=2, column=1, value=f"Generado el: {date.today().strftime('%d/%m/%Y')}")
-    ws_res.cell(row=3, column=1, value=f"Total de expedientes en reporte: {len(rows)}")
     filtros_texto = []
     if anios_f:    filtros_texto.append(f"Años: {', '.join(anios_f)}")
     if abogados_f: filtros_texto.append(f"Abogados: {', '.join(abogados_f)}")
@@ -763,7 +838,14 @@ async def exportar_filtrado_descargar(request: Request):
     if solo_vencidos: filtros_texto.append("Solo vencidos")
     if proximos_30:   filtros_texto.append("Próximos 30 días")
     if proximos_60:   filtros_texto.append("Próximos 60 días")
-    ws_res.cell(row=4, column=1, value="Filtros aplicados: " + (", ".join(filtros_texto) if filtros_texto else "Ninguno"))
+    if incluir_todos:
+        ws_res.cell(row=3, column=1, value=f"Expedientes en filtro (EN FILTRO=SI): {len(rows_filtradas)}")
+        ws_res.cell(row=4, column=1, value=f"Expedientes fuera del filtro (EN FILTRO=NO): {len(all_rows) - len(rows_filtradas)}")
+        ws_res.cell(row=5, column=1, value=f"Total expedientes en archivo: {len(all_rows)}")
+        ws_res.cell(row=6, column=1, value="Filtros aplicados: " + (", ".join(filtros_texto) if filtros_texto else "Ninguno"))
+    else:
+        ws_res.cell(row=3, column=1, value=f"Total de expedientes en reporte: {len(rows_filtradas)}")
+        ws_res.cell(row=4, column=1, value="Filtros aplicados: " + (", ".join(filtros_texto) if filtros_texto else "Ninguno"))
 
     conn.close()
 

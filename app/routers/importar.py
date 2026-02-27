@@ -29,7 +29,7 @@ def _fecha(valor) -> str | None:
             return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
-    return s  # devolver tal cual si no se reconoce el formato
+    return None  # formato no reconocido → descartar (evita guardar "#VALUE!" u otros errores de Excel)
 
 
 def _texto(valor) -> str | None:
@@ -162,8 +162,22 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...)):
         contenido = await archivo.read()
         wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
 
-        # Buscar hoja principal: primero ENCABEZADO, si no la primera hoja
-        hoja_nombre = "ENCABEZADO" if "ENCABEZADO" in wb.sheetnames else wb.sheetnames[0]
+        # Buscar hoja de datos:
+        # 1) Primero "ENCABEZADO" (formato estándar del sistema)
+        # 2) Si no, la primera hoja cuya celda A1 contenga "EXPEDIENTE"
+        # 3) Como último recurso, la primera hoja
+        hoja_nombre = None
+        if "ENCABEZADO" in wb.sheetnames:
+            hoja_nombre = "ENCABEZADO"
+        else:
+            for nombre in wb.sheetnames:
+                primera_celda = wb[nombre].cell(1, 1).value
+                if primera_celda and "EXPEDIENTE" in str(primera_celda).upper():
+                    hoja_nombre = nombre
+                    break
+            if not hoja_nombre:
+                hoja_nombre = wb.sheetnames[0]
+
         ws = wb[hoja_nombre]
         resultado["hoja_usada"] = hoja_nombre
 

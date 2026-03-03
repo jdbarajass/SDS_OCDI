@@ -25,16 +25,39 @@
     Solo sin respuesta
   </label>
 
+  <!-- Filtro de alerta -->
+  <select name="alerta" class="filter-select">
+    <option value="">Todas las alertas</option>
+    <option value="azul"     {% if alerta == 'azul' %}selected{% endif %}>🔵 8–12 días</option>
+    <option value="amarilla" {% if alerta == 'amarilla' %}selected{% endif %}>🟡 13 días</option>
+    <option value="roja"     {% if alerta == 'roja' %}selected{% endif %}>🔴 14+ días</option>
+  </select>
+
   <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
   <a href="/digitales/comunicaciones" class="btn btn-outline">✕ Limpiar</a>
 </form>
 
-<!-- Badge filtro activo -->
-{% if sin_respuesta == '1' %}
-<div style="margin-bottom:12px">
+<!-- Badges de filtros activos -->
+{% if sin_respuesta == '1' or alerta %}
+<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  {% if sin_respuesta == '1' %}
   <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
-    ⚠️ Mostrando solo comunicaciones sin respuesta
+    ⚠️ Solo sin respuesta
   </span>
+  {% endif %}
+  {% if alerta == 'azul' %}
+  <span style="background:#eff6ff;color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
+    🔵 Alerta 8–12 días
+  </span>
+  {% elif alerta == 'amarilla' %}
+  <span style="background:#fffbeb;color:#b45309;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
+    🟡 Alerta 13 días
+  </span>
+  {% elif alerta == 'roja' %}
+  <span style="background:#fff1f2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
+    🔴 Alerta 14+ días
+  </span>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -51,6 +74,7 @@
         <th>Dependencia</th>
         <th>F. Envío</th>
         <th>F. Seguimiento</th>
+        <th style="text-align:center">Días</th>
         <th>Radicado Resp.</th>
         <th>F. Respuesta</th>
         <th>Responsable</th>
@@ -76,23 +100,49 @@
         <td class="td-texto">{{ r.dependencia or '—' }}</td>
         <td style="font-size:11px;white-space:nowrap">{{ r.fecha_envio or '—' }}</td>
         <td style="font-size:11px;white-space:nowrap">{{ r.fecha_seguimiento or '—' }}</td>
+
+        <!-- Columna de días con alerta -->
+        <td style="text-align:center;white-space:nowrap">
+          {% if r.dias_transcurridos is not none and r.dias_transcurridos != None %}
+            {% if r.clase_alerta == 'roja' %}
+            <span style="background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700">
+              🔴 {{ r.dias_transcurridos }}d
+            </span>
+            {% elif r.clase_alerta == 'amarilla' %}
+            <span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700">
+              🟡 {{ r.dias_transcurridos }}d
+            </span>
+            {% elif r.clase_alerta == 'azul' %}
+            <span style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700">
+              🔵 {{ r.dias_transcurridos }}d
+            </span>
+            {% else %}
+            <span style="color:var(--text-muted);font-size:11px">{{ r.dias_transcurridos }}d</span>
+            {% endif %}
+          {% elif r.fecha_respuesta %}
+          <span style="color:#16a34a;font-size:10px">✔</span>
+          {% else %}
+          <span style="color:var(--text-muted);font-size:11px">—</span>
+          {% endif %}
+        </td>
+
         <td style="font-size:11px">{{ r.radicado_respuesta or '—' }}</td>
         <td style="font-size:11px;white-space:nowrap">
           {% if r.fecha_respuesta %}
           <span style="color:#16a34a;font-weight:600">{{ r.fecha_respuesta }}</span>
           {% else %}
-          <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;white-space:nowrap">Sin respuesta</span>
+          <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px">Sin respuesta</span>
           {% endif %}
         </td>
         <td class="td-texto" style="font-size:11px">{{ r.responsable or '—' }}</td>
-        <td class="td-texto" style="font-size:11px;max-width:180px">{{ r.observaciones or '—' }}</td>
+        <td class="td-texto" style="font-size:11px;max-width:160px">{{ r.observaciones or '—' }}</td>
         <td>
           <a href="/digitales/{{ r.exp_id }}" class="btn-sm btn-ver">👁</a>
         </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">
+        <td colspan="13" style="text-align:center;padding:32px;color:var(--text-muted)">
           Sin comunicaciones registradas.
         </td>
       </tr>

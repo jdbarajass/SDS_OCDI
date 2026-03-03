@@ -36,6 +36,14 @@
     {% endfor %}
   </select>
 
+  <!-- Filtro de alerta -->
+  <select name="alerta" class="filter-select">
+    <option value="">Todas las alertas</option>
+    <option value="azul"     {% if alerta == 'azul' %}selected{% endif %}>🔵 8–12 días</option>
+    <option value="amarilla" {% if alerta == 'amarilla' %}selected{% endif %}>🟡 13 días</option>
+    <option value="roja"     {% if alerta == 'roja' %}selected{% endif %}>🔴 14+ días</option>
+  </select>
+
   <!-- Preservar filtros especiales si están activos -->
   {% if sin_respuesta == '1' %}<input type="hidden" name="sin_respuesta" value="1">{% endif %}
   {% if queja == 'si' %}<input type="hidden" name="queja" value="si">{% endif %}
@@ -45,19 +53,38 @@
 </form>
 
 <!-- Badges de filtro activo -->
-{% if sin_respuesta == '1' or queja == 'si' %}
+{% if sin_respuesta == '1' or queja == 'si' or alerta %}
 <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
   {% if sin_respuesta == '1' %}
   <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
     ⚠️ Solo con comunicaciones sin respuesta
-    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&queja={{ queja }}"
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&queja={{ queja }}&alerta={{ alerta }}"
        style="color:#92400e;font-weight:700;text-decoration:none">✕</a>
   </span>
   {% endif %}
   {% if queja == 'si' %}
   <span style="background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
     🔴 Solo con Queja Inicial
-    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}"
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}&alerta={{ alerta }}"
+       style="color:#dc2626;font-weight:700;text-decoration:none">✕</a>
+  </span>
+  {% endif %}
+  {% if alerta == 'azul' %}
+  <span style="background:#eff6ff;color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+    🔵 Alerta 8–12 días
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}&queja={{ queja }}"
+       style="color:#1d4ed8;font-weight:700;text-decoration:none">✕</a>
+  </span>
+  {% elif alerta == 'amarilla' %}
+  <span style="background:#fffbeb;color:#b45309;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+    🟡 Alerta 13 días
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}&queja={{ queja }}"
+       style="color:#b45309;font-weight:700;text-decoration:none">✕</a>
+  </span>
+  {% elif alerta == 'roja' %}
+  <span style="background:#fff1f2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+    🔴 Alerta 14+ días
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}&queja={{ queja }}"
        style="color:#dc2626;font-weight:700;text-decoration:none">✕</a>
   </span>
   {% endif %}
@@ -98,10 +125,19 @@
         <td style="text-align:center">
           {% if r.num_coms %}
           <a href="/digitales/{{ r.id }}"
-             style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">
+             style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none;flex-wrap:wrap;justify-content:center">
             {{ r.num_coms }}
             {% if r.coms_sin_resp %}
             <span style="background:#fee2e2;color:#dc2626;padding:1px 5px;border-radius:10px;font-size:10px">{{ r.coms_sin_resp }} pend.</span>
+            {% endif %}
+            {% if r.max_dias_pendiente is not none %}
+              {% if r.max_dias_pendiente >= 14 %}
+              <span title="{{ r.max_dias_pendiente }}d sin resp." style="font-size:13px;line-height:1">🔴</span>
+              {% elif r.max_dias_pendiente >= 13 %}
+              <span title="{{ r.max_dias_pendiente }}d sin resp." style="font-size:13px;line-height:1">🟡</span>
+              {% elif r.max_dias_pendiente >= 8 %}
+              <span title="{{ r.max_dias_pendiente }}d sin resp." style="font-size:13px;line-height:1">🔵</span>
+              {% endif %}
             {% endif %}
           </a>
           {% else %}
@@ -125,7 +161,7 @@
 <!-- Paginación -->
 {% if total_pages > 1 %}
 <div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-  {% set base_url = '/digitales/?q=' ~ q ~ '&abogado=' ~ abogado ~ '&etapa=' ~ etapa ~ '&anio=' ~ anio ~ '&sin_respuesta=' ~ sin_respuesta ~ '&queja=' ~ queja ~ '&por_pagina=' ~ por_pagina %}
+  {% set base_url = '/digitales/?q=' ~ q ~ '&abogado=' ~ abogado ~ '&etapa=' ~ etapa ~ '&anio=' ~ anio ~ '&sin_respuesta=' ~ sin_respuesta ~ '&queja=' ~ queja ~ '&alerta=' ~ alerta ~ '&por_pagina=' ~ por_pagina %}
   {% if page > 1 %}
   <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
   {% endif %}

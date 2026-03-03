@@ -30,7 +30,6 @@ def _fecha(v) -> str | None:
     s = str(v).strip()
     if s in ("", "nan", "None", "#VALUE!", "#N/A"):
         return None
-    # Accept YYYY-MM-DD or DD/MM/YYYY
     if len(s) == 10 and s[4] == "-":
         return s
     if len(s) == 10 and s[2] == "/":
@@ -58,7 +57,7 @@ async def lista(
     params: list = []
 
     if q.strip():
-        filtros.append("(n_expediente LIKE ? OR investigado LIKE ? OR radicado_auto LIKE ?)")
+        filtros.append("(n_expediente LIKE ? OR abogado LIKE ? OR radicado_auto LIKE ?)")
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
     if abogado.strip():
         filtros.append("abogado = ?")
@@ -202,181 +201,7 @@ async def nuevo_post(
     return RedirectResponse(f"/digitales/{new_id}?msg=creado", status_code=303)
 
 
-# ── Detalle ────────────────────────────────────────────────────────────────────
-
-@router.get("/{exp_id}", response_class=HTMLResponse)
-async def detalle(request: Request, exp_id: int, msg: str = ""):
-    conn = get_db()
-    exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
-    if not exp:
-        conn.close()
-        return RedirectResponse("/digitales/?msg=no_encontrado")
-    comunicaciones = conn.execute(
-        "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
-        (exp_id,)
-    ).fetchall()
-    conn.close()
-    return templates.TemplateResponse("digitales_detalle.html", {
-        "request": request,
-        "active": "digitales_lista",
-        "exp": dict(exp),
-        "comunicaciones": [dict(c) for c in comunicaciones],
-        "msg": msg,
-    })
-
-
-# ── Editar ─────────────────────────────────────────────────────────────────────
-
-@router.get("/{exp_id}/editar", response_class=HTMLResponse)
-async def editar_form(request: Request, exp_id: int):
-    conn = get_db()
-    exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
-    if not exp:
-        conn.close()
-        return RedirectResponse("/digitales/?msg=no_encontrado")
-    comunicaciones = conn.execute(
-        "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
-        (exp_id,)
-    ).fetchall()
-    conn.close()
-    return templates.TemplateResponse("digitales_form.html", {
-        "request": request,
-        "active": "digitales_lista",
-        "exp": dict(exp),
-        "comunicaciones": [dict(c) for c in comunicaciones],
-        "modo": "editar",
-    })
-
-
-@router.post("/{exp_id}/editar")
-async def editar_post(
-    request: Request,
-    exp_id: int,
-    n_expediente: str = Form(""),
-    anio: str = Form(""),
-    abogado: str = Form(""),
-    etapa: str = Form(""),
-    queja_inicial: str = Form("No"),
-    radicado_auto: str = Form(""),
-    nombre_auto: str = Form(""),
-    fecha_auto: str = Form(""),
-):
-    conn = get_db()
-    conn.execute("""
-        UPDATE exp_digitales SET n_expediente=?, anio=?, abogado=?, etapa=?, queja_inicial=?,
-            radicado_auto=?, nombre_auto=?, fecha_auto=?,
-            updated_at=datetime('now','localtime')
-        WHERE id=?
-    """, (
-        _texto(n_expediente), int(anio) if anio.strip() else None,
-        _texto(abogado), _texto(etapa), queja_inicial or "No",
-        _texto(radicado_auto), _texto(nombre_auto), _fecha(fecha_auto),
-        exp_id,
-    ))
-    conn.commit()
-    conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=actualizado", status_code=303)
-
-
-# ── Eliminar expediente ────────────────────────────────────────────────────────
-
-@router.post("/{exp_id}/eliminar")
-async def eliminar(exp_id: int):
-    conn = get_db()
-    row = conn.execute("SELECT n_expediente FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
-    if row:
-        n = row[0] or str(exp_id)
-        conn.execute("DELETE FROM exp_digitales WHERE id = ?", (exp_id,))
-        conn.commit()
-        conn.close()
-        return RedirectResponse(f"/digitales/?msg=eliminado_{n}", status_code=303)
-    conn.close()
-    return RedirectResponse("/digitales/?msg=no_encontrado", status_code=303)
-
-
-# ── Comunicaciones ─────────────────────────────────────────────────────────────
-
-@router.post("/{exp_id}/comunicacion/nueva")
-async def com_nueva(
-    exp_id: int,
-    radicado_comunicacion: str = Form(""),
-    dependencia: str = Form(""),
-    fecha_envio: str = Form(""),
-    fecha_seguimiento: str = Form(""),
-    radicado_respuesta: str = Form(""),
-    fecha_respuesta: str = Form(""),
-    responsable: str = Form(""),
-    observaciones: str = Form(""),
-):
-    conn = get_db()
-    conn.execute("""
-        INSERT INTO exp_comunicaciones
-            (exp_digital_id, radicado_comunicacion, dependencia, fecha_envio,
-             fecha_seguimiento, radicado_respuesta, fecha_respuesta, responsable, observaciones)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        exp_id,
-        _texto(radicado_comunicacion), _texto(dependencia),
-        _fecha(fecha_envio), _fecha(fecha_seguimiento),
-        _texto(radicado_respuesta), _fecha(fecha_respuesta),
-        _texto(responsable), _texto(observaciones),
-    ))
-    conn.commit()
-    conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_creada", status_code=303)
-
-
-@router.post("/comunicacion/{com_id}/editar")
-async def com_editar(
-    com_id: int,
-    radicado_comunicacion: str = Form(""),
-    dependencia: str = Form(""),
-    fecha_envio: str = Form(""),
-    fecha_seguimiento: str = Form(""),
-    radicado_respuesta: str = Form(""),
-    fecha_respuesta: str = Form(""),
-    responsable: str = Form(""),
-    observaciones: str = Form(""),
-):
-    conn = get_db()
-    row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
-    if not row:
-        conn.close()
-        return RedirectResponse("/digitales/", status_code=303)
-    exp_id = row[0]
-    conn.execute("""
-        UPDATE exp_comunicaciones SET
-            radicado_comunicacion=?, dependencia=?, fecha_envio=?,
-            fecha_seguimiento=?, radicado_respuesta=?, fecha_respuesta=?,
-            responsable=?, observaciones=?
-        WHERE id=?
-    """, (
-        _texto(radicado_comunicacion), _texto(dependencia),
-        _fecha(fecha_envio), _fecha(fecha_seguimiento),
-        _texto(radicado_respuesta), _fecha(fecha_respuesta),
-        _texto(responsable), _texto(observaciones),
-        com_id,
-    ))
-    conn.commit()
-    conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_actualizada", status_code=303)
-
-
-@router.post("/comunicacion/{com_id}/eliminar")
-async def com_eliminar(com_id: int):
-    conn = get_db()
-    row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
-    if not row:
-        conn.close()
-        return RedirectResponse("/digitales/", status_code=303)
-    exp_id = row[0]
-    conn.execute("DELETE FROM exp_comunicaciones WHERE id = ?", (com_id,))
-    conn.commit()
-    conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_eliminada", status_code=303)
-
-
-# ── Importar Excel ─────────────────────────────────────────────────────────────
+# ── Importar Excel  ← DEBE IR ANTES QUE /{exp_id} ────────────────────────────
 
 @router.get("/importar", response_class=HTMLResponse)
 async def importar_form(request: Request, msg: str = ""):
@@ -423,7 +248,6 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
             continue
 
         col = list(row)
-        # Asegurar al menos 16 columnas
         while len(col) < 16:
             col.append(None)
 
@@ -438,7 +262,6 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
             except (ValueError, TypeError):
                 anio_int = None
 
-            # Verificar duplicado
             existing = conn.execute(
                 "SELECT id FROM exp_digitales WHERE n_expediente = ? AND anio = ?",
                 (n_exp, anio_int)
@@ -462,7 +285,7 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                 ultimo_exp_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 exp_insertados += 1
 
-            # Si la fila padre también tiene comunicación (col 9 = radicado_com)
+            # Si la fila padre también tiene comunicación
             radicado_com_padre = _texto(col[8])
             if radicado_com_padre and ultimo_exp_id:
                 conn.execute("""
@@ -479,7 +302,7 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                 coms_insertadas += 1
 
         elif radicado_com and ultimo_exp_id:
-            # Fila hija — comunicación del último expediente
+            # Fila hija — comunicación
             conn.execute("""
                 INSERT INTO exp_comunicaciones
                     (exp_digital_id, radicado_comunicacion, dependencia, fecha_envio,
@@ -510,7 +333,7 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
     })
 
 
-# ── Exportar Excel ─────────────────────────────────────────────────────────────
+# ── Exportar Excel  ← DEBE IR ANTES QUE /{exp_id} ────────────────────────────
 
 @router.get("/exportar")
 async def exportar():
@@ -527,7 +350,6 @@ async def exportar():
     ).fetchall()
     conn.close()
 
-    # Agrupar comunicaciones por exp_id
     coms_por_exp: dict[int, list] = {}
     for c in coms:
         eid = c["exp_digital_id"]
@@ -582,7 +404,6 @@ async def exportar():
             for cell in ws[ws.max_row]:
                 cell.fill = sub_fill
 
-    # Anchos de columna
     col_widths = [15, 6, 22, 20, 14, 20, 30, 14, 22, 25, 14, 16, 22, 14, 20, 40]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
@@ -597,3 +418,173 @@ async def exportar():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=exp_digitales_{hoy}.xlsx"},
     )
+
+
+# ── Comunicaciones (rutas sin {exp_id} al inicio) ─────────────────────────────
+
+@router.post("/comunicacion/{com_id}/editar")
+async def com_editar(
+    com_id: int,
+    radicado_comunicacion: str = Form(""),
+    dependencia: str = Form(""),
+    fecha_envio: str = Form(""),
+    fecha_seguimiento: str = Form(""),
+    radicado_respuesta: str = Form(""),
+    fecha_respuesta: str = Form(""),
+    responsable: str = Form(""),
+    observaciones: str = Form(""),
+):
+    conn = get_db()
+    row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
+    if not row:
+        conn.close()
+        return RedirectResponse("/digitales/", status_code=303)
+    exp_id = row[0]
+    conn.execute("""
+        UPDATE exp_comunicaciones SET
+            radicado_comunicacion=?, dependencia=?, fecha_envio=?,
+            fecha_seguimiento=?, radicado_respuesta=?, fecha_respuesta=?,
+            responsable=?, observaciones=?
+        WHERE id=?
+    """, (
+        _texto(radicado_comunicacion), _texto(dependencia),
+        _fecha(fecha_envio), _fecha(fecha_seguimiento),
+        _texto(radicado_respuesta), _fecha(fecha_respuesta),
+        _texto(responsable), _texto(observaciones),
+        com_id,
+    ))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/digitales/{exp_id}?msg=com_actualizada", status_code=303)
+
+
+@router.post("/comunicacion/{com_id}/eliminar")
+async def com_eliminar(com_id: int):
+    conn = get_db()
+    row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
+    if not row:
+        conn.close()
+        return RedirectResponse("/digitales/", status_code=303)
+    exp_id = row[0]
+    conn.execute("DELETE FROM exp_comunicaciones WHERE id = ?", (com_id,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/digitales/{exp_id}?msg=com_eliminada", status_code=303)
+
+
+# ── Detalle  ← /{exp_id} siempre AL FINAL ─────────────────────────────────────
+
+@router.get("/{exp_id}", response_class=HTMLResponse)
+async def detalle(request: Request, exp_id: int, msg: str = ""):
+    conn = get_db()
+    exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
+    if not exp:
+        conn.close()
+        return RedirectResponse("/digitales/?msg=no_encontrado")
+    comunicaciones = conn.execute(
+        "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
+        (exp_id,)
+    ).fetchall()
+    conn.close()
+    return templates.TemplateResponse("digitales_detalle.html", {
+        "request": request,
+        "active": "digitales_lista",
+        "exp": dict(exp),
+        "comunicaciones": [dict(c) for c in comunicaciones],
+        "msg": msg,
+    })
+
+
+@router.get("/{exp_id}/editar", response_class=HTMLResponse)
+async def editar_form(request: Request, exp_id: int):
+    conn = get_db()
+    exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
+    if not exp:
+        conn.close()
+        return RedirectResponse("/digitales/?msg=no_encontrado")
+    comunicaciones = conn.execute(
+        "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
+        (exp_id,)
+    ).fetchall()
+    conn.close()
+    return templates.TemplateResponse("digitales_form.html", {
+        "request": request,
+        "active": "digitales_lista",
+        "exp": dict(exp),
+        "comunicaciones": [dict(c) for c in comunicaciones],
+        "modo": "editar",
+    })
+
+
+@router.post("/{exp_id}/editar")
+async def editar_post(
+    request: Request,
+    exp_id: int,
+    n_expediente: str = Form(""),
+    anio: str = Form(""),
+    abogado: str = Form(""),
+    etapa: str = Form(""),
+    queja_inicial: str = Form("No"),
+    radicado_auto: str = Form(""),
+    nombre_auto: str = Form(""),
+    fecha_auto: str = Form(""),
+):
+    conn = get_db()
+    conn.execute("""
+        UPDATE exp_digitales SET n_expediente=?, anio=?, abogado=?, etapa=?, queja_inicial=?,
+            radicado_auto=?, nombre_auto=?, fecha_auto=?,
+            updated_at=datetime('now','localtime')
+        WHERE id=?
+    """, (
+        _texto(n_expediente), int(anio) if anio.strip() else None,
+        _texto(abogado), _texto(etapa), queja_inicial or "No",
+        _texto(radicado_auto), _texto(nombre_auto), _fecha(fecha_auto),
+        exp_id,
+    ))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/digitales/{exp_id}?msg=actualizado", status_code=303)
+
+
+@router.post("/{exp_id}/eliminar")
+async def eliminar(exp_id: int):
+    conn = get_db()
+    row = conn.execute("SELECT n_expediente FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
+    if row:
+        n = row[0] or str(exp_id)
+        conn.execute("DELETE FROM exp_digitales WHERE id = ?", (exp_id,))
+        conn.commit()
+        conn.close()
+        return RedirectResponse(f"/digitales/?msg=eliminado_{n}", status_code=303)
+    conn.close()
+    return RedirectResponse("/digitales/?msg=no_encontrado", status_code=303)
+
+
+@router.post("/{exp_id}/comunicacion/nueva")
+async def com_nueva(
+    exp_id: int,
+    radicado_comunicacion: str = Form(""),
+    dependencia: str = Form(""),
+    fecha_envio: str = Form(""),
+    fecha_seguimiento: str = Form(""),
+    radicado_respuesta: str = Form(""),
+    fecha_respuesta: str = Form(""),
+    responsable: str = Form(""),
+    observaciones: str = Form(""),
+):
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO exp_comunicaciones
+            (exp_digital_id, radicado_comunicacion, dependencia, fecha_envio,
+             fecha_seguimiento, radicado_respuesta, fecha_respuesta, responsable, observaciones)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        exp_id,
+        _texto(radicado_comunicacion), _texto(dependencia),
+        _fecha(fecha_envio), _fecha(fecha_seguimiento),
+        _texto(radicado_respuesta), _fecha(fecha_respuesta),
+        _texto(responsable), _texto(observaciones),
+    ))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/digitales/{exp_id}?msg=com_creada", status_code=303)

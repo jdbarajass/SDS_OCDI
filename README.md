@@ -193,7 +193,7 @@ Aplicación **web local** (LAN) que:
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
 | 1 | **Calendario mensual** — Vista mes con franjas horarias (08-10, 10-12, 14-16, 16-18) lun–dom | ✅ v2.2 |
-| 2 | **Estados de franjas** — 🟢 Disponible / 🔴 Ocupado / 🟡 Reservado / ⬜ Sin registro | ✅ v2.2 |
+| 2 | **Estados de franjas** — 🟢 Disponible por defecto (sin registro) / 🔴 Ocupado (registro en BD) | ✅ v2.2 |
 | 3 | **Modal detalle** — Click en franja muestra detalle del evento con opciones Editar/Eliminar | ✅ v2.2 |
 | 4 | **CRUD eventos** — Crear desde "+" en día o franja libre, editar, eliminar con confirmación | ✅ v2.2 |
 | 5 | **Navegación mensual** — Botones Anterior / Siguiente / Hoy | ✅ v2.2 |

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_digitales.html" %}
 {% block title %}Exp. Digital {{ exp.n_expediente }}{% endblock %}
 {% block heading %}Expediente Digital — {{ exp.n_expediente }}{% endblock %}
 
@@ -12,18 +12,6 @@
 {% endblock %}
 
 {% block content %}
-
-{% if msg %}
-<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
-  {% if msg == 'creado' %}✅ Expediente creado.
-  {% elif msg == 'actualizado' %}✅ Expediente actualizado.
-  {% elif msg == 'com_creada' %}✅ Comunicación agregada.
-  {% elif msg == 'com_actualizada' %}✅ Comunicación actualizada.
-  {% elif msg == 'com_eliminada' %}✅ Comunicación eliminada.
-  {% else %}{{ msg }}
-  {% endif %}
-</div>
-{% endif %}
 
 <!-- Datos del expediente -->
 <div class="card" style="margin-bottom:16px">

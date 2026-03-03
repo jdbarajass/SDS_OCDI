@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_sala.html" %}
 {% block title %}Sala de Audiencias — {{ nombre_mes }} {{ year }}{% endblock %}
 {% block heading %}Sala de Audiencias{% endblock %}
 
@@ -7,17 +7,6 @@
 {% endblock %}
 
 {% block content %}
-
-{% if msg %}
-<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
-  {% if msg == 'creado' %}✅ Evento creado correctamente.
-  {% elif msg == 'actualizado' %}✅ Evento actualizado.
-  {% elif msg == 'eliminado' %}✅ Evento eliminado.
-  {% elif msg == 'no_encontrado' %}⚠️ Evento no encontrado.
-  {% else %}{{ msg }}
-  {% endif %}
-</div>
-{% endif %}
 
 <!-- Navegación mes -->
 <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">

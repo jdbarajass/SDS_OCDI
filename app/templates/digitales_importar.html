@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_digitales.html" %}
 {% block title %}Importar Excel · Exp. Digitales{% endblock %}
 {% block heading %}Importar Expedientes Digitales{% endblock %}
 
@@ -15,12 +15,6 @@
   <strong>{{ resultado.exp_omitidos }}</strong> omitidos (ya existían),
   <strong>{{ resultado.coms_insertadas }}</strong> comunicaciones importadas.
 </div>
-{% elif msg == 'error_openpyxl' %}
-<div class="alert alert-danger" style="margin-bottom:16px">
-  ❌ Librería <code>openpyxl</code> no instalada. Ejecute: <code>pip install openpyxl</code>
-</div>
-{% elif msg and msg != 'ok' %}
-<div class="alert alert-danger" style="margin-bottom:16px">❌ {{ msg }}</div>
 {% endif %}
 
 <div class="card" style="max-width:600px">

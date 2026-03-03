@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_digitales.html" %}
 {% block title %}Expedientes Digitales{% endblock %}
 {% block heading %}Expedientes Digitales{% endblock %}
 
@@ -10,17 +10,6 @@
 {% endblock %}
 
 {% block content %}
-
-{% if msg %}
-<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
-  {% if msg == 'eliminado' or msg.startswith('eliminado_') %}✅ Expediente eliminado.
-  {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
-  {% elif msg == 'creado' %}✅ Expediente creado correctamente.
-  {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
-  {% else %}{{ msg }}
-  {% endif %}
-</div>
-{% endif %}
 
 <!-- Filtros -->
 <form method="get" action="/digitales/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">

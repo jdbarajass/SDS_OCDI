@@ -22,6 +22,23 @@ def _texto(v) -> str | None:
     return s
 
 
+def _clase_alerta(dias) -> str | None:
+    """Retorna clase CSS de alerta según días transcurridos sin respuesta."""
+    if dias is None:
+        return None
+    try:
+        d = int(dias)
+    except (TypeError, ValueError):
+        return None
+    if d >= 14:
+        return "roja"
+    if d >= 13:
+        return "amarilla"
+    if d >= 8:
+        return "azul"
+    return None
+
+
 def _fecha(v) -> str | None:
     if v is None:
         return None
@@ -49,6 +66,7 @@ async def lista(
     anio: str = "",
     sin_respuesta: str = "",
     queja: str = "",
+    alerta: str = "",
     msg: str = "",
     page: int = 1,
     por_pagina: int = 20,
@@ -77,6 +95,25 @@ async def lista(
         )""")
     if queja == "si":
         filtros.append("(e.queja_inicial = 'Sí' OR e.queja_inicial = 'Si' OR e.queja_inicial = 'SI' OR e.queja_inicial = 'sí')")
+    if alerta == "roja":
+        filtros.append("""e.id IN (
+            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
+            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
+            AND fecha_envio IS NOT NULL AND fecha_envio != ''
+            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) >= 14)""")
+    elif alerta == "amarilla":
+        filtros.append("""e.id IN (
+            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
+            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
+            AND fecha_envio IS NOT NULL AND fecha_envio != ''
+            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) = 13)""")
+    elif alerta == "azul":
+        filtros.append("""e.id IN (
+            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
+            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
+            AND fecha_envio IS NOT NULL AND fecha_envio != ''
+            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) >= 8
+            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) < 13)""")
 
     where = " AND ".join(filtros)
 
@@ -86,7 +123,12 @@ async def lista(
         f"""SELECT e.*,
             (SELECT COUNT(*) FROM exp_comunicaciones WHERE exp_digital_id = e.id) AS num_coms,
             (SELECT COUNT(*) FROM exp_comunicaciones
-             WHERE exp_digital_id = e.id AND (fecha_respuesta IS NULL OR fecha_respuesta = '')) AS coms_sin_resp
+             WHERE exp_digital_id = e.id AND (fecha_respuesta IS NULL OR fecha_respuesta = '')) AS coms_sin_resp,
+            (SELECT MAX(CAST(julianday('now') - julianday(fecha_envio) AS INTEGER))
+             FROM exp_comunicaciones
+             WHERE exp_digital_id = e.id
+             AND (fecha_respuesta IS NULL OR fecha_respuesta = '')
+             AND fecha_envio IS NOT NULL AND fecha_envio != '') AS max_dias_pendiente
             FROM exp_digitales e
             WHERE {where}
             ORDER BY e.anio DESC, e.n_expediente ASC LIMIT ? OFFSET ?""",
@@ -121,10 +163,12 @@ async def lista(
         "anio": anio,
         "sin_respuesta": sin_respuesta,
         "queja": queja,
+        "alerta": alerta,
         "abogados": abogados,
         "etapas": etapas_list,
         "anios": anios,
         "msg": msg,
+        "clase_alerta": _clase_alerta,
     })
 
 
@@ -162,6 +206,24 @@ async def dashboard(request: Request):
         WHERE anio IS NOT NULL GROUP BY anio ORDER BY anio DESC
     """).fetchall()
 
+    _dias_base = """
+        (fecha_respuesta IS NULL OR fecha_respuesta = '')
+        AND fecha_envio IS NOT NULL AND fecha_envio != ''
+        AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER)
+    """
+    alerta_azul = conn.execute(f"""
+        SELECT COUNT(*) FROM exp_comunicaciones
+        WHERE {_dias_base} >= 8 AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) < 13
+    """).fetchone()[0]
+    alerta_amarilla = conn.execute(f"""
+        SELECT COUNT(*) FROM exp_comunicaciones
+        WHERE {_dias_base} = 13
+    """).fetchone()[0]
+    alerta_roja = conn.execute(f"""
+        SELECT COUNT(*) FROM exp_comunicaciones
+        WHERE {_dias_base} >= 14
+    """).fetchone()[0]
+
     conn.close()
 
     return templates.TemplateResponse("digitales_dashboard.html", {
@@ -174,6 +236,9 @@ async def dashboard(request: Request):
         "total_coms": total_coms,
         "queja_si": queja_si,
         "por_anio": [dict(r) for r in por_anio],
+        "alerta_azul": alerta_azul,
+        "alerta_amarilla": alerta_amarilla,
+        "alerta_roja": alerta_roja,
     })
 
 
@@ -443,6 +508,7 @@ async def exportar():
 async def comunicaciones_lista(
     request: Request,
     sin_respuesta: str = "",
+    alerta: str = "",
     abogado: str = "",
     q: str = "",
 ):
@@ -453,6 +519,19 @@ async def comunicaciones_lista(
 
     if sin_respuesta == "1":
         filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
+    if alerta == "roja":
+        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
+        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
+        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) >= 14")
+    elif alerta == "amarilla":
+        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
+        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
+        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) = 13")
+    elif alerta == "azul":
+        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
+        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
+        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) >= 8")
+        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) < 13")
     if abogado.strip():
         filtros.append("e.abogado = ?")
         params.append(abogado.strip())
@@ -465,7 +544,13 @@ async def comunicaciones_lista(
     rows = conn.execute(f"""
         SELECT c.*,
                e.n_expediente, e.abogado, e.anio, e.etapa,
-               e.id AS exp_id
+               e.id AS exp_id,
+               CASE
+                 WHEN (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
+                      AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
+                 THEN CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER)
+                 ELSE NULL
+               END AS dias_transcurridos
         FROM exp_comunicaciones c
         JOIN exp_digitales e ON c.exp_digital_id = e.id
         WHERE {where}
@@ -479,12 +564,17 @@ async def comunicaciones_lista(
     conn.close()
 
     rows_list = [dict(r) for r in rows]
+    # Agregar clase de alerta a cada fila
+    for r in rows_list:
+        r["clase_alerta"] = _clase_alerta(r.get("dias_transcurridos"))
+
     return templates.TemplateResponse("digitales_comunicaciones.html", {
         "request": request,
         "active": "digitales_lista",
         "rows": rows_list,
         "total": len(rows_list),
         "sin_respuesta": sin_respuesta,
+        "alerta": alerta,
         "abogado": abogado,
         "q": q,
         "abogados": abogados,

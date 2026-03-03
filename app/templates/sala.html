@@ -79,7 +79,8 @@
           {% for fi in celda.franjas %}
           {% if fi.evento %}
           <div class="sala-franja sala-{{ fi.evento.estado | lower | replace(' ', '-') }}"
-               onclick="abrirDetalle({{ fi.evento | tojson | replace("'", "\\'") | safe }})"
+               data-evento="{{ fi.evento | tojson }}"
+               onclick="abrirDetalle(this)"
                title="{{ fi.franja }}: {{ fi.evento.titulo or fi.evento.estado }}">
             <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
             <span class="sala-franja-label">{{ fi.evento.titulo or fi.evento.estado }}</span>
@@ -148,7 +149,8 @@
 
 {% block scripts %}
 <script>
-function abrirDetalle(ev) {
+function abrirDetalle(el) {
+  var ev = JSON.parse(el.getAttribute('data-evento'));
   var estadoColor = { 'Disponible': '#16a34a', 'Ocupado': '#dc2626', 'Reservado': '#d97706' };
   document.getElementById('ms-titulo').textContent = ev.titulo || ev.estado;
   var html = '<table style="width:100%">';

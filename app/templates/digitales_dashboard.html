@@ -19,14 +19,17 @@
   <div class="dash-card dash-card-info">
     <div class="dash-card-num">{{ total_coms }}</div>
     <div class="dash-card-label">Comunicaciones</div>
+    <a href="/digitales/comunicaciones" class="dash-card-link">Ver todas →</a>
   </div>
   <div class="dash-card dash-card-warning">
     <div class="dash-card-num">{{ sin_respuesta }}</div>
     <div class="dash-card-label">Sin Respuesta</div>
+    <a href="/digitales/comunicaciones?sin_respuesta=1" class="dash-card-link">Ver pendientes →</a>
   </div>
   <div class="dash-card dash-card-danger">
     <div class="dash-card-num">{{ queja_si }}</div>
     <div class="dash-card-label">Con Queja Inicial</div>
+    <a href="/digitales/?queja=si" class="dash-card-link">Ver lista →</a>
   </div>
 </div>
 

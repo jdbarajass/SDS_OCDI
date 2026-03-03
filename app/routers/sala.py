@@ -11,7 +11,7 @@ router = APIRouter(prefix="/sala")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 FRANJAS = ["08:00-10:00", "10:00-12:00", "14:00-16:00", "16:00-18:00"]
-ESTADOS = ["Disponible", "Ocupado"]
+ESTADOS = ["Ocupado"]
 
 
 def _build_calendar(year: int, month: int, eventos: list[dict]) -> list[list[dict | None]]:

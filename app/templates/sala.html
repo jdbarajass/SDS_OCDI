@@ -79,10 +79,10 @@
           </div>
           {% else %}
           <a href="/sala/evento/nuevo?fecha={{ celda.fecha }}&franja={{ fi.franja }}"
-             class="sala-franja sala-vacio"
-             title="Agregar: {{ fi.franja }}">
+             class="sala-franja sala-disponible"
+             title="Disponible — clic para ocupar: {{ fi.franja }}">
             <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
-            <span class="sala-franja-label" style="color:var(--text-muted)">libre</span>
+            <span class="sala-franja-label">Disponible</span>
           </a>
           {% endif %}
           {% endfor %}

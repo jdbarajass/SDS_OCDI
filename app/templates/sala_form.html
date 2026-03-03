@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'nuevo' %}Nuevo Evento{% else %}Editar Evento{% endif %} — Sala{% endblock %}
+{% block heading %}{% if modo == 'nuevo' %}Nuevo Evento — Sala de Audiencias{% else %}Editar Evento — Sala de Audiencias{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="/sala/" class="btn btn-outline">← Volver al Calendario</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="card" style="max-width:540px">
+  <form method="post"
+        action="{% if modo == 'nuevo' %}/sala/evento/nuevo{% else %}/sala/evento/{{ ev.id }}/editar{% endif %}">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div class="form-group">
+        <label class="form-label">Fecha *</label>
+        <input type="date" name="fecha" class="form-input" value="{{ ev.fecha or '' }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Franja Horaria *</label>
+        <select name="franja" class="form-select" required>
+          {% for fr in franjas %}
+          <option value="{{ fr }}" {% if ev.franja == fr %}selected{% endif %}>{{ fr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Estado *</label>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+          {% for es in estados %}
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="estado" value="{{ es }}"
+                   {% if ev.estado == es or (not ev.estado and es == 'Ocupado') %}checked{% endif %}>
+            <span style="font-size:13px">{{ es }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Título / Referencia</label>
+        <input type="text" name="titulo" class="form-input"
+               value="{{ ev.titulo or '' }}" placeholder="Ej: Audiencia disciplinaria Exp. 046">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Responsable</label>
+        <input type="text" name="responsable" class="form-input" value="{{ ev.responsable or '' }}">
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Descripción / Notas</label>
+        <textarea name="descripcion" class="form-textarea" rows="3"
+                  placeholder="Detalles adicionales...">{{ ev.descripcion or '' }}</textarea>
+      </div>
+
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:8px">
+      <button type="submit" class="btn btn-primary">💾 Guardar</button>
+      <a href="/sala/" class="btn btn-outline">Cancelar</a>
+      {% if modo == 'editar' %}
+      <form method="post" action="/sala/evento/{{ ev.id }}/eliminar" style="margin-left:auto"
+            onsubmit="return confirm('¿Eliminar este evento?')">
+        <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5">🗑 Eliminar</button>
+      </form>
+      {% endif %}
+    </div>
+
+  </form>
+</div>
+
+{% endblock %}

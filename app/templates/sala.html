@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Sala de Audiencias — {{ nombre_mes }} {{ year }}{% endblock %}
+{% block heading %}Sala de Audiencias{% endblock %}
+
+{% block header_actions %}
+<a href="/sala/evento/nuevo" class="btn btn-primary">➕ Nuevo Evento</a>
+{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
+  {% if msg == 'creado' %}✅ Evento creado correctamente.
+  {% elif msg == 'actualizado' %}✅ Evento actualizado.
+  {% elif msg == 'eliminado' %}✅ Evento eliminado.
+  {% elif msg == 'no_encontrado' %}⚠️ Evento no encontrado.
+  {% else %}{{ msg }}
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Navegación mes -->
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+  <a href="/sala/?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-outline" style="padding:6px 14px">‹ Anterior</a>
+  <h2 style="margin:0;font-size:18px;font-weight:700;color:var(--primary)">{{ nombre_mes }} {{ year }}</h2>
+  <a href="/sala/?year={{ next_year }}&month={{ next_month }}" class="btn btn-outline" style="padding:6px 14px">Siguiente ›</a>
+  <a href="/sala/" class="btn btn-outline" style="padding:6px 14px;margin-left:8px">Hoy</a>
+</div>
+
+<!-- Leyenda -->
+<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px"></span>
+    <span style="font-size:12px">Disponible</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;width:12px;height:12px;background:#dc2626;border-radius:3px"></span>
+    <span style="font-size:12px">Ocupado</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;width:12px;height:12px;background:#d97706;border-radius:3px"></span>
+    <span style="font-size:12px">Reservado</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;width:12px;height:12px;background:#e5e7eb;border-radius:3px;border:1px solid #d1d5db"></span>
+    <span style="font-size:12px">Sin registro</span>
+  </div>
+</div>
+
+<!-- Calendario -->
+<div class="card" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr style="background:var(--primary)">
+        {% for dia in ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'] %}
+        <th style="color:white;font-size:12px;font-weight:600;padding:10px 8px;text-align:center">{{ dia }}</th>
+        {% endfor %}
+      </tr>
+      <!-- Cabecera franjas horarias -->
+      <tr style="background:#f8fafc;border-bottom:1px solid var(--border)">
+        {% for _ in range(7) %}
+        <td style="padding:4px 8px">
+          {% for fr in franjas %}
+          <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:1px">{{ fr }}</div>
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for semana in semanas %}
+      <tr style="border-top:1px solid var(--border)">
+        {% for celda in semana %}
+        {% if celda is none %}
+        <td style="background:#f9fafb;border-right:1px solid var(--border);min-height:80px;vertical-align:top;padding:4px"></td>
+        {% else %}
+        <td style="border-right:1px solid var(--border);vertical-align:top;padding:4px;min-width:90px;
+                   {% if celda.es_hoy %}background:#eff6ff{% endif %}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:{% if celda.es_hoy %}700{% else %}500{% endif %};
+                         color:{% if celda.es_hoy %}var(--primary){% else %}var(--text){% endif %}">
+              {{ celda.day }}
+            </span>
+            <a href="/sala/evento/nuevo?fecha={{ celda.fecha }}"
+               style="font-size:14px;color:var(--text-muted);text-decoration:none;line-height:1"
+               title="Agregar evento en {{ celda.fecha }}">+</a>
+          </div>
+
+          <!-- Franjas del día -->
+          {% for fi in celda.franjas %}
+          {% if fi.evento %}
+          <div class="sala-franja sala-{{ fi.evento.estado | lower | replace(' ', '-') }}"
+               onclick="abrirDetalle({{ fi.evento | tojson | replace("'", "\\'") | safe }})"
+               title="{{ fi.franja }}: {{ fi.evento.titulo or fi.evento.estado }}">
+            <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
+            <span class="sala-franja-label">{{ fi.evento.titulo or fi.evento.estado }}</span>
+          </div>
+          {% else %}
+          <a href="/sala/evento/nuevo?fecha={{ celda.fecha }}&franja={{ fi.franja }}"
+             class="sala-franja sala-vacio"
+             title="Agregar: {{ fi.franja }}">
+            <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
+            <span class="sala-franja-label" style="color:var(--text-muted)">libre</span>
+          </a>
+          {% endif %}
+          {% endfor %}
+        </td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal detalle evento -->
+<div id="modal-sala" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-header">
+      <h3 id="ms-titulo">Detalle del Evento</h3>
+      <button class="modal-close" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div id="ms-body" style="font-size:13px;line-height:1.8"></div>
+    <div class="modal-actions" style="margin-top:16px">
+      <a id="ms-editar" href="#" class="btn btn-primary">✏ Editar</a>
+      <form id="ms-form-eliminar" method="post" style="display:inline"
+            onsubmit="return confirm('¿Eliminar este evento?')">
+        <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5">🗑 Eliminar</button>
+      </form>
+      <button onclick="cerrarModal()" class="btn btn-outline">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.sala-franja {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  font-size: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+.sala-franja:hover { opacity: .8; }
+.sala-franja-hora { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.sala-franja-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sala-disponible { background: #dcfce7; color: #15803d; }
+.sala-ocupado    { background: #fee2e2; color: #dc2626; }
+.sala-reservado  { background: #fef3c7; color: #92400e; }
+.sala-vacio      { background: #f3f4f6; color: #9ca3af; border: 1px dashed #d1d5db; }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirDetalle(ev) {
+  var estadoColor = { 'Disponible': '#16a34a', 'Ocupado': '#dc2626', 'Reservado': '#d97706' };
+  document.getElementById('ms-titulo').textContent = ev.titulo || ev.estado;
+  var html = '<table style="width:100%">';
+  html += '<tr><td style="color:var(--text-muted);width:120px">Fecha:</td><td>' + ev.fecha + '</td></tr>';
+  html += '<tr><td style="color:var(--text-muted)">Franja:</td><td>' + ev.franja + '</td></tr>';
+  html += '<tr><td style="color:var(--text-muted)">Estado:</td><td><strong style="color:' + (estadoColor[ev.estado] || '#000') + '">' + ev.estado + '</strong></td></tr>';
+  if (ev.responsable) html += '<tr><td style="color:var(--text-muted)">Responsable:</td><td>' + ev.responsable + '</td></tr>';
+  if (ev.descripcion) html += '<tr><td style="color:var(--text-muted)">Descripción:</td><td>' + ev.descripcion + '</td></tr>';
+  html += '</table>';
+  document.getElementById('ms-body').innerHTML = html;
+  document.getElementById('ms-editar').href = '/sala/evento/' + ev.id + '/editar';
+  document.getElementById('ms-form-eliminar').action = '/sala/evento/' + ev.id + '/eliminar';
+  document.getElementById('modal-sala').style.display = 'flex';
+}
+function cerrarModal() {
+  document.getElementById('modal-sala').style.display = 'none';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') cerrarModal(); });
+</script>
+{% endblock %}

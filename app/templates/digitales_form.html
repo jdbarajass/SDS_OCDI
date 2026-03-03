@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'nuevo' %}Nuevo Expediente Digital{% else %}Editar Expediente Digital{% endif %}{% endblock %}
+{% block heading %}{% if modo == 'nuevo' %}Nuevo Expediente Digital{% else %}Editar Expediente Digital{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/" class="btn btn-outline">← Volver a Lista</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="card" style="max-width:700px">
+  <form method="post" action="{% if modo == 'nuevo' %}/digitales/nuevo{% else %}/digitales/{{ exp.id }}/editar{% endif %}">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div class="form-group">
+        <label class="form-label">N° Expediente</label>
+        <input type="text" name="n_expediente" class="form-input" value="{{ exp.n_expediente or '' }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Año</label>
+        <input type="number" name="anio" class="form-input" value="{{ exp.anio or '' }}" min="2000" max="2099">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Abogado</label>
+        <input type="text" name="abogado" class="form-input" value="{{ exp.abogado or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Etapa</label>
+        <input type="text" name="etapa" class="form-input" value="{{ exp.etapa or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Queja Inicial</label>
+        <select name="queja_inicial" class="form-select">
+          {% for op in ['No', 'Sí', 'En trámite'] %}
+          <option value="{{ op }}" {% if exp.queja_inicial == op %}selected{% endif %}>{{ op }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fecha Auto</label>
+        <input type="date" name="fecha_auto" class="form-input" value="{{ exp.fecha_auto or '' }}">
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Radicado Auto</label>
+        <input type="text" name="radicado_auto" class="form-input" value="{{ exp.radicado_auto or '' }}">
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Nombre Auto</label>
+        <input type="text" name="nombre_auto" class="form-input" value="{{ exp.nombre_auto or '' }}">
+      </div>
+
+    </div>
+
+    <div style="margin-top:24px;display:flex;gap:8px">
+      <button type="submit" class="btn btn-primary">💾 Guardar</button>
+      <a href="/digitales/{% if modo == 'editar' %}{{ exp.id }}{% else %}{% endif %}" class="btn btn-outline">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+
+<!-- Comunicaciones (solo en modo editar) -->
+{% if modo == 'editar' and comunicaciones %}
+<div class="card" style="margin-top:24px">
+  <h3 class="stat-card-title">Comunicaciones</h3>
+  <div class="table-wrapper" style="box-shadow:none;border:none">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Radicado</th><th>Dependencia</th><th>F. Envío</th>
+          <th>F. Seguimiento</th><th>Radicado Resp.</th><th>F. Respuesta</th>
+          <th>Responsable</th><th>Observaciones</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in comunicaciones %}
+        <tr>
+          <td>{{ c.radicado_comunicacion or '—' }}</td>
+          <td class="td-texto">{{ c.dependencia or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_envio or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_seguimiento or '—' }}</td>
+          <td>{{ c.radicado_respuesta or '—' }}</td>
+          <td style="font-size:11px">
+            {% if c.fecha_respuesta %}
+            <span style="color:#16a34a">{{ c.fecha_respuesta }}</span>
+            {% else %}
+            <span style="color:#dc2626">Sin respuesta</span>
+            {% endif %}
+          </td>
+          <td class="td-texto">{{ c.responsable or '—' }}</td>
+          <td class="td-texto" style="font-size:11px">{{ c.observaciones or '—' }}</td>
+          <td>
+            <form method="post" action="/digitales/comunicacion/{{ c.id }}/eliminar"
+                  onsubmit="return confirm('¿Eliminar esta comunicación?')">
+              <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

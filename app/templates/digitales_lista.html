@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Expedientes Digitales{% endblock %}
+{% block heading %}Expedientes Digitales{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/nuevo" class="btn btn-primary">➕ Nuevo</a>
+<a href="/digitales/importar" class="btn btn-outline">📥 Importar Excel</a>
+<a href="/digitales/exportar" class="btn btn-outline">📤 Exportar</a>
+<a href="/digitales/dashboard" class="btn btn-outline">📊 Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
+  {% if msg == 'eliminado' or msg.startswith('eliminado_') %}✅ Expediente eliminado.
+  {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
+  {% elif msg == 'creado' %}✅ Expediente creado correctamente.
+  {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
+  {% else %}{{ msg }}
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<form method="get" action="/digitales/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar N° exp., radicado..." class="filter-input" style="min-width:200px">
+
+  <select name="abogado" class="filter-select">
+    <option value="">Todos los abogados</option>
+    {% for a in abogados %}
+    <option value="{{ a }}" {% if abogado == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="etapa" class="filter-select">
+    <option value="">Todas las etapas</option>
+    {% for e in etapas %}
+    <option value="{{ e }}" {% if etapa == e %}selected{% endif %}>{{ e }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="anio" class="filter-select">
+    <option value="">Todos los años</option>
+    {% for a in anios %}
+    <option value="{{ a }}" {% if anio|string == a|string %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+  <a href="/digitales/" class="btn btn-outline">✕ Limpiar</a>
+</form>
+
+<div class="table-wrapper">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>N° Exp.</th>
+        <th>Año</th>
+        <th>Abogado</th>
+        <th>Etapa</th>
+        <th>Queja Inicial</th>
+        <th>Nombre Auto</th>
+        <th>Fecha Auto</th>
+        <th>Comunicaciones</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="exp-num"><strong>{{ r.n_expediente or '—' }}</strong></td>
+        <td>{{ r.anio or '—' }}</td>
+        <td class="td-texto">{{ r.abogado or '—' }}</td>
+        <td><span class="etapa-badge">{{ r.etapa or '—' }}</span></td>
+        <td>
+          {% if r.queja_inicial and r.queja_inicial != 'No' %}
+          <span style="color:#16a34a;font-weight:600">✔ {{ r.queja_inicial }}</span>
+          {% else %}
+          <span style="color:var(--text-muted)">No</span>
+          {% endif %}
+        </td>
+        <td class="td-texto">{{ r.nombre_auto or '—' }}</td>
+        <td style="font-size:12px">{{ r.fecha_auto or '—' }}</td>
+        <td style="text-align:center">
+          <a href="/digitales/{{ r.id }}" style="font-size:11px;color:var(--text-muted)">Ver →</a>
+        </td>
+        <td>
+          <a href="/digitales/{{ r.id }}" class="btn-sm btn-ver">👁 Ver</a>
+          <a href="/digitales/{{ r.id }}/editar" class="btn-sm btn-edit">✏ Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">
+        Sin resultados. <a href="/digitales/nuevo">Crear nuevo expediente</a> o <a href="/digitales/importar">importar desde Excel</a>.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+  {% set base_url = '/digitales/?q=' ~ q ~ '&abogado=' ~ abogado ~ '&etapa=' ~ etapa ~ '&anio=' ~ anio ~ '&por_pagina=' ~ por_pagina %}
+  {% if page > 1 %}
+  <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
+  {% endif %}
+  {% for p in range(1, total_pages + 1) %}
+  {% if p == page %}
+  <span class="btn btn-primary" style="padding:4px 10px">{{ p }}</span>
+  {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+  <a href="{{ base_url }}&page={{ p }}" class="btn btn-outline" style="padding:4px 10px">{{ p }}</a>
+  {% elif p == page - 3 or p == page + 3 %}
+  <span style="padding:4px 6px;color:var(--text-muted)">…</span>
+  {% endif %}
+  {% endfor %}
+  {% if page < total_pages %}
+  <a href="{{ base_url }}&page={{ page + 1 }}" class="btn btn-outline" style="padding:4px 10px">›</a>
+  {% endif %}
+  <span style="font-size:12px;color:var(--text-muted);margin-left:8px">{{ total }} registros</span>
+</div>
+{% else %}
+<p style="font-size:12px;color:var(--text-muted);margin-top:8px">{{ total }} registro(s)</p>
+{% endif %}
+
+{% endblock %}

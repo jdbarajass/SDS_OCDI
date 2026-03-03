@@ -20,12 +20,17 @@
         </div>
 
         <nav class="sidebar-nav">
-            <div class="nav-section-label">PRINCIPAL</div>
+            <a href="/" class="nav-link nav-link-hub">
+                <span class="nav-ico">🏠</span>
+                <span>Portal Principal</span>
+            </a>
+
+            <div class="nav-section-label">📁 BASE EXPEDIENTES</div>
             <a href="/dashboard" class="nav-link {% if active == 'dashboard' %}active{% endif %}">
                 <span class="nav-ico">📊</span>
                 <span>Dashboard</span>
             </a>
-            <a href="/" class="nav-link {% if active == 'lista' %}active{% endif %}">
+            <a href="/expedientes" class="nav-link {% if active == 'lista' %}active{% endif %}">
                 <span class="nav-ico">📋</span>
                 <span>Expedientes</span>
             </a>
@@ -33,8 +38,6 @@
                 <span class="nav-ico">➕</span>
                 <span>Nuevo Expediente</span>
             </a>
-
-            <div class="nav-section-label">SEGUIMIENTO</div>
             <a href="/seguimiento" class="nav-link {% if active == 'seguimiento' %}active{% endif %}">
                 <span class="nav-ico">🗓</span>
                 <span>Seguimiento Mensual</span>
@@ -43,24 +46,38 @@
                 <span class="nav-ico">⚖️</span>
                 <span>Control de Autos</span>
             </a>
-
-            <div class="nav-section-label">REPORTES</div>
             <a href="/importar" class="nav-link {% if active == 'importar' %}active{% endif %}">
                 <span class="nav-ico">📥</span>
                 <span>Importar Excel</span>
             </a>
-            <a href="/exportar" class="nav-link {% if active == 'exportar_total' %}active{% endif %}">
-                <span class="nav-ico">📊</span>
-                <span>Exportar Reporte Total</span>
-            </a>
             <a href="/exportar-filtrado" class="nav-link {% if active == 'exportar' %}active{% endif %}">
                 <span class="nav-ico">📤</span>
-                <span>Exportar Reporte Personalizado</span>
+                <span>Exportar Personalizado</span>
+            </a>
+
+            <div class="nav-section-label">💻 EXP. DIGITALES</div>
+            <a href="/digitales/" class="nav-link {% if active == 'digitales_lista' %}active{% endif %}">
+                <span class="nav-ico">📋</span>
+                <span>Lista</span>
+            </a>
+            <a href="/digitales/dashboard" class="nav-link {% if active == 'digitales_dash' %}active{% endif %}">
+                <span class="nav-ico">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/digitales/importar" class="nav-link {% if active == 'digitales_importar' %}active{% endif %}">
+                <span class="nav-ico">📥</span>
+                <span>Importar Excel</span>
+            </a>
+
+            <div class="nav-section-label">🗓️ SALA AUDIENCIAS</div>
+            <a href="/sala/" class="nav-link {% if active == 'sala' %}active{% endif %}">
+                <span class="nav-ico">📅</span>
+                <span>Calendario</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
-            <span>SDS · OCDI v1.0</span>
+            <span>SDS · OCDI v2.2</span>
         </div>
     </aside>
 

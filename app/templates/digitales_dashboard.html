@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Exp. Digitales{% endblock %}
+{% block heading %}Dashboard — Expedientes Digitales{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/" class="btn btn-outline">📋 Lista</a>
+<a href="/digitales/nuevo" class="btn btn-primary">➕ Nuevo</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Tarjetas resumen -->
+<div class="dash-cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+  <div class="dash-card dash-card-blue">
+    <div class="dash-card-num">{{ total }}</div>
+    <div class="dash-card-label">Total Expedientes</div>
+    <a href="/digitales/" class="dash-card-link">Ver todos →</a>
+  </div>
+  <div class="dash-card dash-card-info">
+    <div class="dash-card-num">{{ total_coms }}</div>
+    <div class="dash-card-label">Comunicaciones</div>
+  </div>
+  <div class="dash-card dash-card-warning">
+    <div class="dash-card-num">{{ sin_respuesta }}</div>
+    <div class="dash-card-label">Sin Respuesta</div>
+  </div>
+  <div class="dash-card dash-card-danger">
+    <div class="dash-card-num">{{ queja_si }}</div>
+    <div class="dash-card-label">Con Queja Inicial</div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="dash-stats-row" style="margin-top:16px">
+
+  <!-- Por etapa -->
+  <div class="dash-stat-card card">
+    <h3 class="stat-card-title">Por Etapa</h3>
+    {% if por_etapa %}
+    {% set max_e = por_etapa[0].cant %}
+    {% for item in por_etapa %}
+    <div class="bar-item">
+      <span class="bar-label" title="{{ item.etapa }}">{{ item.etapa | truncate(28) }}</span>
+      <div class="bar-track">
+        <div class="bar-fill bar-blue" style="width: {{ (item.cant / max_e * 100) | int }}%"></div>
+      </div>
+      <span class="bar-count">{{ item.cant }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--text-muted);font-size:12px">Sin datos</p>
+    {% endif %}
+  </div>
+
+  <!-- Por abogado -->
+  <div class="dash-stat-card card">
+    <h3 class="stat-card-title">Por Abogado</h3>
+    {% if por_abogado %}
+    {% set max_a = por_abogado[0].cant %}
+    {% for item in por_abogado %}
+    <div class="bar-item">
+      <span class="bar-label" title="{{ item.abogado }}">{{ item.abogado | truncate(28) }}</span>
+      <div class="bar-track">
+        <div class="bar-fill bar-green" style="width: {{ (item.cant / max_a * 100) | int }}%"></div>
+      </div>
+      <span class="bar-count">{{ item.cant }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--text-muted);font-size:12px">Sin datos</p>
+    {% endif %}
+  </div>
+
+  <!-- Por año -->
+  <div class="dash-stat-card card">
+    <h3 class="stat-card-title">Por Año</h3>
+    {% if por_anio %}
+    {% set max_y = por_anio[0].cant %}
+    {% for item in por_anio %}
+    <div class="bar-item">
+      <span class="bar-label">{{ item.anio }}</span>
+      <div class="bar-track">
+        <div class="bar-fill bar-purple" style="width: {{ (item.cant / max_y * 100) | int }}%"></div>
+      </div>
+      <span class="bar-count">{{ item.cant }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--text-muted);font-size:12px">Sin datos</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

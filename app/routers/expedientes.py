@@ -49,7 +49,7 @@ def _enriquecer(exp: dict) -> dict:
 
 # ── Listado ────────────────────────────────────────────────────
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/expedientes", response_class=HTMLResponse)
 async def lista_expedientes(
     request: Request,
     q: str = "",
@@ -325,7 +325,7 @@ async def ver_expediente(request: Request, exp_id: int, msg: str = ""):
     row = conn.execute("SELECT * FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
     if not row:
         conn.close()
-        return RedirectResponse("/?msg=no_encontrado")
+        return RedirectResponse("/expedientes?msg=no_encontrado")
 
     exp = _enriquecer(row_to_dict(row))
     escaneos = [row_to_dict(r) for r in conn.execute(
@@ -354,7 +354,7 @@ async def editar_form(request: Request, exp_id: int):
     row = conn.execute("SELECT * FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
     if not row:
         conn.close()
-        return RedirectResponse("/")
+        return RedirectResponse("/expedientes")
     exp = row_to_dict(row)
     escaneos = [row_to_dict(r) for r in conn.execute(
         "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (exp_id,)
@@ -525,7 +525,7 @@ async def eliminar_expediente(exp_id: int):
     conn.execute("DELETE FROM expedientes WHERE id = ?", (exp_id,))
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/?msg=eliminado_{n}", status_code=303)
+    return RedirectResponse(f"/expedientes?msg=eliminado_{n}", status_code=303)
 
 
 # ── Exportar filtrado (formulario) ────────────────────────────────────────────

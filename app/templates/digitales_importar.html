@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Importar Excel · Exp. Digitales{% endblock %}
+{% block heading %}Importar Expedientes Digitales{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/" class="btn btn-outline">← Volver a Lista</a>
+{% endblock %}
+
+{% block content %}
+
+{% if msg == 'ok' and resultado %}
+<div class="alert alert-success" style="margin-bottom:16px">
+  ✅ Importación completada:
+  <strong>{{ resultado.exp_insertados }}</strong> expedientes nuevos,
+  <strong>{{ resultado.exp_omitidos }}</strong> omitidos (ya existían),
+  <strong>{{ resultado.coms_insertadas }}</strong> comunicaciones importadas.
+</div>
+{% elif msg == 'error_openpyxl' %}
+<div class="alert alert-danger" style="margin-bottom:16px">
+  ❌ Librería <code>openpyxl</code> no instalada. Ejecute: <code>pip install openpyxl</code>
+</div>
+{% elif msg and msg != 'ok' %}
+<div class="alert alert-danger" style="margin-bottom:16px">❌ {{ msg }}</div>
+{% endif %}
+
+<div class="card" style="max-width:600px">
+
+  <h3 style="margin-bottom:4px">Cargar archivo Excel</h3>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
+    El archivo debe tener la estructura del <strong>SEGUIMIENTO EXPEDIENTES DIGITALES</strong>:
+    fila 1 = título, fila 2 = cabeceras, fila 3+ = datos.<br>
+    Las filas con N° Expediente en la columna 1 son expedientes; las filas siguientes sin ese campo
+    pero con radicado de comunicación (columna 9) son comunicaciones del expediente anterior.
+  </p>
+
+  <form method="post" action="/digitales/importar" enctype="multipart/form-data">
+    <div class="form-group">
+      <label class="form-label">Archivo Excel (.xlsx)</label>
+      <input type="file" name="archivo" accept=".xlsx,.xls" class="form-input" required>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:8px">📥 Importar</button>
+  </form>
+
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+    <h4 style="font-size:13px;font-weight:600;margin-bottom:8px">Mapeo de columnas esperado:</h4>
+    <table class="data-table" style="font-size:12px">
+      <thead><tr><th>Col</th><th>Campo</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>N° Expediente (vacío = fila comunicación)</td></tr>
+        <tr><td>2</td><td>Año</td></tr>
+        <tr><td>3</td><td>Abogado</td></tr>
+        <tr><td>4</td><td>Etapa</td></tr>
+        <tr><td>5</td><td>Queja Inicial</td></tr>
+        <tr><td>6</td><td>Radicado Auto</td></tr>
+        <tr><td>7</td><td>Nombre Auto</td></tr>
+        <tr><td>8</td><td>Fecha Auto</td></tr>
+        <tr><td>9</td><td>Radicado Comunicación</td></tr>
+        <tr><td>10</td><td>Dependencia</td></tr>
+        <tr><td>11</td><td>Fecha Envío</td></tr>
+        <tr><td>12</td><td>Fecha Seguimiento</td></tr>
+        <tr><td>13</td><td>Radicado Respuesta</td></tr>
+        <tr><td>14</td><td>Fecha Respuesta</td></tr>
+        <tr><td>15</td><td>Responsable</td></tr>
+        <tr><td>16</td><td>Observaciones</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{% endblock %}

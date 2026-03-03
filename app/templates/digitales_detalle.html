@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Exp. Digital {{ exp.n_expediente }}{% endblock %}
+{% block heading %}Expediente Digital — {{ exp.n_expediente }}{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/{{ exp.id }}/editar" class="btn btn-primary">✏ Editar</a>
+<a href="/digitales/" class="btn btn-outline">← Volver</a>
+<form method="post" action="/digitales/{{ exp.id }}/eliminar" style="display:inline"
+      onsubmit="return confirm('¿Eliminar este expediente y todas sus comunicaciones?')">
+  <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5">🗑 Eliminar</button>
+</form>
+{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}" style="margin-bottom:12px">
+  {% if msg == 'creado' %}✅ Expediente creado.
+  {% elif msg == 'actualizado' %}✅ Expediente actualizado.
+  {% elif msg == 'com_creada' %}✅ Comunicación agregada.
+  {% elif msg == 'com_actualizada' %}✅ Comunicación actualizada.
+  {% elif msg == 'com_eliminada' %}✅ Comunicación eliminada.
+  {% else %}{{ msg }}
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Datos del expediente -->
+<div class="card" style="margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">N° Expediente</div>
+      <div style="font-size:16px;font-weight:700;color:var(--primary)">{{ exp.n_expediente or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Año</div>
+      <div style="font-weight:600">{{ exp.anio or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Abogado</div>
+      <div>{{ exp.abogado or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Etapa</div>
+      <div><span class="etapa-badge">{{ exp.etapa or '—' }}</span></div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Queja Inicial</div>
+      <div>
+        {% if exp.queja_inicial and exp.queja_inicial != 'No' %}
+        <span style="color:#16a34a;font-weight:600">✔ {{ exp.queja_inicial }}</span>
+        {% else %}
+        <span style="color:var(--text-muted)">No</span>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Radicado Auto</div>
+      <div>{{ exp.radicado_auto or '—' }}</div>
+    </div>
+    <div style="grid-column:span 2">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Nombre Auto</div>
+      <div>{{ exp.nombre_auto or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Fecha Auto</div>
+      <div>{{ exp.fecha_auto or '—' }}</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Comunicaciones -->
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h3 class="stat-card-title" style="margin:0">Comunicaciones ({{ comunicaciones | length }})</h3>
+  </div>
+
+  {% if comunicaciones %}
+  <div class="table-wrapper" style="box-shadow:none;border:none;margin-bottom:0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Radicado Com.</th>
+          <th>Dependencia</th>
+          <th>F. Envío</th>
+          <th>F. Seguimiento</th>
+          <th>Radicado Resp.</th>
+          <th>F. Respuesta</th>
+          <th>Responsable</th>
+          <th>Observaciones</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in comunicaciones %}
+        <tr id="com-{{ c.id }}">
+          <td style="color:var(--text-muted);font-size:11px">{{ loop.index }}</td>
+          <td><strong>{{ c.radicado_comunicacion or '—' }}</strong></td>
+          <td class="td-texto">{{ c.dependencia or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_envio or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_seguimiento or '—' }}</td>
+          <td>{{ c.radicado_respuesta or '—' }}</td>
+          <td style="font-size:11px">
+            {% if c.fecha_respuesta %}
+            <span style="color:#16a34a;font-weight:600">{{ c.fecha_respuesta }}</span>
+            {% else %}
+            <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px">Sin respuesta</span>
+            {% endif %}
+          </td>
+          <td class="td-texto">{{ c.responsable or '—' }}</td>
+          <td class="td-texto" style="font-size:11px;max-width:200px">{{ c.observaciones or '—' }}</td>
+          <td>
+            <button onclick="abrirEditarCom({{ c.id }}, {{ c | tojson | replace("'", "\\'") | safe }})"
+                    class="btn-sm btn-edit">✏</button>
+            <form method="post" action="/digitales/comunicacion/{{ c.id }}/eliminar" style="display:inline"
+                  onsubmit="return confirm('¿Eliminar esta comunicación?')">
+              <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted);font-size:13px">Sin comunicaciones registradas.</p>
+  {% endif %}
+</div>
+
+<!-- Formulario agregar comunicación -->
+<div class="card" style="margin-bottom:16px">
+  <h3 class="stat-card-title">➕ Agregar Comunicación</h3>
+  <form method="post" action="/digitales/{{ exp.id }}/comunicacion/nueva">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div class="form-group">
+        <label class="form-label">Radicado Comunicación</label>
+        <input type="text" name="radicado_comunicacion" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dependencia</label>
+        <input type="text" name="dependencia" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha Envío</label>
+        <input type="date" name="fecha_envio" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha Seguimiento</label>
+        <input type="date" name="fecha_seguimiento" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Radicado Respuesta</label>
+        <input type="text" name="radicado_respuesta" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha Respuesta</label>
+        <input type="date" name="fecha_respuesta" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Responsable</label>
+        <input type="text" name="responsable" class="form-input">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Observaciones</label>
+        <textarea name="observaciones" class="form-textarea" rows="2"></textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:8px">💾 Guardar Comunicación</button>
+  </form>
+</div>
+
+<!-- Modal editar comunicación -->
+<div id="modal-com" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box" style="max-width:700px;width:95%">
+    <div class="modal-header">
+      <h3>Editar Comunicación</h3>
+      <button class="modal-close" onclick="cerrarModal()">&times;</button>
+    </div>
+    <form id="form-editar-com" method="post">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <div class="form-group">
+          <label class="form-label">Radicado Comunicación</label>
+          <input type="text" id="ec-radicado" name="radicado_comunicacion" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dependencia</label>
+          <input type="text" id="ec-dependencia" name="dependencia" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Envío</label>
+          <input type="date" id="ec-fecha-envio" name="fecha_envio" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Seguimiento</label>
+          <input type="date" id="ec-fecha-seg" name="fecha_seguimiento" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Radicado Respuesta</label>
+          <input type="text" id="ec-radicado-resp" name="radicado_respuesta" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Respuesta</label>
+          <input type="date" id="ec-fecha-resp" name="fecha_respuesta" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsable</label>
+          <input type="text" id="ec-responsable" name="responsable" class="form-input">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Observaciones</label>
+          <textarea id="ec-obs" name="observaciones" class="form-textarea" rows="2"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">💾 Guardar</button>
+        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirEditarCom(id, data) {
+  document.getElementById('form-editar-com').action = '/digitales/comunicacion/' + id + '/editar';
+  document.getElementById('ec-radicado').value = data.radicado_comunicacion || '';
+  document.getElementById('ec-dependencia').value = data.dependencia || '';
+  document.getElementById('ec-fecha-envio').value = data.fecha_envio || '';
+  document.getElementById('ec-fecha-seg').value = data.fecha_seguimiento || '';
+  document.getElementById('ec-radicado-resp').value = data.radicado_respuesta || '';
+  document.getElementById('ec-fecha-resp').value = data.fecha_respuesta || '';
+  document.getElementById('ec-responsable').value = data.responsable || '';
+  document.getElementById('ec-obs').value = data.observaciones || '';
+  document.getElementById('modal-com').style.display = 'flex';
+}
+function cerrarModal() {
+  document.getElementById('modal-com').style.display = 'none';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') cerrarModal(); });
+</script>
+{% endblock %}

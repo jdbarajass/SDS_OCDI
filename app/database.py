@@ -93,6 +93,47 @@ CREATE TABLE IF NOT EXISTS actuaciones (
     created_by      TEXT,
     FOREIGN KEY (expediente_id) REFERENCES expedientes(id) ON DELETE CASCADE
 );
+
+-- ── EXPEDIENTES DIGITALES ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS exp_digitales (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    n_expediente        TEXT,
+    anio                INTEGER,
+    abogado             TEXT,
+    etapa               TEXT,
+    queja_inicial       TEXT DEFAULT 'No',
+    radicado_auto       TEXT,
+    nombre_auto         TEXT,
+    fecha_auto          TEXT,
+    created_at          TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at          TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS exp_comunicaciones (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    exp_digital_id          INTEGER NOT NULL REFERENCES exp_digitales(id) ON DELETE CASCADE,
+    radicado_comunicacion   TEXT,
+    dependencia             TEXT,
+    fecha_envio             TEXT,
+    fecha_seguimiento       TEXT,
+    radicado_respuesta      TEXT,
+    fecha_respuesta         TEXT,
+    responsable             TEXT,
+    observaciones           TEXT,
+    created_at              TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+-- ── SALA DE AUDIENCIAS ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sala_agenda (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha           TEXT NOT NULL,
+    franja          TEXT NOT NULL,
+    titulo          TEXT,
+    descripcion     TEXT,
+    estado          TEXT DEFAULT 'Ocupado',
+    responsable     TEXT,
+    created_at      TEXT DEFAULT (datetime('now', 'localtime'))
+);
 """
 
 

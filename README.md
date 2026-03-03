@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v2.1** — Última actualización: 2026-02-27
+> **Versión actual: v2.2** — Última actualización: 2026-03-03
 
 ---
 
@@ -93,11 +93,14 @@ Aplicación **web local** (LAN) que:
 
 ### Tablas de la base de datos
 
-| Tabla | Descripción |
-|-------|-------------|
-| `expedientes` | Tabla principal — todos los campos del proceso disciplinario (48 campos + metadata) |
-| `escaneos` | Registros de escáner por expediente — relación 1:N |
-| `actuaciones` | Actuaciones mensuales registradas por expediente — para seguimiento |
+| Tabla | Módulo | Descripción |
+|-------|--------|-------------|
+| `expedientes` | Base | Tabla principal — todos los campos del proceso disciplinario (48 campos + metadata) |
+| `escaneos` | Base | Registros de escáner por expediente — relación 1:N |
+| `actuaciones` | Base | Actuaciones mensuales registradas por expediente — para seguimiento |
+| `exp_digitales` | Digitales | Expedientes de seguimiento digital 2025-2026 |
+| `exp_comunicaciones` | Digitales | Comunicaciones hijo de cada expediente digital (N:1) con ON DELETE CASCADE |
+| `sala_agenda` | Sala | Eventos de sala por fecha y franja horaria |
 
 ### Campos del expediente por bloques
 
@@ -159,17 +162,50 @@ Aplicación **web local** (LAN) que:
 
 ## 7. Módulos del sistema
 
-| # | Módulo | Descripción | Estado |
-|---|--------|-------------|--------|
-| 1 | **Dashboard** | Métricas totales; estadísticas por etapa, estado, año, origen y tipología; tendencia mensual de ingreso; alertas vencimiento (vencidos / 30 / 60 días) con modal de exportación | ✅ v2.1 |
-| 2 | **Lista de expedientes** | Listado con paginación (25/50/100/Todos), filtros por texto, año, etapa, abogado, origen, alerta, rango de fechas; orden por cualquier columna; búsqueda numérica inteligente | ✅ v2.1 |
-| 3 | **Gestión de expedientes** | Crear, ver, editar con formulario de 7 bloques y lógica condicional; eliminar | ✅ v1.0 |
-| 4 | **Seguimiento mensual** | Tabla interactiva de actuaciones por expediente × mes con modal de edición inline | ✅ v1.0 |
-| 5 | **Control de autos** | Tabla de autos por tipo × mes y por abogado, con exportación a Excel | ✅ v1.0 |
-| 6 | **Importar desde Excel** | Cargue masivo del archivo padre `.xlsx`; detección automática de la hoja correcta; detección de duplicados; limpieza de valores de error de Excel | ✅ v2.1 |
-| 7 | **Exportar reporte completo** | Todos los expedientes en Excel con formato, colores por alerta, fila de metadatos | ✅ v1.0 |
-| 8 | **Exportar reporte filtrado** | Filtros avanzados (año, abogado, etapa, estado, fechas, vencimientos) + selección de bloques de columnas + opción "solo filtrados" o "todo con indicador EN FILTRO" | ✅ v2.1 |
-| 9 | **Gestión de usuarios/login** | Autenticación por usuario con roles | ⏳ Pendiente (Fase 3) |
+### Módulo 1 — BASE EXPEDIENTES 2023U (`/expedientes`, `/dashboard`)
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Dashboard** — Métricas totales; estadísticas por etapa, estado, año, origen y tipología; tendencia mensual de ingreso; alertas vencimiento con modal de exportación | ✅ v2.1 |
+| 2 | **Lista de expedientes** — Paginación, filtros avanzados, orden por columna, búsqueda numérica inteligente | ✅ v2.1 |
+| 3 | **Gestión de expedientes** — Crear, ver, editar (7 bloques con lógica condicional), eliminar | ✅ v1.0 |
+| 4 | **Seguimiento mensual** — Tabla de actuaciones por expediente × mes con modal inline | ✅ v1.0 |
+| 5 | **Control de autos** — Tabla por tipo × mes y por abogado, con exportación Excel | ✅ v1.0 |
+| 6 | **Importar desde Excel** — Cargue masivo `.xlsx` con detección de hoja, duplicados y limpieza de errores | ✅ v2.1 |
+| 7 | **Exportar reporte completo** — Excel con formato y colores por alerta | ✅ v1.0 |
+| 8 | **Exportar reporte filtrado** — Filtros avanzados + selección de bloques de columnas + opción "todo + indicador EN FILTRO" | ✅ v2.1 |
+
+### Módulo 2 — SEGUIMIENTO EXPEDIENTES DIGITALES 2025-2026 (`/digitales/`)
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Dashboard digitales** — Total exps., total comunicaciones, sin respuesta, con queja inicial; 3 tarjetas de alerta por días (🔵/🟡/🔴) con links a vistas filtradas | ✅ v2.2 |
+| 2 | **Lista de expedientes digitales** — Paginación, filtros por abogado/etapa/año/alerta/queja/sin respuesta; badge de peor alerta por fila; orden numérico por N° expediente | ✅ v2.2 |
+| 3 | **Detalle + comunicaciones** — Vista completa del expediente con tabla de comunicaciones y formulario para agregar nuevas | ✅ v2.2 |
+| 4 | **CRUD expedientes** — Crear, editar y eliminar expedientes digitales | ✅ v2.2 |
+| 5 | **Vista global comunicaciones** (`/digitales/comunicaciones`) — Todas las comunicaciones con columna "Días" (🔵/🟡/🔴) y filtros por alerta | ✅ v2.2 |
+| 6 | **Sistema de alertas por días** — Azul: 8–12 días sin respuesta / Amarilla: 13 días / Roja: 14+ días. Calculado con `julianday()` SQLite | ✅ v2.2 |
+| 7 | **Importar desde Excel** — Estructura padre-hijo; col[0] = expediente, col[8] = comunicación; detección de duplicados | ✅ v2.2 |
+| 8 | **Exportar a Excel** — Descarga todos los expedientes con sus comunicaciones | ✅ v2.2 |
+
+### Módulo 3 — SALA DE AUDIENCIAS (`/sala/`)
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Calendario mensual** — Vista mes con franjas horarias (08-10, 10-12, 14-16, 16-18) lun–dom | ✅ v2.2 |
+| 2 | **Estados de franjas** — 🟢 Disponible / 🔴 Ocupado / 🟡 Reservado / ⬜ Sin registro | ✅ v2.2 |
+| 3 | **Modal detalle** — Click en franja muestra detalle del evento con opciones Editar/Eliminar | ✅ v2.2 |
+| 4 | **CRUD eventos** — Crear desde "+" en día o franja libre, editar, eliminar con confirmación | ✅ v2.2 |
+| 5 | **Navegación mensual** — Botones Anterior / Siguiente / Hoy | ✅ v2.2 |
+
+### Portal Hub (`/`)
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Página de inicio** — 3 tiles clickables con stats en tiempo real para cada módulo | ✅ v2.2 |
+
+### Pendiente (Fase 3)
+| 9 | **Gestión de usuarios/login** | Autenticación por usuario con roles | ⏳ Pendiente |
 
 ---
 
@@ -184,12 +220,37 @@ Aplicación **web local** (LAN) que:
 | 2 | v1.0 — Gestión expedientes + Importar/Exportar + Dashboard + Seguimiento + Autos | ✅ | 2026-02-25 |
 | 3 | v2.0 — Corrección importación Excel (hoja errónea → 243 registros correctos) | ✅ | 2026-02-27 |
 | 4 | v2.1 — Mejoras UX: paginación, filtros avanzados, modal exportar, métricas nuevas, búsqueda inteligente, corrección alertas con `#VALUE!` | ✅ | 2026-02-27 |
-| 5 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
-| 6 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
+| 5 | v2.2 — Hub portal + Módulo Expedientes Digitales + Sala de Audiencias + sistema de alertas por días | ✅ | 2026-03-03 |
+| 6 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
+| 7 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
 
 ---
 
 ### Changelog detallado
+
+#### v2.2 — 2026-03-03 · commits `4d204ee` → `7b8f24e`
+
+**Nuevos módulos:**
+
+- **Hub Portal (`/`):** página de inicio con 3 tiles clickables que muestran stats en tiempo real de cada módulo. Reemplaza a `/` como landing page; el módulo Base pasa a `/expedientes`.
+- **Módulo Expedientes Digitales 2025-2026 (`/digitales/`):** gestión completa de seguimiento digital con CRUD, importación desde Excel padre-hijo (39 expedientes / 88 comunicaciones), exportación, dashboard con métricas y vista global de comunicaciones.
+- **Sala de Audiencias (`/sala/`):** calendario mensual con franjas horarias (08-10, 10-12, 14-16, 16-18), estados Disponible/Ocupado/Reservado, modal de detalle, CRUD de eventos y navegación mes a mes.
+
+**Sistema de alertas por días (Módulo Digitales):**
+- Calcula días transcurridos desde `fecha_envio` hasta hoy con `julianday()` de SQLite solo para comunicaciones sin `fecha_respuesta`
+- 🔵 Azul: 8–12 días · 🟡 Amarilla: 13 días · 🔴 Roja: 14+ días
+- Las alertas aparecen en: columna "Días" de la vista comunicaciones, badge emoji por fila en lista de expedientes, y 3 tarjetas clickables en el dashboard
+- Filtros por nivel de alerta en lista de expedientes y en vista comunicaciones
+
+**Sidebars independientes por módulo:**
+- Cada módulo tiene su propio base template (`base.html`, `base_digitales.html`, `base_sala.html`) con nav contextual. No se mezclan ítems de navegación entre módulos.
+
+**Correcciones:**
+- Orden numérico de N° expediente: `CAST(n_expediente AS INTEGER) ASC` en lugar de orden texto
+- Orden de rutas en `digitales.py`: rutas estáticas (`/importar`, `/exportar`, `/comunicaciones`) registradas antes de `/{exp_id}` para evitar que FastAPI intente parsear strings como int
+- Variable Jinja2 en loops: uso de `{% set ns = namespace() %}` + `{% set ns.id = valor %}` en lugar de `__setattr__`
+
+---
 
 #### v2.1 — 2026-02-27 · commit `8e33f33`
 
@@ -239,6 +300,9 @@ Aplicación **web local** (LAN) que:
 | 2026-02-27 | **`date()` de SQLite** en todos los filtros de fecha | Previene falsos positivos cuando hay valores no-fecha en columnas de fecha (errores `#VALUE!` de Excel). |
 | 2026-02-27 | **`CAST(n_expediente AS INTEGER)`** en búsqueda numérica | Permite buscar "046" y encontrar expedientes guardados como "46" (sin cero a la izquierda, como los lee Excel al importar). |
 | 2026-02-27 | **AutoFiltro en exportación** con `incluir_todos=1` | El usuario puede quitar el filtro EN FILTRO desde Excel para ver todos los expedientes, o dejarlo para ver solo los del filtro. |
+| 2026-03-03 | **Sidebars independientes por módulo** (`base.html`, `base_digitales.html`, `base_sala.html`) | Cada ventana del sistema tiene su propio menú lateral con ítems de navegación de su contexto. Evita confusión entre los 3 módulos. |
+| 2026-03-03 | **`julianday()` de SQLite** para alertas de días en digitales | Calcula días transcurridos desde `fecha_envio` hasta hoy directamente en SQL sin lógica Python post-proceso (salvo el helper `_clase_alerta()`). |
+| 2026-03-03 | **Rutas estáticas antes de `/{exp_id}`** en `digitales.py` | FastAPI evalúa rutas en orden de registro. Si `/{exp_id}` (tipo int) se registra primero, captura "importar"/"exportar"/"comunicaciones" y devuelve 422. |
 
 ---
 
@@ -248,33 +312,47 @@ Aplicación **web local** (LAN) que:
 SDS_OCDI/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                    # FastAPI app — monta routers y archivos estáticos
-│   ├── database.py                # Esquema SQLite, get_db(), calcular_alerta(), row_to_dict()
+│   ├── main.py                          # FastAPI app — registra todos los routers
+│   ├── database.py                      # Esquema SQLite (6 tablas), get_db(), calcular_alerta()
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   ├── expedientes.py         # Lista, CRUD, exportar Excel completo y filtrado
-│   │   ├── dashboard.py           # Dashboard con métricas, alertas, tendencia mensual
-│   │   ├── importar.py            # Importación masiva desde Excel (.xlsx)
-│   │   ├── seguimiento.py         # Seguimiento mensual de actuaciones
-│   │   └── autos.py               # Control de autos por tipo y mes
+│   │   ├── portal.py                    # GET /  → hub con 3 tiles
+│   │   ├── expedientes.py               # /expedientes — Lista, CRUD, exportar Excel
+│   │   ├── dashboard.py                 # /dashboard — métricas BASE 2023U
+│   │   ├── importar.py                  # /importar — cargue masivo Excel BASE
+│   │   ├── seguimiento.py               # /seguimiento — actuaciones mensuales
+│   │   ├── autos.py                     # /autos — control de autos
+│   │   ├── digitales.py                 # /digitales/* — módulo completo digitales 2025-2026
+│   │   └── sala.py                      # /sala/* — sala de audiencias
 │   ├── static/
-│   │   ├── css/style.css          # Estilos completos (sin dependencias externas)
-│   │   └── js/app.js              # Lógica de formulario, tabs, escaneos dinámicos
+│   │   ├── css/style.css                # Estilos completos (sin dependencias externas)
+│   │   └── js/app.js                    # Lógica de formulario, tabs, escaneos dinámicos
 │   └── templates/
-│       ├── base.html              # Plantilla base — sidebar + layout + nav
-│       ├── lista.html             # Lista con filtros avanzados y paginación
-│       ├── form.html              # Formulario crear/editar (7 secciones con tabs)
-│       ├── detalle.html           # Vista detalle del expediente
-│       ├── dashboard.html         # Dashboard con métricas y modal de exportación
-│       ├── importar.html          # Importación Excel con zona de drop y resultado
-│       ├── exportar_filtrado.html # Exportación personalizada con selección de bloques
-│       ├── seguimiento.html       # Tabla de seguimiento mensual
-│       └── autos.html             # Tabla de control de autos
+│       ├── base.html                    # Sidebar BASE EXPEDIENTES
+│       ├── base_digitales.html          # Sidebar EXP. DIGITALES
+│       ├── base_sala.html               # Sidebar SALA AUDIENCIAS
+│       ├── portal.html                  # Hub sin sidebar — 3 tiles clickables
+│       ├── lista.html                   # /expedientes lista
+│       ├── form.html                    # Crear/editar expediente BASE (7 bloques)
+│       ├── detalle.html                 # Detalle expediente BASE
+│       ├── dashboard.html               # Dashboard BASE 2023U
+│       ├── importar.html                # Importar Excel BASE
+│       ├── exportar_filtrado.html       # Exportar reporte personalizado
+│       ├── seguimiento.html             # Seguimiento mensual
+│       ├── autos.html                   # Control de autos
+│       ├── digitales_lista.html         # /digitales/ lista con filtros y alertas
+│       ├── digitales_dashboard.html     # /digitales/dashboard con tarjetas de alerta
+│       ├── digitales_detalle.html       # /digitales/{id} detalle + comunicaciones
+│       ├── digitales_form.html          # Crear/editar expediente digital
+│       ├── digitales_comunicaciones.html # /digitales/comunicaciones vista global
+│       ├── digitales_importar.html      # Importar Excel digitales
+│       ├── sala.html                    # /sala/ calendario mensual
+│       └── sala_form.html              # Crear/editar evento de sala
 ├── data/
-│   └── ocdi.db                    # Base de datos SQLite (generada automáticamente al iniciar)
-├── iniciar.bat                    # Script Windows — libera puerto 8000 e inicia el servidor
-├── requirements.txt               # Dependencias Python
-└── README.md                      # Este archivo
+│   └── ocdi.db                          # Base de datos SQLite (se crea al iniciar)
+├── iniciar.bat                          # Script Windows — libera puerto 8000 e inicia
+├── requirements.txt                     # Dependencias Python
+└── README.md                            # Este archivo
 ```
 
 ---

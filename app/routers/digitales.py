@@ -47,6 +47,8 @@ async def lista(
     abogado: str = "",
     etapa: str = "",
     anio: str = "",
+    sin_respuesta: str = "",
+    queja: str = "",
     msg: str = "",
     page: int = 1,
     por_pagina: int = 20,
@@ -57,31 +59,44 @@ async def lista(
     params: list = []
 
     if q.strip():
-        filtros.append("(n_expediente LIKE ? OR abogado LIKE ? OR radicado_auto LIKE ?)")
+        filtros.append("(e.n_expediente LIKE ? OR e.abogado LIKE ? OR e.radicado_auto LIKE ?)")
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
     if abogado.strip():
-        filtros.append("abogado = ?")
+        filtros.append("e.abogado = ?")
         params.append(abogado.strip())
     if etapa.strip():
-        filtros.append("etapa = ?")
+        filtros.append("e.etapa = ?")
         params.append(etapa.strip())
     if anio.strip():
-        filtros.append("anio = ?")
+        filtros.append("e.anio = ?")
         params.append(int(anio.strip()))
+    if sin_respuesta == "1":
+        filtros.append("""e.id IN (
+            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
+            WHERE fecha_respuesta IS NULL OR fecha_respuesta = ''
+        )""")
+    if queja == "si":
+        filtros.append("(e.queja_inicial = 'Sí' OR e.queja_inicial = 'Si' OR e.queja_inicial = 'SI' OR e.queja_inicial = 'sí')")
 
     where = " AND ".join(filtros)
 
-    total = conn.execute(f"SELECT COUNT(*) FROM exp_digitales WHERE {where}", params).fetchone()[0]
+    total = conn.execute(f"SELECT COUNT(*) FROM exp_digitales e WHERE {where}", params).fetchone()[0]
     offset = (page - 1) * por_pagina
     rows = conn.execute(
-        f"SELECT * FROM exp_digitales WHERE {where} ORDER BY anio DESC, n_expediente ASC LIMIT ? OFFSET ?",
+        f"""SELECT e.*,
+            (SELECT COUNT(*) FROM exp_comunicaciones WHERE exp_digital_id = e.id) AS num_coms,
+            (SELECT COUNT(*) FROM exp_comunicaciones
+             WHERE exp_digital_id = e.id AND (fecha_respuesta IS NULL OR fecha_respuesta = '')) AS coms_sin_resp
+            FROM exp_digitales e
+            WHERE {where}
+            ORDER BY e.anio DESC, e.n_expediente ASC LIMIT ? OFFSET ?""",
         params + [por_pagina, offset],
     ).fetchall()
 
     abogados = [r[0] for r in conn.execute(
         "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL ORDER BY abogado"
     ).fetchall()]
-    etapas = [r[0] for r in conn.execute(
+    etapas_list = [r[0] for r in conn.execute(
         "SELECT DISTINCT etapa FROM exp_digitales WHERE etapa IS NOT NULL ORDER BY etapa"
     ).fetchall()]
     anios = [r[0] for r in conn.execute(
@@ -104,8 +119,10 @@ async def lista(
         "abogado": abogado,
         "etapa": etapa,
         "anio": anio,
+        "sin_respuesta": sin_respuesta,
+        "queja": queja,
         "abogados": abogados,
-        "etapas": etapas,
+        "etapas": etapas_list,
         "anios": anios,
         "msg": msg,
     })
@@ -420,7 +437,61 @@ async def exportar():
     )
 
 
-# ── Comunicaciones (rutas sin {exp_id} al inicio) ─────────────────────────────
+# ── Vista global de comunicaciones  ← ANTES DE /{exp_id} ─────────────────────
+
+@router.get("/comunicaciones", response_class=HTMLResponse)
+async def comunicaciones_lista(
+    request: Request,
+    sin_respuesta: str = "",
+    abogado: str = "",
+    q: str = "",
+):
+    conn = get_db()
+
+    filtros = ["1=1"]
+    params: list = []
+
+    if sin_respuesta == "1":
+        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
+    if abogado.strip():
+        filtros.append("e.abogado = ?")
+        params.append(abogado.strip())
+    if q.strip():
+        filtros.append("(c.radicado_comunicacion LIKE ? OR c.dependencia LIKE ? OR e.n_expediente LIKE ?)")
+        params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+
+    where = " AND ".join(filtros)
+
+    rows = conn.execute(f"""
+        SELECT c.*,
+               e.n_expediente, e.abogado, e.anio, e.etapa,
+               e.id AS exp_id
+        FROM exp_comunicaciones c
+        JOIN exp_digitales e ON c.exp_digital_id = e.id
+        WHERE {where}
+        ORDER BY e.abogado ASC, e.n_expediente ASC, c.fecha_envio ASC, c.id ASC
+    """, params).fetchall()
+
+    abogados = [r[0] for r in conn.execute(
+        "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL ORDER BY abogado"
+    ).fetchall()]
+
+    conn.close()
+
+    rows_list = [dict(r) for r in rows]
+    return templates.TemplateResponse("digitales_comunicaciones.html", {
+        "request": request,
+        "active": "digitales_lista",
+        "rows": rows_list,
+        "total": len(rows_list),
+        "sin_respuesta": sin_respuesta,
+        "abogado": abogado,
+        "q": q,
+        "abogados": abogados,
+    })
+
+
+# ── Comunicaciones CRUD (rutas sin {exp_id} al inicio) ────────────────────────
 
 @router.post("/comunicacion/{com_id}/editar")
 async def com_editar(

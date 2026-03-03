@@ -12,7 +12,7 @@
 {% block content %}
 
 <!-- Filtros -->
-<form method="get" action="/digitales/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:16px">
+<form method="get" action="/digitales/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
   <input type="text" name="q" value="{{ q }}" placeholder="Buscar N° exp., radicado..." class="filter-input" style="min-width:200px">
 
   <select name="abogado" class="filter-select">
@@ -36,9 +36,33 @@
     {% endfor %}
   </select>
 
+  <!-- Preservar filtros especiales si están activos -->
+  {% if sin_respuesta == '1' %}<input type="hidden" name="sin_respuesta" value="1">{% endif %}
+  {% if queja == 'si' %}<input type="hidden" name="queja" value="si">{% endif %}
+
   <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
   <a href="/digitales/" class="btn btn-outline">✕ Limpiar</a>
 </form>
+
+<!-- Badges de filtro activo -->
+{% if sin_respuesta == '1' or queja == 'si' %}
+<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  {% if sin_respuesta == '1' %}
+  <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+    ⚠️ Solo con comunicaciones sin respuesta
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&queja={{ queja }}"
+       style="color:#92400e;font-weight:700;text-decoration:none">✕</a>
+  </span>
+  {% endif %}
+  {% if queja == 'si' %}
+  <span style="background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+    🔴 Solo con Queja Inicial
+    <a href="/digitales/?q={{ q }}&abogado={{ abogado }}&etapa={{ etapa }}&anio={{ anio }}&sin_respuesta={{ sin_respuesta }}"
+       style="color:#dc2626;font-weight:700;text-decoration:none">✕</a>
+  </span>
+  {% endif %}
+</div>
+{% endif %}
 
 <div class="table-wrapper">
   <table class="data-table">
@@ -51,7 +75,7 @@
         <th>Queja Inicial</th>
         <th>Nombre Auto</th>
         <th>Fecha Auto</th>
-        <th>Comunicaciones</th>
+        <th style="text-align:center">Coms.</th>
         <th></th>
       </tr>
     </thead>
@@ -72,7 +96,17 @@
         <td class="td-texto">{{ r.nombre_auto or '—' }}</td>
         <td style="font-size:12px">{{ r.fecha_auto or '—' }}</td>
         <td style="text-align:center">
-          <a href="/digitales/{{ r.id }}" style="font-size:11px;color:var(--text-muted)">Ver →</a>
+          {% if r.num_coms %}
+          <a href="/digitales/{{ r.id }}"
+             style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">
+            {{ r.num_coms }}
+            {% if r.coms_sin_resp %}
+            <span style="background:#fee2e2;color:#dc2626;padding:1px 5px;border-radius:10px;font-size:10px">{{ r.coms_sin_resp }} pend.</span>
+            {% endif %}
+          </a>
+          {% else %}
+          <span style="color:var(--text-muted);font-size:11px">—</span>
+          {% endif %}
         </td>
         <td>
           <a href="/digitales/{{ r.id }}" class="btn-sm btn-ver">👁 Ver</a>
@@ -91,7 +125,7 @@
 <!-- Paginación -->
 {% if total_pages > 1 %}
 <div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-  {% set base_url = '/digitales/?q=' ~ q ~ '&abogado=' ~ abogado ~ '&etapa=' ~ etapa ~ '&anio=' ~ anio ~ '&por_pagina=' ~ por_pagina %}
+  {% set base_url = '/digitales/?q=' ~ q ~ '&abogado=' ~ abogado ~ '&etapa=' ~ etapa ~ '&anio=' ~ anio ~ '&sin_respuesta=' ~ sin_respuesta ~ '&queja=' ~ queja ~ '&por_pagina=' ~ por_pagina %}
   {% if page > 1 %}
   <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
   {% endif %}

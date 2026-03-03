@@ -1,0 +1,104 @@
+{% extends "base_digitales.html" %}
+{% block title %}Comunicaciones · Exp. Digitales{% endblock %}
+{% block heading %}Comunicaciones — Expedientes Digitales{% endblock %}
+
+{% block header_actions %}
+<a href="/digitales/dashboard" class="btn btn-outline">📊 Dashboard</a>
+<a href="/digitales/" class="btn btn-outline">📋 Expedientes</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filtros -->
+<form method="get" action="/digitales/comunicaciones" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar radicado, dependencia, N° exp..." class="filter-input" style="min-width:220px">
+
+  <select name="abogado" class="filter-select">
+    <option value="">Todos los abogados</option>
+    {% for a in abogados %}
+    <option value="{{ a }}" {% if abogado == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:0 4px">
+    <input type="checkbox" name="sin_respuesta" value="1" {% if sin_respuesta == '1' %}checked{% endif %}>
+    Solo sin respuesta
+  </label>
+
+  <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+  <a href="/digitales/comunicaciones" class="btn btn-outline">✕ Limpiar</a>
+</form>
+
+<!-- Badge filtro activo -->
+{% if sin_respuesta == '1' %}
+<div style="margin-bottom:12px">
+  <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
+    ⚠️ Mostrando solo comunicaciones sin respuesta
+  </span>
+</div>
+{% endif %}
+
+<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">{{ total }} comunicación(es)</p>
+
+<div class="table-wrapper">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>N° Exp.</th>
+        <th>Año</th>
+        <th>Abogado</th>
+        <th>Radicado Com.</th>
+        <th>Dependencia</th>
+        <th>F. Envío</th>
+        <th>F. Seguimiento</th>
+        <th>Radicado Resp.</th>
+        <th>F. Respuesta</th>
+        <th>Responsable</th>
+        <th>Observaciones</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ultimo_exp = namespace(id=None) %}
+      {% for r in rows %}
+      <tr {% if r.exp_id != ultimo_exp.id %}style="border-top:2px solid var(--border)"{% endif %}>
+        {% if r.exp_id != ultimo_exp.id %}
+        <td class="exp-num" style="font-weight:700;color:var(--primary)">
+          <a href="/digitales/{{ r.exp_id }}" style="color:var(--primary)">{{ r.n_expediente }}</a>
+        </td>
+        <td>{{ r.anio or '—' }}</td>
+        <td class="td-texto" style="font-size:11px">{{ r.abogado or '—' }}</td>
+        {% set _ = ultimo_exp.__setattr__('id', r.exp_id) %}
+        {% else %}
+        <td colspan="3" style="background:#f8fafc"></td>
+        {% endif %}
+        <td><strong>{{ r.radicado_comunicacion or '—' }}</strong></td>
+        <td class="td-texto">{{ r.dependencia or '—' }}</td>
+        <td style="font-size:11px;white-space:nowrap">{{ r.fecha_envio or '—' }}</td>
+        <td style="font-size:11px;white-space:nowrap">{{ r.fecha_seguimiento or '—' }}</td>
+        <td style="font-size:11px">{{ r.radicado_respuesta or '—' }}</td>
+        <td style="font-size:11px;white-space:nowrap">
+          {% if r.fecha_respuesta %}
+          <span style="color:#16a34a;font-weight:600">{{ r.fecha_respuesta }}</span>
+          {% else %}
+          <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;white-space:nowrap">Sin respuesta</span>
+          {% endif %}
+        </td>
+        <td class="td-texto" style="font-size:11px">{{ r.responsable or '—' }}</td>
+        <td class="td-texto" style="font-size:11px;max-width:180px">{{ r.observaciones or '—' }}</td>
+        <td>
+          <a href="/digitales/{{ r.exp_id }}" class="btn-sm btn-ver">👁</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">
+          Sin comunicaciones registradas.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

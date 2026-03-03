@@ -63,12 +63,12 @@
       {% for r in rows %}
       <tr {% if r.exp_id != ultimo_exp.id %}style="border-top:2px solid var(--border)"{% endif %}>
         {% if r.exp_id != ultimo_exp.id %}
+        {% set ultimo_exp.id = r.exp_id %}
         <td class="exp-num" style="font-weight:700;color:var(--primary)">
           <a href="/digitales/{{ r.exp_id }}" style="color:var(--primary)">{{ r.n_expediente }}</a>
         </td>
         <td>{{ r.anio or '—' }}</td>
         <td class="td-texto" style="font-size:11px">{{ r.abogado or '—' }}</td>
-        {% set _ = ultimo_exp.__setattr__('id', r.exp_id) %}
         {% else %}
         <td colspan="3" style="background:#f8fafc"></td>
         {% endif %}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sala de Audiencias{% endblock %} — SDS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="layout">
+
+    <!-- SIDEBAR SALA DE AUDIENCIAS -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">🗓️</div>
+            <div class="brand-text">
+                <span class="brand-title">SALA AUDIENCIAS</span>
+                <span class="brand-sub">Disponibilidad · OCDI</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-link nav-link-hub">
+                <span class="nav-ico">🏠</span>
+                <span>Portal Principal</span>
+            </a>
+
+            <div class="nav-section-label">🗓️ SALA DE AUDIENCIAS</div>
+            <a href="/sala/" class="nav-link {% if active == 'sala' %}active{% endif %}">
+                <span class="nav-ico">📅</span>
+                <span>Calendario Mensual</span>
+            </a>
+            <a href="/sala/evento/nuevo" class="nav-link {% if active == 'sala_nuevo' %}active{% endif %}">
+                <span class="nav-ico">➕</span>
+                <span>Nuevo Evento</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>SDS · OCDI v2.2</span>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main">
+        <div class="page-header">
+            <h1 class="page-title">{% block heading %}{% endblock %}</h1>
+            <div class="page-actions">{% block header_actions %}{% endblock %}</div>
+        </div>
+
+        {% if msg %}
+        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+            {% if msg == 'creado' %}✅ Evento creado correctamente.
+            {% elif msg == 'actualizado' %}✅ Evento actualizado.
+            {% elif msg == 'eliminado' %}✅ Evento eliminado.
+            {% elif msg == 'no_encontrado' %}⚠️ Evento no encontrado.
+            {% else %}{{ msg }}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="page-body">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+</div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

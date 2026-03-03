@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}OCDI{% endblock %} — SDS</title>
+    <title>{% block title %}Exp. Digitales{% endblock %} — SDS</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 <div class="layout">
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR EXPEDIENTES DIGITALES -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-icon">📁</div>
+            <div class="brand-icon">💻</div>
             <div class="brand-text">
-                <span class="brand-title">BASE EXPEDIENTES</span>
-                <span class="brand-sub">2023U · OCDI</span>
+                <span class="brand-title">EXP. DIGITALES</span>
+                <span class="brand-sub">2025-2026 · OCDI</span>
             </div>
         </div>
 
@@ -25,34 +25,26 @@
                 <span>Portal Principal</span>
             </a>
 
-            <div class="nav-section-label">📁 BASE EXPEDIENTES</div>
-            <a href="/dashboard" class="nav-link {% if active == 'dashboard' %}active{% endif %}">
+            <div class="nav-section-label">💻 SEGUIMIENTO DIGITALES</div>
+            <a href="/digitales/dashboard" class="nav-link {% if active == 'digitales_dash' %}active{% endif %}">
                 <span class="nav-ico">📊</span>
                 <span>Dashboard</span>
             </a>
-            <a href="/expedientes" class="nav-link {% if active == 'lista' %}active{% endif %}">
+            <a href="/digitales/" class="nav-link {% if active == 'digitales_lista' %}active{% endif %}">
                 <span class="nav-ico">📋</span>
-                <span>Expedientes</span>
+                <span>Lista Expedientes</span>
             </a>
-            <a href="/expediente/nuevo" class="nav-link {% if active == 'nuevo' %}active{% endif %}">
+            <a href="/digitales/nuevo" class="nav-link {% if active == 'digitales_nuevo' %}active{% endif %}">
                 <span class="nav-ico">➕</span>
                 <span>Nuevo Expediente</span>
             </a>
-            <a href="/seguimiento" class="nav-link {% if active == 'seguimiento' %}active{% endif %}">
-                <span class="nav-ico">🗓</span>
-                <span>Seguimiento Mensual</span>
-            </a>
-            <a href="/autos" class="nav-link {% if active == 'autos' %}active{% endif %}">
-                <span class="nav-ico">⚖️</span>
-                <span>Control de Autos</span>
-            </a>
-            <a href="/importar" class="nav-link {% if active == 'importar' %}active{% endif %}">
+            <a href="/digitales/importar" class="nav-link {% if active == 'digitales_importar' %}active{% endif %}">
                 <span class="nav-ico">📥</span>
                 <span>Importar Excel</span>
             </a>
-            <a href="/exportar-filtrado" class="nav-link {% if active == 'exportar' %}active{% endif %}">
+            <a href="/digitales/exportar" class="nav-link {% if active == 'digitales_exportar' %}active{% endif %}">
                 <span class="nav-ico">📤</span>
-                <span>Exportar Personalizado</span>
+                <span>Exportar Excel</span>
             </a>
         </nav>
 
@@ -72,6 +64,9 @@
         <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Expediente creado correctamente.
             {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
+            {% elif msg == 'com_creada' %}✅ Comunicación agregada correctamente.
+            {% elif msg == 'com_actualizada' %}✅ Comunicación actualizada.
+            {% elif msg == 'com_eliminada' %}✅ Comunicación eliminada.
             {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
             {% else %}{{ msg }}

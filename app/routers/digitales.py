@@ -131,7 +131,7 @@ async def lista(
              AND fecha_envio IS NOT NULL AND fecha_envio != '') AS max_dias_pendiente
             FROM exp_digitales e
             WHERE {where}
-            ORDER BY e.anio DESC, e.n_expediente ASC LIMIT ? OFFSET ?""",
+            ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER) ASC, e.n_expediente ASC LIMIT ? OFFSET ?""",
         params + [por_pagina, offset],
     ).fetchall()
 

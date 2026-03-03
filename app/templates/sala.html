@@ -79,7 +79,7 @@
           {% for fi in celda.franjas %}
           {% if fi.evento %}
           <div class="sala-franja sala-{{ fi.evento.estado | lower | replace(' ', '-') }}"
-               data-evento="{{ fi.evento | tojson }}"
+               data-evento="{{ fi.evento | tojson | forceescape }}"
                onclick="abrirDetalle(this)"
                title="{{ fi.franja }}: {{ fi.evento.titulo or fi.evento.estado }}">
             <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>

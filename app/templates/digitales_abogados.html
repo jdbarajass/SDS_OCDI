@@ -1,0 +1,115 @@
+{% extends "base_digitales.html" %}
+{% block title %}Abogados — Exp. Digitales{% endblock %}
+{% block heading %}Abogados{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-{% if 'error' in msg or 'duplicado' in msg or 'vacio' in msg %}danger{% else %}success{% endif %}"
+     style="margin-bottom:16px">
+  {% if msg == 'ab_creado' %}✅ Abogado agregado correctamente.
+  {% elif msg == 'ab_actualizado' %}✅ Abogado actualizado correctamente.
+  {% elif msg == 'ab_eliminado' %}✅ Abogado eliminado.
+  {% elif msg == 'ab_duplicado' %}⚠️ Ya existe un abogado con ese nombre.
+  {% elif msg == 'ab_vacio' %}⚠️ El nombre no puede estar vacío.
+  {% endif %}
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+  <!-- Lista de abogados -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0;font-size:14px;font-weight:600;color:var(--text)">
+        Abogados registrados
+        <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:6px">{{ abogados|length }}</span>
+      </h3>
+    </div>
+
+    {% if abogados %}
+    <div class="table-wrapper" style="box-shadow:none;border:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:60%">Nombre</th>
+            <th style="width:40%;text-align:center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ab in abogados %}
+          <tr id="fila-{{ ab.id }}">
+            <!-- Vista normal -->
+            <td id="nombre-{{ ab.id }}" style="font-weight:500">{{ ab.nombre }}</td>
+            <td style="text-align:center;white-space:nowrap">
+              <button onclick="activarEdicion({{ ab.id }}, '{{ ab.nombre | replace("'", "\\'") }}')"
+                      class="btn-sm btn-outline" style="font-size:11px">✏ Editar</button>
+              <form method="post" action="/digitales/abogados/{{ ab.id }}/eliminar"
+                    onsubmit="return confirm('¿Eliminar a {{ ab.nombre | replace("'", "\\'") }}? Los expedientes vinculados no se borran.')"
+                    style="display:inline">
+                <button type="submit" class="btn-sm"
+                        style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:11px">🗑 Eliminar</button>
+              </form>
+            </td>
+          </tr>
+          <!-- Fila de edición (oculta por defecto) -->
+          <tr id="edit-{{ ab.id }}" style="display:none;background:#eff6ff">
+            <td>
+              <form method="post" action="/digitales/abogados/{{ ab.id }}/editar"
+                    style="display:flex;gap:8px;align-items:center">
+                <input type="text" name="nombre" id="input-{{ ab.id }}"
+                       class="form-input" style="margin:0;font-size:13px" required>
+                <button type="submit" class="btn-sm btn-primary" style="font-size:11px;white-space:nowrap">💾 Guardar</button>
+                <button type="button" onclick="cancelarEdicion({{ ab.id }})"
+                        class="btn-sm btn-outline" style="font-size:11px">✕</button>
+              </form>
+            </td>
+            <td></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding:32px;text-align:center;color:var(--text-muted);font-size:13px">
+      No hay abogados registrados aún.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Formulario agregar nuevo -->
+  <div class="card" style="max-width:380px">
+    <h3 style="margin:0 0 16px;font-size:14px;font-weight:600;color:var(--text)">➕ Agregar abogado</h3>
+    <form method="post" action="/digitales/abogados/nuevo">
+      <div class="form-group">
+        <label class="form-label">Nombre completo *</label>
+        <input type="text" name="nombre" class="form-input"
+               placeholder="Ej: LUIS HERNANDO PEREZ GARCIA" required
+               style="text-transform:uppercase">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">Agregar</button>
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function activarEdicion(id, nombreActual) {
+  document.getElementById('fila-' + id).style.display = 'none';
+  var editRow = document.getElementById('edit-' + id);
+  editRow.style.display = '';
+  var input = document.getElementById('input-' + id);
+  input.value = nombreActual;
+  input.focus();
+  input.select();
+}
+
+function cancelarEdicion(id) {
+  document.getElementById('fila-' + id).style.display = '';
+  document.getElementById('edit-' + id).style.display = 'none';
+}
+</script>
+{% endblock %}

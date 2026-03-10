@@ -692,20 +692,28 @@ async def abogado_editar(ab_id: int, nombre: str = Form("")):
     if nombre:
         conn = get_db()
         try:
-            # Obtener nombre actual para actualizar en cascada
             row = conn.execute(
                 "SELECT nombre FROM abogados_digitales WHERE id=?", (ab_id,)
             ).fetchone()
             if row:
                 nombre_viejo = row[0]
-                conn.execute("UPDATE abogados_digitales SET nombre=? WHERE id=?", (nombre, ab_id))
-                # Cascada: actualizar todos los expedientes que tenían el nombre anterior
+                # Comprobar si el nombre destino ya existe (fusión de duplicados)
+                destino = conn.execute(
+                    "SELECT id FROM abogados_digitales WHERE nombre=? AND id!=?", (nombre, ab_id)
+                ).fetchone()
+                # Reasignar expedientes al nombre destino (nuevo o ya existente)
                 conn.execute(
                     "UPDATE exp_digitales SET abogado=? WHERE abogado=?",
                     (nombre, nombre_viejo)
                 )
+                if destino:
+                    # Fusión: el nombre ya existe → solo eliminar la entrada duplicada
+                    conn.execute("DELETE FROM abogados_digitales WHERE id=?", (ab_id,))
+                    msg = "ab_fusionado"
+                else:
+                    conn.execute("UPDATE abogados_digitales SET nombre=? WHERE id=?", (nombre, ab_id))
+                    msg = "ab_actualizado"
             conn.commit()
-            msg = "ab_actualizado"
         except Exception:
             msg = "ab_duplicado"
         finally:

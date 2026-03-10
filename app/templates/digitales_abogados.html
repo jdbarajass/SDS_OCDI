@@ -9,7 +9,8 @@
      style="margin-bottom:16px">
   {% if msg == 'ab_creado' %}✅ Abogado agregado correctamente.
   {% elif msg == 'ab_actualizado' %}✅ Abogado actualizado correctamente.
-  {% elif msg == 'ab_eliminado' %}✅ Abogado eliminado.
+  {% elif msg == 'ab_fusionado' %}✅ Abogados fusionados: los expedientes fueron reasignados al nombre correcto.
+  {% elif msg == 'ab_eliminado' %}✅ Abogado eliminado. Los expedientes asociados quedaron sin abogado asignado.
   {% elif msg == 'ab_duplicado' %}⚠️ Ya existe un abogado con ese nombre.
   {% elif msg == 'ab_vacio' %}⚠️ El nombre no puede estar vacío.
   {% endif %}

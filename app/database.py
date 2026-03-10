@@ -94,6 +94,12 @@ CREATE TABLE IF NOT EXISTS actuaciones (
     FOREIGN KEY (expediente_id) REFERENCES expedientes(id) ON DELETE CASCADE
 );
 
+-- ── ABOGADOS DIGITALES ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS abogados_digitales (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE
+);
+
 -- ── EXPEDIENTES DIGITALES ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS exp_digitales (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,

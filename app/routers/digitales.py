@@ -246,12 +246,18 @@ async def dashboard(request: Request):
 
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nuevo_form(request: Request):
+    conn = get_db()
+    abogados = [r[0] for r in conn.execute(
+        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
+    ).fetchall()]
+    conn.close()
     return templates.TemplateResponse("digitales_form.html", {
         "request": request,
         "active": "digitales_lista",
         "exp": {},
         "comunicaciones": [],
         "modo": "nuevo",
+        "abogados": abogados,
     })
 
 
@@ -633,6 +639,68 @@ async def com_eliminar(com_id: int):
     return RedirectResponse(f"/digitales/{exp_id}?msg=com_eliminada", status_code=303)
 
 
+# ── CRUD Abogados  ← ANTES DE /{exp_id} ──────────────────────────────────────
+
+@router.get("/abogados", response_class=HTMLResponse)
+async def abogados_lista(request: Request, msg: str = ""):
+    conn = get_db()
+    abogados = conn.execute(
+        "SELECT id, nombre FROM abogados_digitales ORDER BY nombre"
+    ).fetchall()
+    conn.close()
+    return templates.TemplateResponse("digitales_abogados.html", {
+        "request": request,
+        "active": "digitales_abogados",
+        "abogados": [dict(a) for a in abogados],
+        "msg": msg,
+    })
+
+
+@router.post("/abogados/nuevo")
+async def abogado_crear(nombre: str = Form("")):
+    nombre = (nombre or "").strip()
+    if nombre:
+        conn = get_db()
+        try:
+            conn.execute("INSERT INTO abogados_digitales (nombre) VALUES (?)", (nombre,))
+            conn.commit()
+            msg = "ab_creado"
+        except Exception:
+            msg = "ab_duplicado"
+        finally:
+            conn.close()
+    else:
+        msg = "ab_vacio"
+    return RedirectResponse(f"/digitales/abogados?msg={msg}", status_code=303)
+
+
+@router.post("/abogados/{ab_id}/editar")
+async def abogado_editar(ab_id: int, nombre: str = Form("")):
+    nombre = (nombre or "").strip()
+    if nombre:
+        conn = get_db()
+        try:
+            conn.execute("UPDATE abogados_digitales SET nombre=? WHERE id=?", (nombre, ab_id))
+            conn.commit()
+            msg = "ab_actualizado"
+        except Exception:
+            msg = "ab_duplicado"
+        finally:
+            conn.close()
+    else:
+        msg = "ab_vacio"
+    return RedirectResponse(f"/digitales/abogados?msg={msg}", status_code=303)
+
+
+@router.post("/abogados/{ab_id}/eliminar")
+async def abogado_eliminar(ab_id: int):
+    conn = get_db()
+    conn.execute("DELETE FROM abogados_digitales WHERE id=?", (ab_id,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/digitales/abogados?msg=ab_eliminado", status_code=303)
+
+
 # ── Detalle  ← /{exp_id} siempre AL FINAL ─────────────────────────────────────
 
 @router.get("/{exp_id}", response_class=HTMLResponse)
@@ -667,6 +735,9 @@ async def editar_form(request: Request, exp_id: int):
         "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
         (exp_id,)
     ).fetchall()
+    abogados = [r[0] for r in conn.execute(
+        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
+    ).fetchall()]
     conn.close()
     return templates.TemplateResponse("digitales_form.html", {
         "request": request,
@@ -674,6 +745,7 @@ async def editar_form(request: Request, exp_id: int):
         "exp": dict(exp),
         "comunicaciones": [dict(c) for c in comunicaciones],
         "modo": "editar",
+        "abogados": abogados,
     })
 
 

@@ -25,7 +25,12 @@
 
       <div class="form-group">
         <label class="form-label">Abogado</label>
-        <input type="text" name="abogado" class="form-input" value="{{ exp.abogado or '' }}">
+        <select name="abogado" class="form-select">
+          <option value="">— Seleccionar —</option>
+          {% for ab in abogados %}
+          <option value="{{ ab }}" {% if exp.abogado == ab %}selected{% endif %}>{{ ab }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <div class="form-group">

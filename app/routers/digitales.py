@@ -692,7 +692,18 @@ async def abogado_editar(ab_id: int, nombre: str = Form("")):
     if nombre:
         conn = get_db()
         try:
-            conn.execute("UPDATE abogados_digitales SET nombre=? WHERE id=?", (nombre, ab_id))
+            # Obtener nombre actual para actualizar en cascada
+            row = conn.execute(
+                "SELECT nombre FROM abogados_digitales WHERE id=?", (ab_id,)
+            ).fetchone()
+            if row:
+                nombre_viejo = row[0]
+                conn.execute("UPDATE abogados_digitales SET nombre=? WHERE id=?", (nombre, ab_id))
+                # Cascada: actualizar todos los expedientes que tenían el nombre anterior
+                conn.execute(
+                    "UPDATE exp_digitales SET abogado=? WHERE abogado=?",
+                    (nombre, nombre_viejo)
+                )
             conn.commit()
             msg = "ab_actualizado"
         except Exception:
@@ -707,6 +718,14 @@ async def abogado_editar(ab_id: int, nombre: str = Form("")):
 @router.post("/abogados/{ab_id}/eliminar")
 async def abogado_eliminar(ab_id: int):
     conn = get_db()
+    row = conn.execute(
+        "SELECT nombre FROM abogados_digitales WHERE id=?", (ab_id,)
+    ).fetchone()
+    if row:
+        # Cascada: limpiar el campo en exp_digitales para que no reaparezca al sincronizar
+        conn.execute(
+            "UPDATE exp_digitales SET abogado=NULL WHERE abogado=?", (row[0],)
+        )
     conn.execute("DELETE FROM abogados_digitales WHERE id=?", (ab_id,))
     conn.commit()
     conn.close()

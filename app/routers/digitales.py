@@ -244,12 +244,23 @@ async def dashboard(request: Request):
 
 # ── Nuevo ──────────────────────────────────────────────────────────────────────
 
+def _get_abogados(conn) -> list[str]:
+    """Retorna lista de nombres desde el catálogo, sincronizando primero con exp_digitales."""
+    conn.execute("""
+        INSERT OR IGNORE INTO abogados_digitales (nombre)
+        SELECT DISTINCT abogado FROM exp_digitales
+        WHERE abogado IS NOT NULL AND TRIM(abogado) != ''
+    """)
+    conn.commit()
+    return [r[0] for r in conn.execute(
+        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
+    ).fetchall()]
+
+
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nuevo_form(request: Request):
     conn = get_db()
-    abogados = [r[0] for r in conn.execute(
-        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
-    ).fetchall()]
+    abogados = _get_abogados(conn)
     conn.close()
     return templates.TemplateResponse("digitales_form.html", {
         "request": request,
@@ -644,6 +655,7 @@ async def com_eliminar(com_id: int):
 @router.get("/abogados", response_class=HTMLResponse)
 async def abogados_lista(request: Request, msg: str = ""):
     conn = get_db()
+    _get_abogados(conn)  # sincroniza exp_digitales → abogados_digitales
     abogados = conn.execute(
         "SELECT id, nombre FROM abogados_digitales ORDER BY nombre"
     ).fetchall()
@@ -735,9 +747,7 @@ async def editar_form(request: Request, exp_id: int):
         "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
         (exp_id,)
     ).fetchall()
-    abogados = [r[0] for r in conn.execute(
-        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
-    ).fetchall()]
+    abogados = _get_abogados(conn)
     conn.close()
     return templates.TemplateResponse("digitales_form.html", {
         "request": request,

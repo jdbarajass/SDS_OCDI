@@ -65,7 +65,7 @@
         </div>
 
         {% if msg %}
-        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+        <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'duplicado' in msg or 'vacio' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Expediente creado correctamente.
             {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
             {% elif msg == 'com_creada' %}✅ Comunicación agregada correctamente.
@@ -73,9 +73,20 @@
             {% elif msg == 'com_eliminada' %}✅ Comunicación eliminada.
             {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
-            {% else %}{{ msg }}
+            {% elif msg == 'ab_creado' %}✅ Abogado agregado correctamente.
+            {% elif msg == 'ab_actualizado' %}✅ Abogado actualizado correctamente.
+            {% elif msg == 'ab_fusionado' %}✅ Abogados fusionados: los expedientes fueron reasignados al nombre correcto.
+            {% elif msg == 'ab_eliminado' %}✅ Abogado eliminado. Los expedientes asociados quedaron sin abogado asignado.
+            {% elif msg == 'ab_duplicado' %}⚠️ Ya existe un abogado con ese nombre.
+            {% elif msg == 'ab_vacio' %}⚠️ El nombre no puede estar vacío.
             {% endif %}
         </div>
+        <script>
+            setTimeout(function(){
+                var el = document.getElementById('flash-msg');
+                if(el){ el.style.transition='opacity .5s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 500); }
+            }, 5000);
+        </script>
         {% endif %}
 
         <div class="page-body">

@@ -62,6 +62,11 @@
         <input type="text" name="nombre_auto" class="form-input" value="{{ exp.nombre_auto or '' }}">
       </div>
 
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Observaciones generales</label>
+        <textarea name="observaciones" class="form-textarea" rows="3" placeholder="Notas internas sobre el estado o avance del expediente...">{{ exp.observaciones or '' }}</textarea>
+      </div>
+
     </div>
 
     <div style="margin-top:24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">

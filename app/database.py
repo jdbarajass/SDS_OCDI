@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS exp_digitales (
     radicado_auto       TEXT,
     nombre_auto         TEXT,
     fecha_auto          TEXT,
+    observaciones       TEXT,
     created_at          TEXT DEFAULT (datetime('now', 'localtime')),
     updated_at          TEXT DEFAULT (datetime('now', 'localtime'))
 );
@@ -161,6 +162,11 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.executescript(SCHEMA)
+    # Migraciones: agregar columnas nuevas a tablas existentes
+    try:
+        conn.execute("ALTER TABLE exp_digitales ADD COLUMN observaciones TEXT")
+    except Exception:
+        pass  # columna ya existe
     conn.commit()
     conn.close()
 

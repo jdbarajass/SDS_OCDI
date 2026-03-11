@@ -825,18 +825,19 @@ async def editar_post(
     radicado_auto: str = Form(""),
     nombre_auto: str = Form(""),
     fecha_auto: str = Form(""),
+    observaciones: str = Form(""),
 ):
     conn = get_db()
     conn.execute("""
         UPDATE exp_digitales SET n_expediente=?, anio=?, abogado=?, etapa=?, queja_inicial=?,
-            radicado_auto=?, nombre_auto=?, fecha_auto=?,
+            radicado_auto=?, nombre_auto=?, fecha_auto=?, observaciones=?,
             updated_at=datetime('now','localtime')
         WHERE id=?
     """, (
         _texto(n_expediente), int(anio) if anio.strip() else None,
         _texto(abogado), _texto(etapa), queja_inicial or "No",
         _texto(radicado_auto), _texto(nombre_auto), _fecha(fecha_auto),
-        exp_id,
+        _texto(observaciones), exp_id,
     ))
     conn.commit()
     conn.close()

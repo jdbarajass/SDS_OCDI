@@ -59,6 +59,13 @@
       <div>{{ exp.fecha_auto or '—' }}</div>
     </div>
 
+    {% if exp.observaciones %}
+    <div style="grid-column:1/-1">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Observaciones generales</div>
+      <div style="margin-top:4px;padding:10px 12px;background:#f8fafc;border-radius:6px;border-left:3px solid var(--primary);font-size:13px;white-space:pre-wrap">{{ exp.observaciones }}</div>
+    </div>
+    {% endif %}
+
   </div>
 </div>
 

@@ -5,10 +5,12 @@ from pathlib import Path
 from datetime import date
 import io
 
+from urllib.parse import quote_plus as _quote_plus
 from app.database import get_db
 
 router = APIRouter(prefix="/digitales")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates.env.filters["quote_plus"] = _quote_plus
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -169,6 +171,7 @@ async def lista(
         "anios": anios,
         "msg": msg,
         "clase_alerta": _clase_alerta,
+        "back_url": request.url.path + ("?" + str(request.url.query) if request.url.query else ""),
     })
 
 
@@ -743,7 +746,7 @@ async def abogado_eliminar(ab_id: int):
 # ── Detalle  ← /{exp_id} siempre AL FINAL ─────────────────────────────────────
 
 @router.get("/{exp_id}", response_class=HTMLResponse)
-async def detalle(request: Request, exp_id: int, msg: str = ""):
+async def detalle(request: Request, exp_id: int, msg: str = "", back: str = ""):
     conn = get_db()
     exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
     if not exp:
@@ -765,6 +768,7 @@ async def detalle(request: Request, exp_id: int, msg: str = ""):
         "comunicaciones": [dict(c) for c in comunicaciones],
         "revisiones": [dict(r) for r in revisiones],
         "msg": msg,
+        "back": back,
     })
 
 
@@ -780,7 +784,7 @@ async def marcar_revisado(exp_id: int):
 
 
 @router.get("/{exp_id}/editar", response_class=HTMLResponse)
-async def editar_form(request: Request, exp_id: int, msg: str = ""):
+async def editar_form(request: Request, exp_id: int, msg: str = "", back: str = ""):
     conn = get_db()
     exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
     if not exp:
@@ -805,6 +809,7 @@ async def editar_form(request: Request, exp_id: int, msg: str = ""):
         "modo": "editar",
         "abogados": abogados,
         "msg": msg,
+        "back": back,
     })
 
 

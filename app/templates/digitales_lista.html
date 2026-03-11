@@ -124,7 +124,7 @@
         <td style="font-size:12px">{{ r.fecha_auto or '—' }}</td>
         <td style="text-align:center">
           {% if r.num_coms %}
-          <a href="/digitales/{{ r.id }}"
+          <a href="/digitales/{{ r.id }}?back={{ back_url | quote_plus }}"
              style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none;flex-wrap:wrap;justify-content:center">
             {{ r.num_coms }}
             {% if r.coms_sin_resp %}
@@ -145,8 +145,8 @@
           {% endif %}
         </td>
         <td>
-          <a href="/digitales/{{ r.id }}" class="btn-sm btn-ver">👁 Ver</a>
-          <a href="/digitales/{{ r.id }}/editar" class="btn-sm btn-edit">✏ Editar</a>
+          <a href="/digitales/{{ r.id }}?back={{ back_url | quote_plus }}" class="btn-sm btn-ver">👁 Ver</a>
+          <a href="/digitales/{{ r.id }}/editar?back={{ back_url | quote_plus }}" class="btn-sm btn-edit">✏ Editar</a>
         </td>
       </tr>
       {% else %}

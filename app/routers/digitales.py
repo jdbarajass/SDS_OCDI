@@ -633,7 +633,7 @@ async def com_editar(
     ))
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_actualizada", status_code=303)
+    return RedirectResponse(f"/digitales/{exp_id}/editar?msg=com_actualizada", status_code=303)
 
 
 @router.post("/comunicacion/{com_id}/eliminar")
@@ -647,7 +647,7 @@ async def com_eliminar(com_id: int):
     conn.execute("DELETE FROM exp_comunicaciones WHERE id = ?", (com_id,))
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_eliminada", status_code=303)
+    return RedirectResponse(f"/digitales/{exp_id}/editar?msg=com_eliminada", status_code=303)
 
 
 # ── CRUD Abogados  ← ANTES DE /{exp_id} ──────────────────────────────────────
@@ -857,4 +857,4 @@ async def com_nueva(
     ))
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/digitales/{exp_id}?msg=com_creada", status_code=303)
+    return RedirectResponse(f"/digitales/{exp_id}/editar?msg=com_creada", status_code=303)

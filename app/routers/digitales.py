@@ -753,18 +753,34 @@ async def detalle(request: Request, exp_id: int, msg: str = ""):
         "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
         (exp_id,)
     ).fetchall()
+    revisiones = conn.execute(
+        "SELECT * FROM exp_revisiones WHERE exp_digital_id = ? ORDER BY fecha_revision DESC",
+        (exp_id,)
+    ).fetchall()
     conn.close()
     return templates.TemplateResponse("digitales_detalle.html", {
         "request": request,
         "active": "digitales_lista",
         "exp": dict(exp),
         "comunicaciones": [dict(c) for c in comunicaciones],
+        "revisiones": [dict(r) for r in revisiones],
         "msg": msg,
     })
 
 
+@router.post("/{exp_id}/revisar")
+async def marcar_revisado(exp_id: int):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO exp_revisiones (exp_digital_id) VALUES (?)", (exp_id,)
+    )
+    conn.commit()
+    conn.close()
+    return RedirectResponse(f"/digitales/{exp_id}?msg=revisado", status_code=303)
+
+
 @router.get("/{exp_id}/editar", response_class=HTMLResponse)
-async def editar_form(request: Request, exp_id: int):
+async def editar_form(request: Request, exp_id: int, msg: str = ""):
     conn = get_db()
     exp = conn.execute("SELECT * FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
     if not exp:
@@ -774,6 +790,10 @@ async def editar_form(request: Request, exp_id: int):
         "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
         (exp_id,)
     ).fetchall()
+    revisiones = conn.execute(
+        "SELECT * FROM exp_revisiones WHERE exp_digital_id = ? ORDER BY fecha_revision DESC LIMIT 1",
+        (exp_id,)
+    ).fetchall()
     abogados = _get_abogados(conn)
     conn.close()
     return templates.TemplateResponse("digitales_form.html", {
@@ -781,8 +801,10 @@ async def editar_form(request: Request, exp_id: int):
         "active": "digitales_lista",
         "exp": dict(exp),
         "comunicaciones": [dict(c) for c in comunicaciones],
+        "revisiones": [dict(r) for r in revisiones],
         "modo": "editar",
         "abogados": abogados,
+        "msg": msg,
     })
 
 

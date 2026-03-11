@@ -129,6 +129,12 @@ CREATE TABLE IF NOT EXISTS exp_comunicaciones (
     created_at              TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
+CREATE TABLE IF NOT EXISTS exp_revisiones (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    exp_digital_id  INTEGER NOT NULL REFERENCES exp_digitales(id) ON DELETE CASCADE,
+    fecha_revision  TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
 -- ── SALA DE AUDIENCIAS ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sala_agenda (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,

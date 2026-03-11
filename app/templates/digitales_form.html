@@ -66,7 +66,7 @@
 
     <div style="margin-top:24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button type="submit" class="btn btn-primary">💾 Guardar</button>
-      <a href="/digitales/{% if modo == 'editar' %}{{ exp.id }}{% else %}{% endif %}" class="btn btn-outline">Cancelar</a>
+      <a href="{% if modo == 'editar' %}/digitales/{{ exp.id }}{% if back %}?back={{ back | quote_plus }}{% endif %}{% else %}/digitales/{% endif %}" class="btn btn-outline">Cancelar</a>
       {% if modo == 'editar' %}
       <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">
         Últ. modificación: <strong>{{ exp.updated_at or '—' }}</strong>

@@ -3,11 +3,11 @@
 {% block heading %}Expediente Digital — {{ exp.n_expediente }}{% endblock %}
 
 {% block header_actions %}
-<a href="/digitales/{{ exp.id }}/editar" class="btn btn-primary">✏ Editar</a>
+<a href="/digitales/{{ exp.id }}/editar{% if back %}?back={{ back | quote_plus }}{% endif %}" class="btn btn-primary">✏ Editar</a>
 <form method="post" action="/digitales/{{ exp.id }}/revisar" style="display:inline">
   <button type="submit" class="btn" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">✅ Marcar revisado</button>
 </form>
-<a href="/digitales/" class="btn btn-outline">← Volver</a>
+<a href="{{ back or '/digitales/' }}" class="btn btn-outline">← Volver</a>
 <form method="post" action="/digitales/{{ exp.id }}/eliminar" style="display:inline"
       onsubmit="return confirm('¿Eliminar este expediente y todas sus comunicaciones?')">
   <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5">🗑 Eliminar</button>

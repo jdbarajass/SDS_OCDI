@@ -4,6 +4,9 @@
 
 {% block header_actions %}
 <a href="/digitales/{{ exp.id }}/editar" class="btn btn-primary">✏ Editar</a>
+<form method="post" action="/digitales/{{ exp.id }}/revisar" style="display:inline">
+  <button type="submit" class="btn" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">✅ Marcar revisado</button>
+</form>
 <a href="/digitales/" class="btn btn-outline">← Volver</a>
 <form method="post" action="/digitales/{{ exp.id }}/eliminar" style="display:inline"
       onsubmit="return confirm('¿Eliminar este expediente y todas sus comunicaciones?')">
@@ -106,6 +109,41 @@
   </div>
   {% else %}
   <p style="color:var(--text-muted);font-size:13px">Sin comunicaciones registradas.</p>
+  {% endif %}
+</div>
+
+<!-- Trazabilidad -->
+<div class="card" style="margin-bottom:16px">
+  <h3 class="stat-card-title" style="margin-bottom:12px">🕓 Trazabilidad</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Última modificación</div>
+      <div style="font-weight:600">{{ exp.updated_at or exp.created_at or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Última revisión</div>
+      {% if revisiones %}
+      <div style="font-weight:600;color:#15803d">{{ revisiones[0].fecha_revision }}</div>
+      {% else %}
+      <div style="color:var(--text-muted)">Sin revisiones registradas</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if revisiones %}
+  <details>
+    <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none">
+      Ver historial de revisiones ({{ revisiones | length }})
+    </summary>
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+      {% for r in revisiones %}
+      <div style="font-size:12px;padding:4px 8px;background:#f0fdf4;border-radius:4px;border-left:3px solid #86efac">
+        <span style="color:#15803d;font-weight:600">✅</span>
+        <span style="color:var(--text-muted);margin-left:6px">{{ r.fecha_revision }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
   {% endif %}
 </div>
 

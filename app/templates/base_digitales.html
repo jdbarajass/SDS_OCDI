@@ -98,5 +98,28 @@
 
 <script src="/static/js/app.js"></script>
 {% block scripts %}{% endblock %}
+
+<!-- Toast de confirmación de descarga Excel -->
+<div id="toast-export" style="display:none;position:fixed;bottom:28px;right:28px;background:#1e3a5f;color:#fff;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35);transition:opacity .4s"></div>
+<script>
+(function(){
+    function showExportToast() {
+        var toast = document.getElementById('toast-export');
+        toast.textContent = '⏳ Preparando descarga...';
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+        setTimeout(function() {
+            toast.textContent = '✅ Archivo Excel descargado correctamente';
+        }, 1800);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            setTimeout(function() { toast.style.display = 'none'; toast.style.opacity = '1'; }, 450);
+        }, 5000);
+    }
+    document.querySelectorAll('a[href="/digitales/exportar"]').forEach(function(link) {
+        link.addEventListener('click', showExportToast);
+    });
+})();
+</script>
 </body>
 </html>

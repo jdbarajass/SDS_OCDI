@@ -468,6 +468,7 @@ async def exportar():
     cabeceras = [
         "N° Expediente", "Año", "Abogado", "Etapa", "Queja Inicial",
         "Radicado Auto", "Nombre Auto", "Fecha Auto",
+        "Obs. Generales",
         "Radicado Comunicación", "Dependencia", "Fecha Envío",
         "Fecha Seguimiento", "Radicado Respuesta", "Fecha Respuesta",
         "Responsable", "Observaciones",
@@ -487,6 +488,7 @@ async def exportar():
         row = [
             ed.get("n_expediente"), ed.get("anio"), ed.get("abogado"), ed.get("etapa"),
             ed.get("queja_inicial"), ed.get("radicado_auto"), ed.get("nombre_auto"), ed.get("fecha_auto"),
+            ed.get("observaciones"),
             primera_com.get("radicado_comunicacion"), primera_com.get("dependencia"),
             primera_com.get("fecha_envio"), primera_com.get("fecha_seguimiento"),
             primera_com.get("radicado_respuesta"), primera_com.get("fecha_respuesta"),
@@ -497,6 +499,7 @@ async def exportar():
         for com in exp_coms[1:]:
             sub_row = [
                 None, None, None, None, None, None, None, None,
+                None,
                 com.get("radicado_comunicacion"), com.get("dependencia"),
                 com.get("fecha_envio"), com.get("fecha_seguimiento"),
                 com.get("radicado_respuesta"), com.get("fecha_respuesta"),
@@ -506,7 +509,7 @@ async def exportar():
             for cell in ws[ws.max_row]:
                 cell.fill = sub_fill
 
-    col_widths = [15, 6, 22, 20, 14, 20, 30, 14, 22, 25, 14, 16, 22, 14, 20, 40]
+    col_widths = [15, 6, 22, 20, 14, 20, 30, 14, 40, 22, 25, 14, 16, 22, 14, 20, 40]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 

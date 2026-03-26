@@ -103,6 +103,7 @@
         <th>Nombre Auto</th>
         <th>Fecha Auto</th>
         <th style="text-align:center">Coms.</th>
+        <th>Últ. Revisión</th>
         <th></th>
       </tr>
     </thead>
@@ -144,13 +145,21 @@
           <span style="color:var(--text-muted);font-size:11px">—</span>
           {% endif %}
         </td>
+        <td style="font-size:11px;white-space:nowrap;color:var(--text-muted)">
+          {% if r.ultima_revision %}
+          <span title="{{ r.ultima_revision }}" style="color:#16a34a;font-weight:600">✅ {{ r.ultima_revision[:10] }}</span><br>
+          <span style="font-size:10px">{{ r.ultima_revision[11:19] if r.ultima_revision|length > 10 else '' }}</span>
+          {% else %}
+          <span style="color:var(--text-muted)">—</span>
+          {% endif %}
+        </td>
         <td>
           <a href="/digitales/{{ r.id }}?back={{ back_url | quote_plus }}" class="btn-sm btn-ver">👁 Ver</a>
           <a href="/digitales/{{ r.id }}/editar?back={{ back_url | quote_plus }}" class="btn-sm btn-edit">✏ Editar</a>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">
+      <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">
         Sin resultados. <a href="/digitales/nuevo">Crear nuevo expediente</a> o <a href="/digitales/importar">importar desde Excel</a>.
       </td></tr>
       {% endfor %}

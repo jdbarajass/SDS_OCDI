@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exportar / Importar General — OCDI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background: linear-gradient(135deg, #0d3060 0%, #1B4F8A 60%, #2e6da4 100%); min-height: 100vh; }
+        .bk-wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+        /* Barra superior */
+        .bk-topbar {
+            display: flex; align-items: center; gap: 16px;
+            margin-bottom: 32px;
+        }
+        .bk-back {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.15); color: #fff;
+            padding: 7px 16px; border-radius: 6px; font-size: 13px;
+            font-weight: 600; text-decoration: none; transition: background .15s;
+        }
+        .bk-back:hover { background: rgba(255,255,255,0.25); text-decoration: none; }
+        .bk-title { color: #fff; font-size: 22px; font-weight: 800; }
+        .bk-sub   { color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 2px; }
+
+        /* Cards de estado */
+        .bk-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+        .bk-stat-card {
+            background: rgba(255,255,255,0.12); border-radius: 10px;
+            padding: 16px 18px; color: #fff; text-align: center;
+        }
+        .bk-stat-num  { font-size: 28px; font-weight: 800; }
+        .bk-stat-label{ font-size: 12px; opacity: .75; margin-top: 4px; }
+
+        /* Secciones */
+        .bk-card {
+            background: #fff; border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.2);
+            padding: 28px 32px; margin-bottom: 22px;
+        }
+        .bk-card-title {
+            font-size: 17px; font-weight: 800; color: #0d3060;
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .bk-card-desc { font-size: 13px; color: #6c757d; margin-bottom: 20px; line-height: 1.6; }
+
+        /* Botón exportar */
+        .btn-export {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #1B4F8A; color: #fff; padding: 11px 24px;
+            border-radius: 8px; font-size: 14px; font-weight: 700;
+            text-decoration: none; transition: background .15s;
+        }
+        .btn-export:hover { background: #0d3060; text-decoration: none; color: #fff; }
+
+        /* Zona de advertencia (import) */
+        .bk-warning {
+            background: #fff3cd; border: 1px solid #ffc107; border-left: 5px solid #f59e0b;
+            border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;
+            font-size: 13px; color: #856404; line-height: 1.6;
+        }
+        .bk-warning strong { display: block; font-size: 14px; margin-bottom: 6px; color: #7c2d12; }
+        .bk-warning ul { margin: 8px 0 0 18px; }
+        .bk-danger-banner {
+            background: #fee2e2; border: 1px solid #fca5a5; border-left: 5px solid #dc2626;
+            border-radius: 8px; padding: 12px 18px; margin-bottom: 20px;
+            font-size: 13px; color: #7f1d1d;
+        }
+
+        /* Área de carga */
+        .bk-upload-zone {
+            border: 2px dashed #cbd5e1; border-radius: 10px;
+            padding: 24px; text-align: center; background: #f8fafc;
+            transition: border-color .15s;
+        }
+        .bk-upload-zone:hover { border-color: #1B4F8A; }
+        .bk-file-input { display: none; }
+        .bk-file-label {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px;
+            padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+            color: #374151; transition: background .15s;
+        }
+        .bk-file-label:hover { background: #e2e8f0; }
+        .bk-file-name { font-size: 12px; color: #6c757d; margin-top: 8px; }
+        .btn-import {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #dc2626; color: #fff; padding: 11px 24px;
+            border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: background .15s; margin-top: 16px;
+        }
+        .btn-import:hover { background: #b91c1c; }
+        .btn-import:disabled { background: #9ca3af; cursor: not-allowed; }
+
+        /* Flash msg */
+        .bk-flash-ok    { background:#d1fae5; border:1px solid #6ee7b7; border-left:5px solid #059669; border-radius:8px; padding:14px 20px; margin-bottom:20px; color:#065f46; font-size:13px; }
+        .bk-flash-err   { background:#fee2e2; border:1px solid #fca5a5; border-left:5px solid #dc2626; border-radius:8px; padding:14px 20px; margin-bottom:20px; color:#7f1d1d; font-size:13px; }
+
+        /* Modal de confirmación */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55); z-index: 9000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: #fff; border-radius: 14px;
+            padding: 32px 36px; max-width: 500px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,.35);
+        }
+        .modal-icon   { font-size: 44px; text-align: center; margin-bottom: 10px; }
+        .modal-title  { font-size: 18px; font-weight: 800; color: #7f1d1d; text-align: center; margin-bottom: 8px; }
+        .modal-body   { font-size: 13px; color: #374151; line-height: 1.65; margin-bottom: 18px; }
+        .modal-items  { background:#fff3cd; border-radius:8px; padding:12px 16px; margin:12px 0; font-size:13px; }
+        .modal-items li { margin-bottom: 4px; }
+        .modal-note   { font-size: 12px; color: #6b7280; margin-top: 10px; }
+        .modal-actions{ display:flex; gap:12px; justify-content:flex-end; margin-top:20px; }
+        .modal-cancel {
+            padding: 9px 22px; border: 1px solid #d1d5db; border-radius: 6px;
+            background: #f9fafb; font-size: 13px; font-weight: 600;
+            cursor: pointer; color: #374151; transition: background .15s;
+        }
+        .modal-cancel:hover { background: #e5e7eb; }
+        .modal-confirm {
+            padding: 9px 22px; background: #dc2626; color: #fff;
+            border: none; border-radius: 6px; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: background .15s;
+        }
+        .modal-confirm:hover { background: #b91c1c; }
+
+        /* Hoja chips */
+        .sheet-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .chip {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600;
+        }
+        .chip-base  { background:#dbeafe; color:#1d4ed8; }
+        .chip-dig   { background:#ede9fe; color:#5b21b6; }
+        .chip-sala  { background:#d1fae5; color:#065f46; }
+    </style>
+</head>
+<body>
+<div class="bk-wrap">
+
+    <!-- Barra superior -->
+    <div class="bk-topbar">
+        <a href="/" class="bk-back">← Portal Principal</a>
+        <div>
+            <div class="bk-title">📦 Exportar / Importar General</div>
+            <div class="bk-sub">Respaldo completo de todos los módulos del sistema</div>
+        </div>
+    </div>
+
+    <!-- Flash de resultado -->
+    {% if msg.startswith('ok_') %}
+    {% set partes = msg.replace('ok_','').split('_') %}
+    <div class="bk-flash-ok">
+        ✅ <strong>Importación completada exitosamente.</strong><br>
+        Se cargaron: <strong>{{ partes[0] }}</strong> expedientes base —
+        <strong>{{ partes[1] }}</strong> expedientes digitales con
+        <strong>{{ partes[2] }}</strong> comunicaciones —
+        <strong>{{ partes[3] }}</strong> eventos de sala.
+    </div>
+    {% elif msg == 'error_archivo' %}
+    <div class="bk-flash-err">⚠️ No se pudo leer el archivo. Asegúrese de que sea un Excel (.xlsx) generado por este sistema.</div>
+    {% elif msg == 'error_vacio' %}
+    <div class="bk-flash-err">⚠️ El archivo cargado está vacío.</div>
+    {% elif msg == 'error_import' %}
+    <div class="bk-flash-err">❌ Ocurrió un error durante la importación. Los datos no fueron modificados. Verifique el archivo e intente nuevamente.</div>
+    {% elif msg == 'error_openpyxl' %}
+    <div class="bk-flash-err">⚠️ La librería openpyxl no está instalada. Ejecute <code>pip install openpyxl</code>.</div>
+    {% endif %}
+
+    <!-- Estado actual -->
+    <div class="bk-stats">
+        <div class="bk-stat-card">
+            <div class="bk-stat-num">{{ total_base }}</div>
+            <div class="bk-stat-label">📁 Expedientes Base</div>
+        </div>
+        <div class="bk-stat-card">
+            <div class="bk-stat-num">{{ total_digitales }}</div>
+            <div class="bk-stat-label">💻 Expedientes Digitales</div>
+        </div>
+        <div class="bk-stat-card">
+            <div class="bk-stat-num">{{ total_sala }}</div>
+            <div class="bk-stat-label">🗓️ Eventos Sala</div>
+        </div>
+    </div>
+
+    <!-- ── EXPORTAR ──────────────────────────────────────────────────────── -->
+    <div class="bk-card">
+        <div class="bk-card-title">📤 Exportar respaldo completo</div>
+        <div class="sheet-chips">
+            <span class="chip chip-base">📁 Hoja 1 — Base Expedientes</span>
+            <span class="chip chip-dig">💻 Hoja 2 — Exp. Digitales</span>
+            <span class="chip chip-sala">🗓️ Hoja 3 — Sala de Audiencias</span>
+        </div>
+        <div class="bk-card-desc">
+            Descarga un único archivo Excel con <strong>3 hojas</strong>, una por cada módulo del sistema.<br>
+            Este archivo contiene <em>todos</em> los registros actuales y sirve tanto como respaldo como
+            plantilla para la importación. Puede editarlo manualmente y cargarlo de vuelta usando la sección de abajo.<br>
+            <span style="font-size:12px;color:#9ca3af">Nota: Los registros de escaneos y actuaciones mensuales del módulo Base no se incluyen en este respaldo.</span>
+        </div>
+        <a href="/backup/exportar" class="btn-export" id="btn-export-all">
+            📥 Descargar Excel completo (3 hojas)
+        </a>
+    </div>
+
+    <!-- ── IMPORTAR ──────────────────────────────────────────────────────── -->
+    <div class="bk-card">
+        <div class="bk-card-title">📥 Importar respaldo</div>
+
+        <div class="bk-warning">
+            <strong>⚠️ Lea esto antes de importar</strong>
+            Al importar un archivo, el sistema <strong>borrará completamente</strong> los datos actuales de los 3 módulos
+            y los reemplazará con los del archivo cargado:
+            <ul>
+                <li>Todos los expedientes de la <strong>Base</strong> serán eliminados y reemplazados.</li>
+                <li>Todos los expedientes digitales y sus comunicaciones serán eliminados y reemplazados.</li>
+                <li>Todos los eventos de sala serán eliminados y reemplazados.</li>
+            </ul>
+        </div>
+
+        <div class="bk-danger-banner">
+            🔴 <strong>Esta acción es irreversible.</strong> Se recomienda exportar el respaldo actual antes de importar un archivo nuevo.
+        </div>
+
+        <form id="form-import" method="post" action="/backup/importar" enctype="multipart/form-data">
+            <div class="bk-upload-zone" id="upload-zone">
+                <label class="bk-file-label" for="archivo-input">
+                    📂 Seleccionar archivo Excel (.xlsx)
+                </label>
+                <input class="bk-file-input" type="file" id="archivo-input" name="archivo" accept=".xlsx">
+                <div class="bk-file-name" id="file-name-display">Ningún archivo seleccionado</div>
+            </div>
+            <div style="text-align:right">
+                <button type="button" class="btn-import" id="btn-import" disabled onclick="mostrarModal()">
+                    ⚠️ Importar y reemplazar todo
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<!-- ── MODAL DE CONFIRMACIÓN ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-confirm">
+    <div class="modal-box">
+        <div class="modal-icon">⚠️</div>
+        <div class="modal-title">ADVERTENCIA — ACCIÓN IRREVERSIBLE</div>
+        <div class="modal-body">
+            Está a punto de <strong>borrar y reemplazar</strong> todos los datos del sistema con los del archivo seleccionado.
+            <ul class="modal-items">
+                <li>📁 <strong>{{ total_base }}</strong> expedientes base actuales serán eliminados.</li>
+                <li>💻 <strong>{{ total_digitales }}</strong> expedientes digitales actuales serán eliminados.</li>
+                <li>🗓️ <strong>{{ total_sala }}</strong> eventos de sala actuales serán eliminados.</li>
+            </ul>
+            <strong>¿Está completamente seguro de que desea continuar?</strong>
+            <p class="modal-note">Si no tiene un respaldo del estado actual, cancele y descargue el Excel antes de proceder.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="cerrarModal()">Cancelar</button>
+            <button class="modal-confirm" onclick="confirmarImport()">Sí, reemplazar todo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar nombre del archivo al seleccionarlo
+document.getElementById('archivo-input').addEventListener('change', function () {
+    var btn = document.getElementById('btn-import');
+    var display = document.getElementById('file-name-display');
+    if (this.files && this.files.length > 0) {
+        display.textContent = '📄 ' + this.files[0].name;
+        btn.disabled = false;
+    } else {
+        display.textContent = 'Ningún archivo seleccionado';
+        btn.disabled = true;
+    }
+});
+
+// Drag & drop visual feedback
+var zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover',  function(e){ e.preventDefault(); zone.style.borderColor='#1B4F8A'; });
+zone.addEventListener('dragleave', function()  { zone.style.borderColor=''; });
+zone.addEventListener('drop', function(e){
+    e.preventDefault();
+    zone.style.borderColor = '';
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+        document.getElementById('archivo-input').files = files;
+        document.getElementById('file-name-display').textContent = '📄 ' + files[0].name;
+        document.getElementById('btn-import').disabled = false;
+    }
+});
+
+function mostrarModal() {
+    document.getElementById('modal-confirm').classList.add('open');
+}
+function cerrarModal() {
+    document.getElementById('modal-confirm').classList.remove('open');
+}
+function confirmarImport() {
+    cerrarModal();
+    // Deshabilitar botón y mostrar progreso
+    var btn = document.getElementById('btn-import');
+    btn.disabled = true;
+    btn.textContent = '⏳ Importando...';
+    document.getElementById('form-import').submit();
+}
+
+// Toast de exportar
+document.getElementById('btn-export-all').addEventListener('click', function(){
+    var t = document.createElement('div');
+    t.textContent = '⏳ Preparando descarga del respaldo completo...';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1e3a5f;color:#fff;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35)';
+    document.body.appendChild(t);
+    setTimeout(function(){ t.textContent = '✅ Archivo descargado correctamente'; }, 1800);
+    setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(function(){ t.remove(); }, 450); }, 5000);
+});
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modal-confirm').addEventListener('click', function(e){
+    if (e.target === this) cerrarModal();
+});
+</script>
+
+</body>
+</html>

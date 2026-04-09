@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from app.database import init_db
-from app.routers import expedientes, importar, dashboard, seguimiento, autos, portal, digitales, sala
+from app.routers import expedientes, importar, dashboard, seguimiento, autos, portal, digitales, sala, backup
 
 BASE_DIR = Path(__file__).parent
 
@@ -27,6 +27,7 @@ app.include_router(seguimiento.router)
 app.include_router(autos.router)
 app.include_router(digitales.router)
 app.include_router(sala.router)
+app.include_router(backup.router)
 
 
 @app.on_event("startup")

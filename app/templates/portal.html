@@ -12,7 +12,7 @@
         .portal-logo { font-size: 52px; margin-bottom: 12px; }
         .portal-title { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: 1px; }
         .portal-sub { font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 6px; }
-        .portal-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1000px; width: 100%; }
+        .portal-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; max-width: 1200px; width: 100%; }
         .portal-tile {
             background: #fff;
             border-radius: 12px;
@@ -84,6 +84,15 @@
             {% else %}
             <span class="tile-stat">📅 Sin eventos registrados</span>
             {% endif %}
+            <span class="tile-cta">Abrir módulo →</span>
+        </a>
+
+        <!-- MÓDULO 4: Exportar / Importar General -->
+        <a href="/backup/" class="portal-tile">
+            <div class="tile-ico">📦</div>
+            <div class="tile-title">Exportar / Importar<br>Respaldo General</div>
+            <div class="tile-desc">Descarga un único Excel con los 3 módulos en hojas separadas. Edítalo y cárgalo de vuelta para reemplazar todos los datos del sistema.</div>
+            <span class="tile-stat">📥 Exportar · 📤 Importar</span>
             <span class="tile-cta">Abrir módulo →</span>
         </a>
 

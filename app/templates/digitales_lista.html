@@ -91,39 +91,47 @@
 </div>
 {% endif %}
 
+<!-- Barra de filtros de columna activos -->
+<div id="col-filter-badges" style="display:none;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+  <span style="font-size:11px;font-weight:600;color:var(--text-muted)">Filtros columna:</span>
+  <span id="col-filter-badge-list" style="display:contents"></span>
+  <button onclick="cfLimpiarTodo()" style="background:#f1f5f9;border:1px solid var(--border);border-radius:12px;padding:2px 10px;font-size:11px;cursor:pointer;color:var(--text-muted)">✕ Quitar todos</button>
+  <span id="col-filter-count" style="font-size:11px;color:var(--text-muted);margin-left:4px"></span>
+</div>
+
 <div class="table-wrapper">
-  <table class="data-table">
+  <table class="data-table" id="tabla-digitales">
     <thead>
       <tr>
-        <th>N° Exp.</th>
-        <th>Año</th>
-        <th>Abogado</th>
-        <th>Etapa</th>
-        <th>Queja Inicial</th>
-        <th>Nombre Auto</th>
-        <th>Fecha Auto</th>
-        <th style="text-align:center">Coms.</th>
-        <th>Últ. Revisión</th>
+        <th data-cf="0">N° Exp. <button class="cf-btn" data-col="0" title="Filtrar">▼</button></th>
+        <th data-cf="1">Año <button class="cf-btn" data-col="1" title="Filtrar">▼</button></th>
+        <th data-cf="2">Abogado <button class="cf-btn" data-col="2" title="Filtrar">▼</button></th>
+        <th data-cf="3">Etapa <button class="cf-btn" data-col="3" title="Filtrar">▼</button></th>
+        <th data-cf="4">Queja Inicial <button class="cf-btn" data-col="4" title="Filtrar">▼</button></th>
+        <th data-cf="5">Nombre Auto <button class="cf-btn" data-col="5" title="Filtrar">▼</button></th>
+        <th data-cf="6">Fecha Auto <button class="cf-btn" data-col="6" title="Filtrar">▼</button></th>
+        <th data-cf="7" style="text-align:center">Coms. <button class="cf-btn" data-col="7" title="Filtrar">▼</button></th>
+        <th data-cf="8">Últ. Revisión <button class="cf-btn" data-col="8" title="Filtrar">▼</button></th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for r in rows %}
       <tr>
-        <td class="exp-num"><strong>{{ r.n_expediente or '—' }}</strong></td>
-        <td>{{ r.anio or '—' }}</td>
-        <td class="td-texto">{{ r.abogado or '—' }}</td>
-        <td><span class="etapa-badge">{{ r.etapa or '—' }}</span></td>
-        <td>
+        <td class="exp-num" data-val="{{ r.n_expediente or '' }}"><strong>{{ r.n_expediente or '—' }}</strong></td>
+        <td data-val="{{ r.anio or '' }}">{{ r.anio or '—' }}</td>
+        <td class="td-texto" data-val="{{ r.abogado or '' }}">{{ r.abogado or '—' }}</td>
+        <td data-val="{{ r.etapa or '' }}"><span class="etapa-badge">{{ r.etapa or '—' }}</span></td>
+        <td data-val="{{ r.queja_inicial or 'No' }}">
           {% if r.queja_inicial and r.queja_inicial != 'No' %}
           <span style="color:#16a34a;font-weight:600">✔ {{ r.queja_inicial }}</span>
           {% else %}
           <span style="color:var(--text-muted)">No</span>
           {% endif %}
         </td>
-        <td class="td-texto">{{ r.nombre_auto or '—' }}</td>
-        <td style="font-size:12px">{{ r.fecha_auto or '—' }}</td>
-        <td style="text-align:center">
+        <td class="td-texto" data-val="{{ r.nombre_auto or '' }}">{{ r.nombre_auto or '—' }}</td>
+        <td style="font-size:12px" data-val="{{ r.fecha_auto or '' }}">{{ r.fecha_auto or '—' }}</td>
+        <td style="text-align:center" data-val="{{ r.num_coms or '0' }}">
           {% if r.num_coms %}
           <a href="/digitales/{{ r.id }}?back={{ back_url | quote_plus }}"
              style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none;flex-wrap:wrap;justify-content:center">
@@ -145,7 +153,7 @@
           <span style="color:var(--text-muted);font-size:11px">—</span>
           {% endif %}
         </td>
-        <td style="font-size:11px;white-space:nowrap;color:var(--text-muted)">
+        <td style="font-size:11px;white-space:nowrap;color:var(--text-muted)" data-val="{{ r.ultima_revision[:10] if r.ultima_revision else '' }}">
           {% if r.ultima_revision %}
           <span title="{{ r.ultima_revision }}" style="color:#16a34a;font-weight:600">✅ {{ r.ultima_revision[:10] }}</span><br>
           <span style="font-size:10px">{{ r.ultima_revision[11:19] if r.ultima_revision|length > 10 else '' }}</span>
@@ -165,6 +173,14 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<!-- Dropdown de filtro de columna -->
+<div id="cf-dropdown" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:200px;max-width:280px;padding:0;overflow:hidden">
+  <div style="padding:8px 10px;border-bottom:1px solid var(--border);background:#f8fafc">
+    <input id="cf-search" type="text" placeholder="Buscar..." style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
+  </div>
+  <div id="cf-list" style="max-height:260px;overflow-y:auto;padding:4px 0"></div>
 </div>
 
 <!-- Paginación -->
@@ -192,4 +208,188 @@
 <p style="font-size:12px;color:var(--text-muted);margin-top:8px">{{ total }} registro(s)</p>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Botones de filtro en encabezado */
+.cf-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 9px; color: var(--text-muted); padding: 0 0 0 3px;
+  vertical-align: middle; line-height: 1; transition: color .15s;
+}
+.cf-btn:hover { color: var(--primary); }
+.cf-btn.activo { color: var(--primary); font-weight:700; }
+th[data-cf].filtrado { background: #e8f0fe !important; }
+/* Opción del dropdown */
+.cf-opcion {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; cursor: pointer; font-size: 13px;
+  transition: background .1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cf-opcion:hover { background: var(--primary-bg); }
+.cf-opcion.seleccionada { background: #dbeafe; font-weight: 600; color: var(--primary); }
+.cf-opcion-todos { border-bottom: 1px solid var(--border); color: var(--text-muted); font-size:12px; }
+</style>
+<script>
+(function () {
+  var COL_LABELS = ['N° Exp.','Año','Abogado','Etapa','Queja Inicial','Nombre Auto','Fecha Auto','Coms.','Últ. Revisión'];
+  var filtrosActivos = {}; // {colIndex: value}
+  var colActual = -1;
+
+  var dropdown = document.getElementById('cf-dropdown');
+  var cfSearch  = document.getElementById('cf-search');
+  var cfList    = document.getElementById('cf-list');
+  var badgeBar  = document.getElementById('col-filter-badges');
+  var badgeList = document.getElementById('col-filter-badge-list');
+  var countEl   = document.getElementById('col-filter-count');
+
+  // ── Abrir dropdown ──────────────────────────────────────────────────────────
+  document.querySelectorAll('.cf-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var col = parseInt(btn.dataset.col);
+      if (colActual === col && dropdown.style.display !== 'none') {
+        cerrar(); return;
+      }
+      colActual = col;
+      abrirDropdown(btn, col);
+    });
+  });
+
+  function abrirDropdown(btn, col) {
+    // Recopilar valores únicos de la columna (todas las filas, incluso ocultas)
+    var valores = new Set();
+    document.querySelectorAll('#tabla-digitales tbody tr').forEach(function (tr) {
+      var td = tr.cells[col];
+      if (td) valores.add(td.dataset.val || '');
+    });
+    var lista = Array.from(valores).sort(function (a, b) {
+      var na = parseFloat(a), nb = parseFloat(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b, 'es');
+    });
+
+    cfSearch.value = '';
+    renderOpciones(lista, col);
+
+    cfSearch.oninput = function () {
+      var q = cfSearch.value.toLowerCase();
+      renderOpciones(lista.filter(function (v) { return v.toLowerCase().includes(q); }), col);
+    };
+
+    // Posicionar dropdown bajo el botón
+    var rect = btn.getBoundingClientRect();
+    dropdown.style.display = 'block';
+    var top  = rect.bottom + window.scrollY + 4;
+    var left = rect.left  + window.scrollX;
+    var maxLeft = window.innerWidth - 290;
+    if (left > maxLeft) left = maxLeft;
+    dropdown.style.top  = top  + 'px';
+    dropdown.style.left = left + 'px';
+    cfSearch.focus();
+  }
+
+  function renderOpciones(lista, col) {
+    var actual = filtrosActivos[col];
+    cfList.innerHTML = '';
+
+    var todos = document.createElement('div');
+    todos.className = 'cf-opcion cf-opcion-todos' + (actual === undefined ? ' seleccionada' : '');
+    todos.textContent = '(Mostrar todos)';
+    todos.onclick = function () { quitarFiltro(col); cerrar(); };
+    cfList.appendChild(todos);
+
+    lista.forEach(function (val) {
+      var opt = document.createElement('div');
+      opt.className = 'cf-opcion' + (actual === val ? ' seleccionada' : '');
+      opt.textContent = val === '' ? '(vacío)' : val;
+      opt.title = val === '' ? '(vacío)' : val;
+      opt.onclick = function () { aplicarFiltro(col, val); cerrar(); };
+      cfList.appendChild(opt);
+    });
+  }
+
+  // ── Aplicar / quitar filtros ────────────────────────────────────────────────
+  function aplicarFiltro(col, val) {
+    filtrosActivos[col] = val;
+    refiltrar();
+    actualizarUI();
+  }
+
+  function quitarFiltro(col) {
+    delete filtrosActivos[col];
+    refiltrar();
+    actualizarUI();
+  }
+
+  window.cfLimpiarTodo = function () {
+    filtrosActivos = {};
+    refiltrar();
+    actualizarUI();
+  };
+
+  function refiltrar() {
+    var cols = Object.keys(filtrosActivos).map(Number);
+    var visibles = 0;
+    document.querySelectorAll('#tabla-digitales tbody tr').forEach(function (tr) {
+      if (!tr.cells.length || tr.cells.length === 1) { tr.style.display = ''; return; }
+      var mostrar = cols.every(function (c) {
+        var td = tr.cells[c];
+        var val = td ? (td.dataset.val || '') : '';
+        return val === filtrosActivos[c];
+      });
+      tr.style.display = mostrar ? '' : 'none';
+      if (mostrar) visibles++;
+    });
+    if (cols.length > 0) {
+      countEl.textContent = visibles + ' fila(s) visibles';
+    } else {
+      countEl.textContent = '';
+    }
+  }
+
+  function actualizarUI() {
+    var cols = Object.keys(filtrosActivos).map(Number);
+
+    document.querySelectorAll('th[data-cf]').forEach(function (th) {
+      var c = parseInt(th.dataset.cf);
+      th.classList.toggle('filtrado', filtrosActivos[c] !== undefined);
+    });
+    document.querySelectorAll('.cf-btn').forEach(function (btn) {
+      btn.classList.toggle('activo', filtrosActivos[parseInt(btn.dataset.col)] !== undefined);
+    });
+
+    if (cols.length === 0) {
+      badgeBar.style.display = 'none';
+      return;
+    }
+    badgeBar.style.display = 'flex';
+    badgeList.innerHTML = '';
+    cols.forEach(function (c) {
+      var span = document.createElement('span');
+      var label = COL_LABELS[c] || ('Col ' + c);
+      var val   = filtrosActivos[c] === '' ? '(vacío)' : filtrosActivos[c];
+      span.style.cssText = 'background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px';
+      span.innerHTML = label + ': <em style="font-style:normal">' + val + '</em>';
+      var x = document.createElement('span');
+      x.textContent = '✕';
+      x.style.cssText = 'cursor:pointer;font-weight:700;margin-left:2px';
+      (function(col){ x.onclick = function(){ delete filtrosActivos[col]; refiltrar(); actualizarUI(); }; })(c);
+      span.appendChild(x);
+      badgeList.appendChild(span);
+    });
+  }
+
+  // ── Cerrar al hacer clic fuera ──────────────────────────────────────────────
+  function cerrar() {
+    dropdown.style.display = 'none';
+    colActual = -1;
+  }
+  document.addEventListener('click', function (e) {
+    if (!dropdown.contains(e.target)) cerrar();
+  });
+  dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
+</script>
 {% endblock %}

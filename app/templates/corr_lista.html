@@ -1,0 +1,174 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}Lista de Oficios{% endblock %}
+{% block heading %}Lista de Reparto de Abogados{% endblock %}
+
+{% block header_actions %}
+<a href="/correspondencia/nuevo" class="btn btn-primary">➕ Nuevo Oficio</a>
+<a href="/correspondencia/exportar" class="btn btn-outline" id="btn-exportar">📤 Exportar Excel</a>
+<a href="/correspondencia/importar" class="btn btn-outline">📥 Importar</a>
+<a href="/correspondencia/dashboard" class="btn btn-outline">📊 Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<form method="get" action="/correspondencia/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar radicado, origen, asunto, BMP…" class="filter-input" style="min-width:220px">
+
+  <select name="responsable" class="filter-select">
+    <option value="">Todos los responsables</option>
+    {% for r in responsables %}
+    <option value="{{ r }}" {% if responsable == r %}selected{% endif %}>{{ r }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="mes" class="filter-select">
+    <option value="">Todos los meses</option>
+    {% for m in meses %}
+    <option value="{{ m }}" {% if mes == m %}selected{% endif %}>{{ m }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="anio" class="filter-select">
+    <option value="">Todos los años</option>
+    {% for a in anios %}
+    <option value="{{ a }}" {% if anio|string == a|string %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="semaforo" class="filter-select">
+    <option value="">Todos los estados</option>
+    <option value="verde"      {% if semaforo == 'verde' %}selected{% endif %}>🟢 Verde (0–5 días)</option>
+    <option value="amarilla"   {% if semaforo == 'amarilla' %}selected{% endif %}>🟡 Amarillo (6–8 días)</option>
+    <option value="roja"       {% if semaforo == 'roja' %}selected{% endif %}>🔴 Rojo (9+ días)</option>
+    <option value="respondido" {% if semaforo == 'respondido' %}selected{% endif %}>✅ Respondido</option>
+  </select>
+
+  <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+  <a href="/correspondencia/" class="btn btn-outline">✕ Limpiar</a>
+</form>
+
+<!-- Badges de filtro activo -->
+{% if semaforo or responsable or mes or anio %}
+<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+  {% if semaforo %}
+  <span style="background:#dbeafe;color:#1d4ed8;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">
+    {% if semaforo == 'verde' %}🟢 Verde{% elif semaforo == 'amarilla' %}🟡 Amarillo{% elif semaforo == 'roja' %}🔴 Rojo{% else %}✅ Respondido{% endif %}
+  </span>
+  {% endif %}
+  {% if responsable %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">👤 {{ responsable }}</span>{% endif %}
+  {% if mes %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📅 {{ mes }}</span>{% endif %}
+  {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
+</div>
+{% endif %}
+
+<style>
+.sem-verde    { background:#dcfce7; color:#166534; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
+.sem-amarilla { background:#fef9c3; color:#854d0e; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
+.sem-roja     { background:#fee2e2; color:#991b1b; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
+.sem-respondido { color:#16a34a; }
+.row-roja td { background:#fff5f5 !important; }
+.row-amarilla td { background:#fffdf0 !important; }
+</style>
+
+<div class="table-wrapper">
+  <table class="data-table" id="tabla-corr">
+    <thead>
+      <tr>
+        <th style="width:28px"></th>
+        <th>Año</th>
+        <th>Mes</th>
+        <th>Fecha Ingreso</th>
+        <th>N. Radicado</th>
+        <th>Origen</th>
+        <th>Responsable</th>
+        <th>Tipo Doc.</th>
+        <th>Tipo Respuesta</th>
+        <th>N. Rad. Salida</th>
+        <th>Fecha Salida</th>
+        <th style="text-align:center">Días</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{% if r.semaforo == 'roja' %}row-roja{% elif r.semaforo == 'amarilla' %}row-amarilla{% endif %}">
+        <td style="text-align:center;padding:4px">
+          {% if r.semaforo == 'verde' %}
+          <span title="🟢 Al día ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟢</span>
+          {% elif r.semaforo == 'amarilla' %}
+          <span title="🟡 Atención ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟡</span>
+          {% elif r.semaforo == 'roja' %}
+          <span title="🔴 Vencido ({{ r.dias_transcurridos }}d)" style="font-size:16px">🔴</span>
+          {% elif r.semaforo == 'respondido' %}
+          <span title="✅ Respondido" style="font-size:14px">✅</span>
+          {% else %}
+          <span style="color:var(--text-muted)">—</span>
+          {% endif %}
+        </td>
+        <td style="font-size:12px">{{ r.anio or '—' }}</td>
+        <td style="font-size:12px">{{ r.mes or '—' }}</td>
+        <td style="font-size:12px;white-space:nowrap">{{ r.fecha_ingreso[:10] if r.fecha_ingreso else '—' }}</td>
+        <td style="font-size:12px;font-weight:600">{{ r.n_radicado or '—' }}</td>
+        <td class="td-texto" style="font-size:11px;max-width:160px">{{ r.origen or '—' }}</td>
+        <td style="font-size:12px">{{ r.responsable or '—' }}</td>
+        <td style="font-size:11px">{{ r.tipo_documento or '—' }}</td>
+        <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
+        <td style="font-size:11px">{{ r.radicados_salida or '—' }}</td>
+        <td style="font-size:12px;white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
+        <td style="text-align:center;font-weight:700;font-size:13px;
+          {% if r.semaforo == 'roja' %}color:#dc2626{% elif r.semaforo == 'amarilla' %}color:#d97706{% elif r.semaforo == 'verde' %}color:#16a34a{% else %}color:var(--text-muted){% endif %}">
+          {{ r.dias_transcurridos if r.dias_transcurridos is not none else '—' }}
+        </td>
+        <td style="white-space:nowrap">
+          <a href="/correspondencia/{{ r.id }}?back={{ back_url | quote_plus }}" class="btn-sm btn-ver">👁 Ver</a>
+          <a href="/correspondencia/{{ r.id }}/editar?back={{ back_url | quote_plus }}" class="btn-sm btn-edit">✏ Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text-muted)">
+        Sin resultados. <a href="/correspondencia/nuevo">Registrar nuevo oficio</a> o <a href="/correspondencia/importar">importar desde Excel</a>.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+  {% set base_url = '/correspondencia/?q=' ~ q ~ '&responsable=' ~ responsable ~ '&mes=' ~ mes ~ '&anio=' ~ anio ~ '&semaforo=' ~ semaforo ~ '&por_pagina=' ~ por_pagina %}
+  {% if page > 1 %}
+  <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
+  {% endif %}
+  {% for p in range(1, total_pages + 1) %}
+    {% if p == page %}
+    <span class="btn btn-primary" style="padding:4px 10px">{{ p }}</span>
+    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+    <a href="{{ base_url }}&page={{ p }}" class="btn btn-outline" style="padding:4px 10px">{{ p }}</a>
+    {% elif p == page - 3 or p == page + 3 %}
+    <span style="padding:4px 6px;color:var(--text-muted)">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page < total_pages %}
+  <a href="{{ base_url }}&page={{ page + 1 }}" class="btn btn-outline" style="padding:4px 10px">›</a>
+  {% endif %}
+  <span style="font-size:12px;color:var(--text-muted);margin-left:8px">{{ total }} registros</span>
+</div>
+{% else %}
+<p style="font-size:12px;color:var(--text-muted);margin-top:8px">{{ total }} registro(s)</p>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('btn-exportar').addEventListener('click', function(){
+    var t = document.createElement('div');
+    t.textContent = '⏳ Preparando Excel...';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1e3a5f;color:#fff;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35)';
+    document.body.appendChild(t);
+    setTimeout(function(){ t.textContent='✅ Excel descargado correctamente'; },1800);
+    setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(function(){ t.remove(); },450); },5000);
+});
+</script>
+{% endblock %}

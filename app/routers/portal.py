@@ -14,7 +14,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 async def hub(request: Request):
     conn = get_db()
 
-    total_base = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
 
     hoy = date.today().isoformat()
@@ -23,6 +23,14 @@ async def hub(request: Request):
         (hoy,)
     ).fetchone()
 
+    total_corr = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
+    corr_rojos = conn.execute("""
+        SELECT COUNT(*) FROM correspondencia
+        WHERE (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '')
+        AND fecha_ingreso IS NOT NULL
+        AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9
+    """).fetchone()[0]
+
     conn.close()
 
     return templates.TemplateResponse("portal.html", {
@@ -30,4 +38,6 @@ async def hub(request: Request):
         "total_base": total_base,
         "total_digitales": total_digitales,
         "prox_sala": dict(prox_sala) if prox_sala else None,
+        "total_corr": total_corr,
+        "corr_rojos": corr_rojos,
     })

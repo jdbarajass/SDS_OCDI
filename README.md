@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v2.2** — Última actualización: 2026-03-03
+> **Versión actual: v2.3** — Última actualización: 2026-04-14
 
 ---
 
@@ -84,7 +84,7 @@ Aplicación **web local** (LAN) que:
 
 - **Sin instalación en PCs clientes:** solo necesitan un navegador (Chrome/Edge).
 - **Sin internet requerido:** todo corre en la red interna de la SDS.
-- **Backup:** copiar el archivo `data/ocdi.db` a USB o carpeta compartida.
+- **Backup:** botón en el portal descarga un ZIP completo, o copiar `data/ocdi.db` manualmente.
 - **Costo total:** $0
 
 ---
@@ -100,7 +100,12 @@ Aplicación **web local** (LAN) que:
 | `actuaciones` | Base | Actuaciones mensuales registradas por expediente — para seguimiento |
 | `exp_digitales` | Digitales | Expedientes de seguimiento digital 2025-2026 |
 | `exp_comunicaciones` | Digitales | Comunicaciones hijo de cada expediente digital (N:1) con ON DELETE CASCADE |
+| `exp_revisiones` | Digitales | Historial de revisiones por expediente digital con fecha |
 | `sala_agenda` | Sala | Eventos de sala por fecha y franja horaria |
+| `correspondencia` | Reparto | Oficios de la lista de reparto de abogados (13 campos + metadata) |
+| `correspondencia_radicados_salida` | Reparto | Radicados de salida múltiples por oficio (N:1) con ON DELETE CASCADE |
+| `corr_responsables` | Reparto | Catálogo de responsables (abogados) configurable |
+| `corr_tipos_documento` | Reparto | Catálogo de tipos de documento configurable |
 
 ### Campos del expediente por bloques
 
@@ -175,20 +180,41 @@ Aplicación **web local** (LAN) que:
 | 7 | **Exportar reporte completo** — Excel con formato y colores por alerta | ✅ v1.0 |
 | 8 | **Exportar reporte filtrado** — Filtros avanzados + selección de bloques de columnas + opción "todo + indicador EN FILTRO" | ✅ v2.1 |
 
-### Módulo 2 — SEGUIMIENTO EXPEDIENTES DIGITALES 2025-2026 (`/digitales/`)
+### Módulo 2 — LISTA DE REPARTO DE ABOGADOS (`/correspondencia/`)
+
+Módulo para el control de oficios y correspondencia recibida, con semáforo de respuesta, catálogos configurables y gestión de múltiples radicados de salida por oficio.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Dashboard** — Tarjetas 🟢/🟡/🔴/✅, barras por responsable y por mes, tabla de críticos ordenada por días sin respuesta | ✅ v2.3 |
+| 2 | **Lista de oficios** — Semáforo por fila, filtros por semáforo/responsable/mes/año/texto, paginación | ✅ v2.3 |
+| 3 | **Gestión de oficios** — Crear, ver detalle, editar, eliminar | ✅ v2.3 |
+| 4 | **Radicados de salida múltiples** — Por oficio se puede registrar N radicados de salida en tabla separada | ✅ v2.3 |
+| 5 | **Semáforo de respuesta** — 🟢 0–5 días · 🟡 6–8 días · 🔴 9+ días · ✅ Respondido. Calculado desde `fecha_ingreso` con `julianday()` SQLite | ✅ v2.3 |
+| 6 | **Excepción ANEXO EXPEDIENTE** — Los oficios con `tipo_respuesta = ANEXO EXPEDIENTE` siempre aparecen en 🟢 con 0 días y se excluyen de alertas y conteos de vencidos | ✅ v2.3 |
+| 7 | **Catálogos configurables** — CRUD de responsables y tipos de documento desde `/correspondencia/configurar` | ✅ v2.3 |
+| 8 | **Tipo de Respuesta — combobox** — 11 opciones predefinidas + texto libre (HTML5 `<datalist>`) | ✅ v2.3 |
+| 9 | **Importar desde Excel** — Acepta formato original (12 cols) y formato exportado (14 cols con AÑO y Días); reemplaza todo con confirmación doble | ✅ v2.3 |
+| 10 | **Exportar a Excel** — Con columna Días Transcurridos y formato completo | ✅ v2.3 |
+
+**Regla de negocio — semáforo:** El semáforo es activo (cuenta días desde hoy) mientras no haya `fecha_radicado_salida`. Una vez registrada la fecha de salida, el registro pasa a ✅ Respondido y muestra los días que tardó la respuesta. Los oficios tipo `ANEXO EXPEDIENTE` son siempre 🟢 independientemente de los días transcurridos.
+
+### Módulo 3 — SEGUIMIENTO EXPEDIENTES DIGITALES 2025-2026 (`/digitales/`)
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
 | 1 | **Dashboard digitales** — Total exps., total comunicaciones, sin respuesta, con queja inicial; 3 tarjetas de alerta por días (🔵/🟡/🔴) con links a vistas filtradas | ✅ v2.2 |
-| 2 | **Lista de expedientes digitales** — Paginación, filtros por abogado/etapa/año/alerta/queja/sin respuesta; badge de peor alerta por fila; orden numérico por N° expediente | ✅ v2.2 |
+| 2 | **Lista de expedientes digitales** — Paginación, filtros por abogado/etapa/año/alerta/queja/sin respuesta; badge de peor alerta por fila; orden numérico por N° expediente; filtros tipo Excel por columna | ✅ v2.3 |
 | 3 | **Detalle + comunicaciones** — Vista completa del expediente con tabla de comunicaciones y formulario para agregar nuevas | ✅ v2.2 |
 | 4 | **CRUD expedientes** — Crear, editar y eliminar expedientes digitales | ✅ v2.2 |
 | 5 | **Vista global comunicaciones** (`/digitales/comunicaciones`) — Todas las comunicaciones con columna "Días" (🔵/🟡/🔴) y filtros por alerta | ✅ v2.2 |
 | 6 | **Sistema de alertas por días** — Azul: 8–12 días sin respuesta / Amarilla: 13 días / Roja: 14+ días. Calculado con `julianday()` SQLite | ✅ v2.2 |
-| 7 | **Importar desde Excel** — Estructura padre-hijo; col[0] = expediente, col[8] = comunicación; detección de duplicados | ✅ v2.2 |
-| 8 | **Exportar a Excel** — Descarga todos los expedientes con sus comunicaciones | ✅ v2.2 |
+| 7 | **Campo Observaciones Generales** — Campo de notas libres por expediente digital, visible en lista y exportable | ✅ v2.3 |
+| 8 | **Columna Últ. Revisión** — Registra y muestra la última fecha en que el abogado marcó revisado el expediente | ✅ v2.3 |
+| 9 | **Importar desde Excel** — Estructura padre-hijo; col[0] = expediente, col[8] = comunicación; detección de duplicados | ✅ v2.2 |
+| 10 | **Exportar a Excel** — Descarga todos los expedientes con sus comunicaciones + popup de confirmación | ✅ v2.3 |
 
-### Módulo 3 — SALA DE AUDIENCIAS (`/sala/`)
+### Módulo 4 — SALA DE AUDIENCIAS (`/sala/`)
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
@@ -198,14 +224,19 @@ Aplicación **web local** (LAN) que:
 | 4 | **CRUD eventos** — Crear desde "+" en día o franja libre, editar, eliminar con confirmación | ✅ v2.2 |
 | 5 | **Navegación mensual** — Botones Anterior / Siguiente / Hoy | ✅ v2.2 |
 
+### Módulo 5 — EXPORTAR / IMPORTAR GENERAL (`/backup/`)
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Exportar Excel consolidado** — Un único `.xlsx` con 3 hojas: Base Expedientes, Exp. Digitales, Sala de Audiencias | ✅ v2.3 |
+| 2 | **Importar Excel consolidado** — Carga el mismo archivo de vuelta reemplazando todo; modal de confirmación doble | ✅ v2.3 |
+
 ### Portal Hub (`/`)
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
-| 1 | **Página de inicio** — 3 tiles clickables con stats en tiempo real para cada módulo | ✅ v2.2 |
-
-### Pendiente (Fase 3)
-| 9 | **Gestión de usuarios/login** | Autenticación por usuario con roles | ⏳ Pendiente |
+| 1 | **Página de inicio** — 5 tiles clickables con stats en tiempo real para cada módulo, agrupados visualmente | ✅ v2.3 |
+| 2 | **Botón Backup ZIP completo** — Descarga un `.zip` con 4 carpetas (una por módulo), cada una con su Excel actualizado | ✅ v2.3 |
 
 ---
 
@@ -219,14 +250,55 @@ Aplicación **web local** (LAN) que:
 | 1 | Diseño de arquitectura y BD | ✅ | 2026-02-24 |
 | 2 | v1.0 — Gestión expedientes + Importar/Exportar + Dashboard + Seguimiento + Autos | ✅ | 2026-02-25 |
 | 3 | v2.0 — Corrección importación Excel (hoja errónea → 243 registros correctos) | ✅ | 2026-02-27 |
-| 4 | v2.1 — Mejoras UX: paginación, filtros avanzados, modal exportar, métricas nuevas, búsqueda inteligente, corrección alertas con `#VALUE!` | ✅ | 2026-02-27 |
+| 4 | v2.1 — Mejoras UX: paginación, filtros avanzados, modal exportar, métricas nuevas, búsqueda inteligente | ✅ | 2026-02-27 |
 | 5 | v2.2 — Hub portal + Módulo Expedientes Digitales + Sala de Audiencias + sistema de alertas por días | ✅ | 2026-03-03 |
-| 6 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
-| 7 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
+| 6 | v2.3 — Módulo Correspondencia + mejoras Digitales + Backup ZIP + Exportar/Importar General | ✅ | 2026-04-14 |
+| 7 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
+| 8 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
 
 ---
 
 ### Changelog detallado
+
+#### v2.3 — 2026-04-14 · commits `536d120` → `aa1899a`
+
+**Nuevo módulo: Lista de Reparto de Abogados (`/correspondencia/`)**
+
+- Control completo de oficios y correspondencia recibida con 8 rutas: dashboard, lista, nuevo, detalle, editar, eliminar, importar, exportar, configurar catálogos.
+- **Semáforo de respuesta** por `julianday()` SQLite: 🟢 0–5 días / 🟡 6–8 días / 🔴 9+ días / ✅ Respondido.
+- **Excepción ANEXO EXPEDIENTE:** oficios con ese tipo de respuesta siempre se muestran en 🟢 con 0 días; excluidos de conteos de vencidos en portal, dashboard y tabla de críticos.
+- **Radicados de salida múltiples:** tabla `correspondencia_radicados_salida` con CASCADE; se pueden agregar/eliminar desde el formulario de edición.
+- **Catálogos configurables** desde `/correspondencia/configurar`: CRUD de responsables y tipos de documento. 12 nombres de abogados prellenados; normalización de 21 variantes del Excel histórico vía `RESPONSABLE_MAP`.
+- **Combobox Tipo de Respuesta:** 11 opciones predefinidas + texto libre usando HTML5 `<datalist>`.
+- **Importación inteligente del Excel histórico** (295 registros): detección automática de formato — 12 cols (original) o 14 cols (exportado, con AÑO en col[0]); normalización de nombres sucios; reemplaza todo con modal doble de confirmación.
+- **Portal actualizado:** nuevo tile "Lista de Reparto de Abogados" con contador de oficios y badge de alerta roja; tiles de Base Expedientes y Reparto agrupados con subtítulo visual.
+
+**Nuevo módulo: Exportar/Importar General (`/backup/`)**
+
+- Exporta un único `.xlsx` con 3 hojas: Base Expedientes, Exp. Digitales, Sala de Audiencias.
+- Importa el mismo archivo reemplazando todo el contenido de las 3 tablas con confirmación doble.
+
+**Nuevo feature: Backup ZIP completo (`/backup/zip`)**
+
+- Botón en el portal principal (visible sin entrar a ningún módulo) que descarga `OCDI_Backup_Completo_YYYYMMDD.zip`.
+- Estructura ZIP:
+  ```
+  OCDI/
+  ├── 01_Base_Expedientes/Base_Expedientes_YYYYMMDD.xlsx
+  ├── 02_Lista_Reparto_Abogados/Correspondencia_YYYYMMDD.xlsx
+  ├── 03_Expedientes_Digitales/Exp_Digitales_YYYYMMDD.xlsx
+  └── 04_Sala_Audiencias/Sala_Audiencias_YYYYMMDD.xlsx
+  ```
+- Cada Excel usa el mismo formato que el exportador individual del módulo.
+
+**Mejoras en Expedientes Digitales:**
+
+- **Campo Observaciones Generales** (`observaciones`): campo de notas libres por expediente; visible en lista, exportable en Excel y en Backup ZIP.
+- **Columna Últ. Revisión**: registra la última fecha en que el abogado marcó el expediente como revisado (`exp_revisiones`); visible en lista y en exportación.
+- **Filtros tipo Excel por columna**: menú desplegable en cada encabezado de la lista con valores únicos de esa columna; permite filtrar por Abogado, Etapa, Año, etc. de forma independiente.
+- **Popup de confirmación de descarga Excel**: antes de generar el archivo, muestra cuántos registros se exportarán.
+
+---
 
 #### v2.2 — 2026-03-03 · commits `4d204ee` → `7b8f24e`
 
@@ -254,36 +326,25 @@ Aplicación **web local** (LAN) que:
 
 #### v2.1 — 2026-02-27 · commit `8e33f33`
 
-**Nuevas funcionalidades:**
-
-- **Lista de expedientes — paginación:** selector 25 / 50 / 100 / Todos por página con controles de navegación (primera, anterior, páginas, siguiente, última)
-- **Lista de expedientes — filtros adicionales:** Origen del proceso (dropdown), Alerta de vencimiento (Vencidos / 30 días / 60 días), Fecha radicado desde/hasta
-- **Lista de expedientes — ordenamiento:** click en cualquier encabezado de columna ordena ascendente/descendente; flecha ↑↓ indica columna y dirección activa
-- **Lista de expedientes — búsqueda inteligente:** al buscar un número (ej. "046") también compara `CAST(n_expediente AS INTEGER) = 46` para encontrar expedientes guardados sin cero a la izquierda; además busca en `n_radicado` y `quejoso`
-- **Dashboard — modal de exportación:** las tarjetas de alerta (Vencidos, 30 días, 60 días) ahora abren un popup con tres opciones: descargar solo los filtrados, descargar todos con columna `EN FILTRO`, o ver en la lista
-- **Dashboard — nuevas métricas:** panel "Por Origen del Proceso", panel "Top Tipologías", gráfica de barras "Tendencia Mensual de Ingreso" (últimos 24 meses)
-- **Exportación con `incluir_todos=1`:** descarga todos los expedientes con columna `EN FILTRO` (SI/NO); filas del filtro aparecen primero en colores normales; resto en gris claro con texto gris; AutoFiltro de Excel activado para filtrar desde la columna A
-
-**Correcciones de errores:**
-
-- **Bug crítico — alertas con `#VALUE!`:** valores de error de Excel importados como texto causaban que expedientes vigentes aparecieran como vencidos. Los filtros de alerta ahora usan `date()` de SQLite que devuelve NULL para textos no-fecha, excluyéndolos correctamente. Afectaba: filtros de lista, conteos del dashboard, lista de próximos a vencer
-- **Limpieza de BD:** se pusieron en NULL 5 registros con fechas inválidas (`fecha_vencimiento_inv = "#VALUE!"` en expedientes 46 y 53; `fecha_radicado` con errores de tipeo en expedientes 17, 23, 33)
-- **Importador:** `_fecha()` ya no almacena formatos no reconocidos; devuelve `None` en lugar de guardar strings de error de Excel
+- **Lista de expedientes — paginación:** selector 25 / 50 / 100 / Todos por página con controles de navegación
+- **Lista de expedientes — filtros adicionales:** Origen del proceso, Alerta de vencimiento, Fecha radicado desde/hasta
+- **Lista de expedientes — ordenamiento:** click en cualquier encabezado ordena ASC/DESC
+- **Lista de expedientes — búsqueda inteligente:** busca número con y sin cero a la izquierda; busca en `n_radicado` y `quejoso`
+- **Dashboard — modal de exportación:** tarjetas de alerta abren popup con opciones: solo filtrados / todos con indicador EN FILTRO / ver en lista
+- **Dashboard — nuevas métricas:** panel "Por Origen del Proceso", "Top Tipologías", gráfica "Tendencia Mensual de Ingreso" (últimos 24 meses)
+- **Bug crítico — alertas con `#VALUE!`:** valores de error de Excel causaban falsos positivos. Filtros ahora usan `date()` SQLite que devuelve NULL para no-fechas.
 
 ---
 
 #### v2.0 — 2026-02-27 · commit `fbf2906`
 
-- **Corrección crítica de importación Excel:** el archivo `BASE EXPEDIENTES 2023U ORIGINAL 22-10-2025.xlsx` no tiene hoja "ENCABEZADO"; el código caía en el fallback `wb.sheetnames[0]` que era la hoja de controles (`HOJA DE CONTROLES`), importando solo 2 filas incorrectas. La corrección busca la primera hoja donde la celda A1 contiene "EXPEDIENTE". Resultado: 243 expedientes importados correctamente.
-- Corrección del bloque de identificación en exportar reporte filtrado
-- **Conteos dashboard:** `prox30` y `prox60` ahora excluyen expedientes con `estado_proceso IN ('AUTO DE ARCHIVO', 'ARCHIVADO')` para consistencia con el conteo de vencidos
+- Corrección crítica de importación Excel: el archivo fuente no tiene hoja "ENCABEZADO"; el sistema ahora busca la primera hoja donde A1 contiene "EXPEDIENTE". Resultado: 243 expedientes importados correctamente.
 
 ---
 
 #### v1.0 — 2026-02-25 · commit `635a1d6`
 
-- Sistema completo inicial: dashboard, gestión de expedientes (CRUD), seguimiento mensual, control de autos, importar desde Excel, exportar Excel completo y filtrado
-- Borrado total de BD con confirmación en página de importar
+- Sistema completo inicial: dashboard, gestión de expedientes (CRUD), seguimiento mensual, control de autos, importar desde Excel, exportar Excel completo y filtrado.
 
 ---
 
@@ -299,10 +360,15 @@ Aplicación **web local** (LAN) que:
 | 2026-02-25 | **Construcción por fases** empezando con módulos críticos | El prototipo construye los cimientos compartidos. Los módulos restantes se añaden sin reescribir lo existente. |
 | 2026-02-27 | **`date()` de SQLite** en todos los filtros de fecha | Previene falsos positivos cuando hay valores no-fecha en columnas de fecha (errores `#VALUE!` de Excel). |
 | 2026-02-27 | **`CAST(n_expediente AS INTEGER)`** en búsqueda numérica | Permite buscar "046" y encontrar expedientes guardados como "46" (sin cero a la izquierda, como los lee Excel al importar). |
-| 2026-02-27 | **AutoFiltro en exportación** con `incluir_todos=1` | El usuario puede quitar el filtro EN FILTRO desde Excel para ver todos los expedientes, o dejarlo para ver solo los del filtro. |
-| 2026-03-03 | **Sidebars independientes por módulo** (`base.html`, `base_digitales.html`, `base_sala.html`) | Cada ventana del sistema tiene su propio menú lateral con ítems de navegación de su contexto. Evita confusión entre los 3 módulos. |
-| 2026-03-03 | **`julianday()` de SQLite** para alertas de días en digitales | Calcula días transcurridos desde `fecha_envio` hasta hoy directamente en SQL sin lógica Python post-proceso (salvo el helper `_clase_alerta()`). |
-| 2026-03-03 | **Rutas estáticas antes de `/{exp_id}`** en `digitales.py` | FastAPI evalúa rutas en orden de registro. Si `/{exp_id}` (tipo int) se registra primero, captura "importar"/"exportar"/"comunicaciones" y devuelve 422. |
+| 2026-02-27 | **AutoFiltro en exportación** con `incluir_todos=1` | El usuario puede quitar el filtro EN FILTRO desde Excel para ver todos los expedientes. |
+| 2026-03-03 | **Sidebars independientes por módulo** | Cada ventana tiene su propio menú lateral. Evita confusión entre los módulos. |
+| 2026-03-03 | **`julianday()` de SQLite** para alertas de días | Calcula días transcurridos directamente en SQL sin lógica Python post-proceso. |
+| 2026-03-03 | **Rutas estáticas antes de `/{id}`** en cada router | FastAPI evalúa rutas en orden de registro. Rutas como `/importar` deben ir antes de `/{id}` para no ser capturadas como parámetro. |
+| 2026-04-14 | **Tabla separada `correspondencia_radicados_salida`** para radicados de salida | Un oficio puede tener N radicados de salida. Usar una tabla hija con CASCADE evita concatenar en un solo campo y permite agregar/eliminar individualmente. |
+| 2026-04-14 | **HTML5 `<datalist>`** para Tipo de Respuesta | Ofrece sugerencias predefinidas sin restringir el texto libre. Permite importar las ~80 variantes históricas del Excel sin mapeo. |
+| 2026-04-14 | **`RESPONSABLE_MAP` en importación** de Correspondencia | El Excel histórico tiene 21 variantes sucias del mismo nombre (ej. "CESAR IVAN", "CESAR RODRIGUEZ", "CESAR IVAN RODRIGUEZ"). El mapa normaliza al vuelo durante la importación. |
+| 2026-04-14 | **Excepción `ANEXO EXPEDIENTE`** en semáforo | Regla de negocio: estos oficios no requieren respuesta formal, por lo tanto no acumulan días de vencimiento. Se aplica en SQL (`_SEMAFORO_SQL`, `_DIAS_SQL`) y en código Python para el detalle. |
+| 2026-04-14 | **Backup ZIP estructurado** desde el portal | Un solo clic genera un respaldo completo organizado por módulo, sin necesidad de entrar a cada sección. Facilita copias periódicas sin conocimiento técnico. |
 
 ---
 
@@ -312,47 +378,58 @@ Aplicación **web local** (LAN) que:
 SDS_OCDI/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                          # FastAPI app — registra todos los routers
-│   ├── database.py                      # Esquema SQLite (6 tablas), get_db(), calcular_alerta()
+│   ├── main.py                             # FastAPI app — registra todos los routers
+│   ├── database.py                         # Esquema SQLite (11 tablas), get_db(), init_db()
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   ├── portal.py                    # GET /  → hub con 3 tiles
-│   │   ├── expedientes.py               # /expedientes — Lista, CRUD, exportar Excel
-│   │   ├── dashboard.py                 # /dashboard — métricas BASE 2023U
-│   │   ├── importar.py                  # /importar — cargue masivo Excel BASE
-│   │   ├── seguimiento.py               # /seguimiento — actuaciones mensuales
-│   │   ├── autos.py                     # /autos — control de autos
-│   │   ├── digitales.py                 # /digitales/* — módulo completo digitales 2025-2026
-│   │   └── sala.py                      # /sala/* — sala de audiencias
+│   │   ├── portal.py                       # GET /  → hub portal con tiles y stats
+│   │   ├── expedientes.py                  # /expedientes — Lista, CRUD, exportar Excel
+│   │   ├── dashboard.py                    # /dashboard — métricas BASE 2023U
+│   │   ├── importar.py                     # /importar — cargue masivo Excel BASE
+│   │   ├── seguimiento.py                  # /seguimiento — actuaciones mensuales
+│   │   ├── autos.py                        # /autos — control de autos
+│   │   ├── digitales.py                    # /digitales/* — módulo completo digitales 2025-2026
+│   │   ├── sala.py                         # /sala/* — sala de audiencias
+│   │   ├── backup.py                       # /backup/* — exportar/importar general + ZIP
+│   │   └── correspondencia.py             # /correspondencia/* — lista de reparto abogados
 │   ├── static/
-│   │   ├── css/style.css                # Estilos completos (sin dependencias externas)
-│   │   └── js/app.js                    # Lógica de formulario, tabs, escaneos dinámicos
+│   │   ├── css/style.css                   # Estilos completos (sin dependencias externas)
+│   │   └── js/app.js                       # Lógica de formulario, tabs, escaneos dinámicos
 │   └── templates/
-│       ├── base.html                    # Sidebar BASE EXPEDIENTES
-│       ├── base_digitales.html          # Sidebar EXP. DIGITALES
-│       ├── base_sala.html               # Sidebar SALA AUDIENCIAS
-│       ├── portal.html                  # Hub sin sidebar — 3 tiles clickables
-│       ├── lista.html                   # /expedientes lista
-│       ├── form.html                    # Crear/editar expediente BASE (7 bloques)
-│       ├── detalle.html                 # Detalle expediente BASE
-│       ├── dashboard.html               # Dashboard BASE 2023U
-│       ├── importar.html                # Importar Excel BASE
-│       ├── exportar_filtrado.html       # Exportar reporte personalizado
-│       ├── seguimiento.html             # Seguimiento mensual
-│       ├── autos.html                   # Control de autos
-│       ├── digitales_lista.html         # /digitales/ lista con filtros y alertas
-│       ├── digitales_dashboard.html     # /digitales/dashboard con tarjetas de alerta
-│       ├── digitales_detalle.html       # /digitales/{id} detalle + comunicaciones
-│       ├── digitales_form.html          # Crear/editar expediente digital
-│       ├── digitales_comunicaciones.html # /digitales/comunicaciones vista global
-│       ├── digitales_importar.html      # Importar Excel digitales
-│       ├── sala.html                    # /sala/ calendario mensual
-│       └── sala_form.html              # Crear/editar evento de sala
+│       ├── base.html                       # Sidebar BASE EXPEDIENTES
+│       ├── base_digitales.html             # Sidebar EXP. DIGITALES
+│       ├── base_sala.html                  # Sidebar SALA AUDIENCIAS
+│       ├── base_correspondencia.html       # Sidebar LISTA DE REPARTO
+│       ├── portal.html                     # Hub sin sidebar — tiles + botón backup ZIP
+│       ├── lista.html                      # /expedientes lista
+│       ├── form.html                       # Crear/editar expediente BASE (7 bloques)
+│       ├── detalle.html                    # Detalle expediente BASE
+│       ├── dashboard.html                  # Dashboard BASE 2023U
+│       ├── importar.html                   # Importar Excel BASE
+│       ├── exportar_filtrado.html          # Exportar reporte personalizado
+│       ├── seguimiento.html                # Seguimiento mensual
+│       ├── autos.html                      # Control de autos
+│       ├── backup.html                     # Exportar/Importar general (3 módulos)
+│       ├── digitales_lista.html            # /digitales/ lista con filtros tipo Excel
+│       ├── digitales_dashboard.html        # /digitales/dashboard con tarjetas de alerta
+│       ├── digitales_detalle.html          # /digitales/{id} detalle + comunicaciones
+│       ├── digitales_form.html             # Crear/editar expediente digital
+│       ├── digitales_comunicaciones.html   # /digitales/comunicaciones vista global
+│       ├── digitales_importar.html         # Importar Excel digitales
+│       ├── sala.html                       # /sala/ calendario mensual
+│       ├── sala_form.html                  # Crear/editar evento de sala
+│       ├── corr_lista.html                 # /correspondencia/ lista con semáforo
+│       ├── corr_dashboard.html             # /correspondencia/dashboard
+│       ├── corr_detalle.html               # /correspondencia/{id} detalle
+│       ├── corr_form.html                  # Crear/editar oficio de correspondencia
+│       ├── corr_importar.html              # Importar Excel correspondencia
+│       └── corr_configurar.html            # Configurar catálogos (responsables, tipos doc)
 ├── data/
-│   └── ocdi.db                          # Base de datos SQLite (se crea al iniciar)
-├── iniciar.bat                          # Script Windows — libera puerto 8000 e inicia
-├── requirements.txt                     # Dependencias Python
-└── README.md                            # Este archivo
+│   └── ocdi.db                             # Base de datos SQLite (se crea al iniciar)
+├── iniciar.bat                             # Script Windows — libera puerto 8000 e inicia
+├── requirements.txt                        # Dependencias Python
+├── INSTALACION.md                          # Guía paso a paso para instalar en Windows
+└── README.md                               # Este archivo
 ```
 
 ---
@@ -371,38 +448,56 @@ pip install -r requirements.txt
 iniciar.bat   # doble clic en Windows
 ```
 
+Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
+
 ### Uso diario
 
 1. Doble clic en `iniciar.bat` en el PC servidor
-2. Esperar el mensaje `Uvicorn running on http://0.0.0.0:8000`
+2. Esperar el mensaje `Application startup complete`
 3. En cualquier PC de la red abrir Chrome/Edge: `http://<IP-del-servidor>:8000`
    - Para conocer la IP: ejecutar `ipconfig` en el servidor y buscar "Dirección IPv4"
 4. Para detener: `Ctrl+C` en la ventana de comandos
 
-### Importar datos desde Excel
+### Importar datos históricos
 
-1. Ir a **Importar** en el menú lateral
-2. Seleccionar el archivo `.xlsx` (acepta el formato padre del OCDI)
-3. El sistema detecta automáticamente la hoja correcta buscando la que tenga "EXPEDIENTE" en celda A1
-4. Los expedientes duplicados (mismo N° + mismo año) se omiten automáticamente
-5. Se muestra el resumen: insertados / omitidos / errores
+**Base Expedientes:**
+1. Módulo Base → Importar Excel → seleccionar el `.xlsx` del archivo padre del OCDI
+2. El sistema detecta automáticamente la hoja correcta (busca "EXPEDIENTE" en celda A1)
+3. Los expedientes duplicados (mismo N° + mismo año) se omiten
+
+**Correspondencia:**
+1. Módulo Lista de Reparto → Importar → seleccionar `CORRESPONDENCIA 2026.xlsx`
+2. Acepta formato original (12 columnas) o exportado (14 columnas con AÑO y Días)
+3. **Reemplaza todos los registros actuales** — confirmar en el modal de alerta
+
+**Expedientes Digitales:**
+1. Módulo Digitales → Importar → seleccionar el Excel padre-hijo de seguimiento digital
+
+### Backup y respaldo
+
+**Backup ZIP completo (recomendado):**
+- En el portal principal, clic en **"📦 Descargar Backup Completo (.zip)"**
+- Descarga un ZIP con 4 carpetas, una por módulo, con el Excel actualizado de cada uno
+
+**Backup de base de datos:**
+- Copiar el archivo `data/ocdi.db` a una carpeta segura, USB o nube
+- Para restaurar: reemplazar ese archivo antes de iniciar el servidor
 
 ### Exportar reportes
 
-**Reporte completo:**
-- Menú → Lista de Expedientes → botón "Exportar Excel"
-- Descarga todos los expedientes con colores de alerta
+**Reporte completo (Base Expedientes):**
+- Lista de Expedientes → botón "Exportar Excel"
 
 **Reporte filtrado/personalizado:**
 - Menú → Exportar Reporte, o desde el dashboard → tarjeta de alerta → "Exportar →"
-- Seleccionar filtros (año, abogado, etapa, estado, fechas, vencimientos)
-- Seleccionar bloques de columnas a incluir
-- **Opción 1 — "Solo los filtrados":** Excel limpio con solo los expedientes del filtro
-- **Opción 2 — "Todo + indicador":** Excel con todos los expedientes + columna `EN FILTRO` (SI/NO); filas filtradas primero. Desde Excel: usar el AutoFiltro en la columna A para ver solo los del filtro, o quitar el filtro para ver todos.
+- Opción 1 — "Solo los filtrados": Excel limpio con solo los expedientes del filtro
+- Opción 2 — "Todo + indicador": todos los expedientes con columna `EN FILTRO` (SI/NO)
 
-### Backup de la base de datos
+**Correspondencia:**
+- Lista de Reparto → Exportar (desde el sidebar)
 
-Copiar el archivo `data/ocdi.db` a una carpeta segura, USB o nube. Para restaurar, reemplazar ese archivo antes de iniciar el servidor.
+**Exportar/Importar General:**
+- Módulo Backup → descarga un único Excel con Base + Digitales + Sala en 3 hojas
 
 ---
 
@@ -424,9 +519,5 @@ Copiar el archivo `data/ocdi.db` a una carpeta segura, USB o nube. Para restaura
 | Archivo | Descripción |
 |---------|-------------|
 | `BASE EXPEDIENTES 2023U ORIGINAL 22-10-2025.xlsx` | Archivo de datos históricos importado. 243 expedientes en hoja `2023 - 2024`. Columnas 1–51 mapean a los 48 campos de la BD. |
-| `Diagarama de Flujo OCDI.jpg` | Diagrama de flujo del proceso disciplinario interno |
-| `CONTROL DISCIPLINARIO_V10.pdf` | Documento normativo / procedimiento de control disciplinario |
-| `Decreto_641_de_2025.pdf` | Decreto de referencia legal |
-| `procedimientoa ctual.pdf` | Descripción del procedimiento actual |
-| `WhatsApp Image 2026-02-23 at 12.25.38.jpeg` | Organigrama de la Secretaría Distrital de Salud |
-| `Prompt SDS.txt` | Descripción original del requerimiento |
+| `CORRESPONDENCIA 2026.xlsx` | Archivo histórico de correspondencia. 295 registros importables desde `/correspondencia/importar`. |
+| `INSTALACION.md` | Guía paso a paso para instalar Python y ejecutar el sistema en Windows. |

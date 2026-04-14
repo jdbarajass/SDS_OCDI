@@ -27,6 +27,7 @@ async def hub(request: Request):
     corr_rojos = conn.execute("""
         SELECT COUNT(*) FROM correspondencia
         WHERE (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '')
+        AND UPPER(TRIM(tipo_respuesta)) != 'ANEXO EXPEDIENTE'
         AND fecha_ingreso IS NOT NULL
         AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9
     """).fetchone()[0]

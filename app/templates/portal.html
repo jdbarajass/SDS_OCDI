@@ -35,6 +35,16 @@
         .tile-cta { margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; background: #1B4F8A; color: #fff; padding: 9px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.15s; }
         .portal-tile:hover .tile-cta { background: #0d3060; }
         .portal-footer { margin-top: 36px; font-size: 11px; color: rgba(255,255,255,0.45); text-align: center; }
+        .btn-backup-zip {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.12); color: #fff;
+            border: 1.5px solid rgba(255,255,255,0.35);
+            padding: 10px 22px; border-radius: 8px;
+            font-size: 13px; font-weight: 700; text-decoration: none;
+            transition: background 0.15s, border-color 0.15s;
+            backdrop-filter: blur(4px);
+        }
+        .btn-backup-zip:hover { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.7); text-decoration: none; color: #fff; }
     </style>
 </head>
 <body>
@@ -44,6 +54,11 @@
         <div class="portal-logo">⚖️</div>
         <div class="portal-title">OCDI — Control Disciplinario Interno</div>
         <div class="portal-sub">Secretaría Distrital de Salud · Seleccione el módulo con el que desea trabajar</div>
+        <div style="margin-top:18px">
+            <a href="/backup/zip" class="btn-backup-zip">
+                📦 Descargar Backup Completo (.zip)
+            </a>
+        </div>
     </div>
 
     <div class="portal-tiles">

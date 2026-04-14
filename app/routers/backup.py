@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from datetime import date
 import io
+import zipfile
 
 from app.database import get_db
 
@@ -390,3 +391,244 @@ async def backup_importar(archivo: UploadFile = File(...)):
     conn.close()
     msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}"
     return RedirectResponse(f"/backup/?msg={msg}", status_code=303)
+
+
+# ── Backup ZIP completo (4 carpetas, 4 Excel) ─────────────────────────────────
+
+@router.get("/zip")
+async def backup_zip():
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return RedirectResponse("/backup/?msg=error_openpyxl")
+
+    hoy = date.today().strftime("%Y%m%d")
+    conn = get_db()
+
+    # ── Cargar todos los datos ────────────────────────────────────────────────
+    exps      = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
+    dig_exps  = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
+    dig_coms  = conn.execute(
+        "SELECT * FROM exp_comunicaciones ORDER BY exp_digital_id ASC, fecha_envio ASC, id ASC"
+    ).fetchall()
+    dig_revs  = conn.execute(
+        "SELECT exp_digital_id, MAX(fecha_revision) AS ultima_revision FROM exp_revisiones GROUP BY exp_digital_id"
+    ).fetchall()
+    sala      = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
+    corr_rows = conn.execute("""
+        SELECT c.*,
+               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
+               CASE
+                   WHEN c.fecha_ingreso IS NULL THEN NULL
+                   WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
+                       THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10))
+                                 - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
+                   ELSE CAST(julianday('now','localtime')
+                             - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
+               END AS dias_transcurridos
+        FROM correspondencia c
+        LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        GROUP BY c.id
+        ORDER BY c.anio DESC, c.fecha_ingreso DESC
+    """).fetchall()
+    conn.close()
+
+    ultima_rev = {r["exp_digital_id"]: r["ultima_revision"] for r in dig_revs}
+    coms_por_exp: dict[int, list] = {}
+    for c in dig_coms:
+        coms_por_exp.setdefault(c["exp_digital_id"], []).append(dict(c))
+
+    h_font   = Font(bold=True, color="FFFFFF", size=10)
+    center   = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    alt_fill = PatternFill("solid", fgColor="EBF1F8")
+    sub_fill = PatternFill("solid", fgColor="dbeafe")
+
+    def make_wb_base() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Base Expedientes"
+        fill = PatternFill("solid", fgColor="1B4F8A")
+        headers = [
+            "N. EXPEDIENTE","AÑO","MES","ORIGEN DEL PROCESO","N. RADICADO",
+            "FECHA RADICADO","FECHA SIIAS","INGRESO SIIAS","INGRESO SIAD",
+            "FECHA INGRESO SIAD","INGRESO SID4","NOMBRE ABOGADO","IMPEDIMENTO",
+            "INVESTIGADO","PERFIL INDAGADO","ENTIDAD ORIGEN","QUEJOSO",
+            "ASUNTO","TIPOLOGÍA","DESCRIPCIÓN TIPOLOGÍA","SINIESTRO","RESP. SINIESTRO",
+            "ACOSO/MALTRATO","RESP. ACOSO","CORRUPCIÓN","VALORES INSTITUCIONALES",
+            "FECHA HECHOS","F. APERTURA INDAGACIÓN","AUTO APERTURA IND.","F. AUTO APERTURA IND.",
+            "PLAZO IND. (días)","F. VENCIMIENTO IND.","AUTO TRASLADO IND.","F. AUTO TRASLADO IND.",
+            "AUTO ARCHIVO IND.","F. AUTO ARCHIVO IND.","F. APERTURA INVESTIGACIÓN",
+            "AUTO APERTURA INV.","F. AUTO APERTURA INV.","PLAZO INV. (días)","F. VENCIMIENTO INV.",
+            "AUTO TRASLADO INV.","F. AUTO TRASLADO INV.","AUTO ARCHIVO INV.","F. AUTO ARCHIVO INV.",
+            "ETAPA","ESTADO DEL PROCESO","OBSERVACIONES FINALES","CREADO POR",
+            "FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
+        ]
+        campos = [
+            "n_expediente","anio","mes","origen_proceso","n_radicado","fecha_radicado",
+            "fecha_siias","ingreso_siias","ingreso_siad","fecha_ingreso_siad","ingreso_sid4",
+            "nombre_abogado","impedimento","investigado","perfil_indagado","entidad_origen",
+            "quejoso","asunto","tipologia","descripcion_tipologia","relacionado_siniestro",
+            "responsable_siniestro","relacionado_acoso","responsable_acoso","relacionado_corrupcion",
+            "valores_institucionales","fecha_hechos","fecha_apertura_indagacion",
+            "numero_auto_apertura_ind","fecha_auto_apertura_ind","plazo_ind","fecha_vencimiento_ind",
+            "numero_auto_traslado_ind","fecha_auto_traslado_ind","numero_auto_archivo_ind",
+            "fecha_auto_archivo_ind","fecha_apertura_investigacion","numero_auto_apertura_inv",
+            "fecha_auto_apertura_inv","plazo_inv","fecha_vencimiento_inv","numero_auto_traslado_inv",
+            "fecha_auto_traslado_inv","numero_auto_archivo_inv","fecha_auto_archivo_inv",
+            "etapa","estado_proceso","observaciones_finales","created_by","created_at","updated_at",
+        ]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 40
+        for ri, row in enumerate(exps, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            for ci, campo in enumerate(campos, 1):
+                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell.alignment = Alignment(vertical="center")
+                if rf: cell.fill = rf
+        for col in ws.columns:
+            ml = max((len(str(c.value or "")) for c in col), default=10)
+            ws.column_dimensions[col[0].column_letter].width = min(ml + 4, 40)
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def make_wb_correspondencia() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "CORRESPONDENCIA"
+        fill = PatternFill("solid", fgColor="1B4F8A")
+        headers = [
+            "AÑO","MES","FECHA INGRESO DE OFICIO","N. RADICADOS",
+            "ORIGEN AGILSALUD","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
+            "RESPONSABLE","CASO BMP","N RADICADO SALIDA",
+            "FECHA RADICADO DE SALIDA","TIPO DE RESPUESTA","TRAMITE DE SALIDA",
+            "DÍAS TRANSCURRIDOS",
+        ]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 36
+        for ri, row in enumerate(corr_rows, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            vals = [
+                d.get("anio"), d.get("mes"),
+                d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
+                d.get("n_radicado"), d.get("origen"), d.get("asunto"),
+                d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
+                d.get("radicados_salida"),
+                d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
+                d.get("tipo_respuesta"), d.get("tramite_salida"), d.get("dias_transcurridos"),
+            ]
+            for ci, v in enumerate(vals, 1):
+                cell = ws.cell(row=ri, column=ci, value=v)
+                cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 6))
+                if rf: cell.fill = rf
+        col_widths = [6, 12, 20, 18, 35, 45, 18, 22, 10, 20, 20, 25, 25, 8]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def make_wb_digitales() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "EXP DIGIT 2025-2026"
+        fill = PatternFill("solid", fgColor="1e3a5f")
+        headers = [
+            "N° Expediente","Año","Abogado","Etapa","Queja Inicial",
+            "Radicado Auto","Nombre Auto","Fecha Auto",
+            "Obs. Generales","Última Revisión",
+            "Radicado Comunicación","Dependencia","Fecha Envío",
+            "Fecha Seguimiento","Radicado Respuesta","Fecha Respuesta",
+            "Responsable","Observaciones",
+        ]
+        ws.append(["SEGUIMIENTO EXPEDIENTES DIGITALES"])
+        ws.append(headers)
+        for cell in ws[2]:
+            cell.font = h_font; cell.fill = fill
+            cell.alignment = Alignment(horizontal="center")
+        for exp in dig_exps:
+            ed = dict(exp)
+            exp_coms = coms_por_exp.get(ed["id"], [])
+            primera = exp_coms[0] if exp_coms else {}
+            ws.append([
+                ed.get("n_expediente"), ed.get("anio"), ed.get("abogado"), ed.get("etapa"),
+                ed.get("queja_inicial"), ed.get("radicado_auto"), ed.get("nombre_auto"), ed.get("fecha_auto"),
+                ed.get("observaciones"), ultima_rev.get(ed["id"]),
+                primera.get("radicado_comunicacion"), primera.get("dependencia"),
+                primera.get("fecha_envio"), primera.get("fecha_seguimiento"),
+                primera.get("radicado_respuesta"), primera.get("fecha_respuesta"),
+                primera.get("responsable"), primera.get("observaciones"),
+            ])
+            for com in exp_coms[1:]:
+                sr = [None]*10 + [
+                    com.get("radicado_comunicacion"), com.get("dependencia"),
+                    com.get("fecha_envio"), com.get("fecha_seguimiento"),
+                    com.get("radicado_respuesta"), com.get("fecha_respuesta"),
+                    com.get("responsable"), com.get("observaciones"),
+                ]
+                ws.append(sr)
+                for cell in ws[ws.max_row]: cell.fill = sub_fill
+        col_widths = [15, 6, 22, 20, 14, 20, 30, 14, 40, 22, 22, 25, 14, 16, 22, 14, 20, 40]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def make_wb_sala() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Sala de Audiencias"
+        fill = PatternFill("solid", fgColor="065F46")
+        headers = ["Fecha","Franja","Título","Descripción","Estado","Responsable","Fecha Creación"]
+        campos  = ["fecha","franja","titulo","descripcion","estado","responsable","created_at"]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 30
+        for ri, row in enumerate(sala, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            for ci, campo in enumerate(campos, 1):
+                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell.alignment = Alignment(vertical="center")
+                if rf: cell.fill = rf
+        col_widths = [14, 16, 30, 40, 12, 25, 20]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    # ── Construir ZIP ─────────────────────────────────────────────────────────
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            f"OCDI/01_Base_Expedientes/Base_Expedientes_{hoy}.xlsx",
+            make_wb_base().read(),
+        )
+        zf.writestr(
+            f"OCDI/02_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
+            make_wb_correspondencia().read(),
+        )
+        zf.writestr(
+            f"OCDI/03_Expedientes_Digitales/Exp_Digitales_{hoy}.xlsx",
+            make_wb_digitales().read(),
+        )
+        zf.writestr(
+            f"OCDI/04_Sala_Audiencias/Sala_Audiencias_{hoy}.xlsx",
+            make_wb_sala().read(),
+        )
+    zip_buf.seek(0)
+
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=OCDI_Backup_Completo_{hoy}.zip"},
+    )

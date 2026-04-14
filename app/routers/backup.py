@@ -421,6 +421,7 @@ async def backup_zip():
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
                CASE
                    WHEN c.fecha_ingreso IS NULL THEN NULL
+                   WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 0
                    WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
                        THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10))
                                  - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)

@@ -96,6 +96,7 @@ def _get_catalogos(conn):
 _SEMAFORO_SQL = """
     CASE
         WHEN c.fecha_ingreso IS NULL THEN NULL
+        WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 'verde'
         WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != '' THEN 'respondido'
         WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 'verde'
         WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 8 THEN 'amarilla'
@@ -106,6 +107,7 @@ _SEMAFORO_SQL = """
 _DIAS_SQL = """
     CASE
         WHEN c.fecha_ingreso IS NULL THEN NULL
+        WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 0
         WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
             THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10)) - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
         ELSE CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
@@ -124,11 +126,14 @@ async def dashboard(request: Request):
     stats = conn.execute(f"""
         SELECT
             SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) AS respondidos,
-            SUM(CASE WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 1
+                     WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 1 ELSE 0 END) AS verde,
-            SUM(CASE WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+                     AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8 THEN 1 ELSE 0 END) AS amarilla,
-            SUM(CASE WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+                     AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9 THEN 1 ELSE 0 END) AS roja
         FROM correspondencia
     """).fetchone()
@@ -151,12 +156,13 @@ async def dashboard(request: Request):
             ELSE 99 END
     """).fetchall()
 
-    # Pendientes críticos (rojos) para tabla de alerta
+    # Pendientes críticos (rojos) para tabla de alerta — excluye ANEXO EXPEDIENTE
     criticos = conn.execute(f"""
         SELECT c.id, c.n_radicado, c.responsable, c.asunto, c.mes, c.fecha_ingreso,
                {_DIAS_SQL}
         FROM correspondencia c
         WHERE (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida = '')
+        AND UPPER(TRIM(c.tipo_respuesta)) != 'ANEXO EXPEDIENTE'
         AND c.fecha_ingreso IS NOT NULL
         ORDER BY dias_transcurridos DESC LIMIT 20
     """).fetchall()
@@ -664,8 +670,15 @@ async def ver(request: Request, reg_id: int, back: str = ""):
                 dias = (date.today() - fi).days
         except Exception:
             pass
+    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() == "ANEXO EXPEDIENTE":
+        dias = 0
     reg["dias_transcurridos"] = dias
-    reg["semaforo"] = _semaforo(dias) if not reg.get("fecha_radicado_salida") else "respondido"
+    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() == "ANEXO EXPEDIENTE":
+        reg["semaforo"] = "verde"
+    elif reg.get("fecha_radicado_salida"):
+        reg["semaforo"] = "respondido"
+    else:
+        reg["semaforo"] = _semaforo(dias)
     return templates.TemplateResponse("corr_detalle.html", {
         "request": request,
         "active": "corr_lista",

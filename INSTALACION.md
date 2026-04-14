@@ -145,6 +145,8 @@ Inicio → Seguridad de Windows → Firewall → Configuración avanzada → Nue
 
 La base de datos se guarda en `data/ocdi.db`. **Hacer copias de seguridad periódicas de este archivo** para no perder la información.
 
+También puede usar el botón **"📦 Descargar Backup Completo (.zip)"** en la página principal del sistema, que descarga un ZIP con un Excel por cada módulo.
+
 ---
 
-*SDS · OCDI v2.0 — 2025*
+*SDS · OCDI v2.3 — 2026*

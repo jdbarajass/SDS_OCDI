@@ -1,0 +1,191 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}{% if modo == 'nuevo' %}Nuevo Oficio{% else %}Editar Oficio{% endif %}{% endblock %}
+{% block heading %}{% if modo == 'nuevo' %}Registrar Nuevo Oficio{% else %}Editar Oficio{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ back or '/correspondencia/' }}" class="btn btn-outline">← Volver a Lista</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.corr-section { background:#fff; border-radius:10px; border:1px solid var(--border); padding:20px 24px; margin-bottom:20px; }
+.corr-section-title { font-size:13px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--primary-bg); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.field-group { display:flex; flex-direction:column; gap:4px; }
+.field-group label { font-size:12px; font-weight:600; color:var(--text-muted); }
+.field-group input, .field-group select, .field-group textarea {
+    border:1px solid var(--border); border-radius:5px; padding:7px 10px; font-size:13px;
+    font-family:inherit; color:var(--text); background:#fff; transition:border-color .15s;
+}
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus {
+    outline:none; border-color:var(--primary);
+}
+.field-full { grid-column: 1/-1; }
+</style>
+
+<form method="post" action="/correspondencia/{% if modo == 'editar' %}{{ reg.id }}/editar{% else %}nuevo{% endif %}">
+
+  <!-- Sección 1: Identificación -->
+  <div class="corr-section">
+    <div class="corr-section-title">1. Identificación del Oficio</div>
+    <div class="form-grid-3">
+      <div class="field-group">
+        <label>Año *</label>
+        <select name="anio">
+          <option value="">-- Seleccione --</option>
+          {% for a in anios %}
+          <option value="{{ a }}" {% if reg.anio|string == a|string %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Mes *</label>
+        <select name="mes">
+          <option value="">-- Seleccione --</option>
+          {% for m in meses %}
+          <option value="{{ m }}" {% if reg.mes == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Fecha Ingreso de Oficio *</label>
+        <input type="date" name="fecha_ingreso" value="{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '' }}">
+      </div>
+      <div class="field-group">
+        <label>N. Radicados</label>
+        <input type="text" name="n_radicado" value="{{ reg.n_radicado or '' }}" placeholder="Ej: 2026-IE-00245">
+      </div>
+      <div class="field-group">
+        <label>Tipo de Documento</label>
+        <select name="tipo_documento">
+          <option value="">-- Seleccione --</option>
+          {% for t in tipos_doc %}
+          <option value="{{ t }}" {% if reg.tipo_documento == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Caso BMP</label>
+        <input type="text" name="caso_bmp" value="{{ reg.caso_bmp or '' }}" placeholder="Número BMP">
+      </div>
+    </div>
+  </div>
+
+  <!-- Sección 2: Contenido -->
+  <div class="corr-section">
+    <div class="corr-section-title">2. Contenido del Oficio</div>
+    <div class="form-grid-2">
+      <div class="field-group field-full">
+        <label>Origen AGILSALUD</label>
+        <input type="text" name="origen" value="{{ reg.origen or '' }}" placeholder="Dependencia o entidad de origen">
+      </div>
+      <div class="field-group field-full">
+        <label>Asunto AGILSALUD</label>
+        <textarea name="asunto" rows="3" placeholder="Descripción del asunto">{{ reg.asunto or '' }}</textarea>
+      </div>
+      <div class="field-group">
+        <label>Responsable</label>
+        <select name="responsable">
+          <option value="">-- Seleccione --</option>
+          {% for r in responsables %}
+          <option value="{{ r }}" {% if reg.responsable == r %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+          {% if reg.responsable and reg.responsable not in responsables %}
+          <option value="{{ reg.responsable }}" selected>{{ reg.responsable }}</option>
+          {% endif %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sección 3: Respuesta / Salida -->
+  <div class="corr-section">
+    <div class="corr-section-title">3. Respuesta / Salida</div>
+    <div class="form-grid-2">
+      <div class="field-group">
+        <label>Fecha Radicado de Salida</label>
+        <input type="date" name="fecha_radicado_salida" value="{{ reg.fecha_radicado_salida[:10] if reg.fecha_radicado_salida else '' }}">
+      </div>
+      <div class="field-group">
+        <label>Tipo de Respuesta <span style="font-size:11px;color:var(--text-muted)">(seleccione o escriba)</span></label>
+        <input type="text" name="tipo_respuesta" list="tipos-respuesta-list"
+               value="{{ reg.tipo_respuesta or '' }}" placeholder="Seleccione o escriba...">
+        <datalist id="tipos-respuesta-list">
+          {% for t in tipos_respuesta %}
+          <option value="{{ t }}">
+          {% endfor %}
+        </datalist>
+      </div>
+      <div class="field-group field-full">
+        <label>Trámite de Salida</label>
+        <input type="text" name="tramite_salida" value="{{ reg.tramite_salida or '' }}" placeholder="Descripción del trámite realizado">
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">
+    <button type="submit" class="btn btn-primary">💾 Guardar</button>
+    <a href="{{ back or '/correspondencia/' }}" class="btn btn-outline">Cancelar</a>
+    {% if modo == 'editar' %}
+    <span style="font-size:12px;color:var(--text-muted);margin-left:auto">
+      Última actualización: {{ reg.updated_at or reg.created_at or '—' }}
+    </span>
+    {% endif %}
+  </div>
+
+</form>
+
+<!-- Radicados de Salida (solo en modo editar) -->
+{% if modo == 'editar' %}
+<div class="corr-section">
+  <div class="corr-section-title">N° Radicados de Salida
+    <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(pueden ser varios)</span>
+  </div>
+
+  {% if radicados_salida %}
+  <table class="data-table" style="margin-bottom:14px">
+    <thead>
+      <tr><th>#</th><th>Radicado</th><th>Fecha registro</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for rs in radicados_salida %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td style="font-weight:600">{{ rs.radicado }}</td>
+        <td style="font-size:11px;color:var(--text-muted)">{{ rs.created_at or '—' }}</td>
+        <td>
+          <form method="post" action="/correspondencia/radicado_salida/{{ rs.id }}/eliminar" style="display:inline">
+            <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
+                    onclick="return confirm('¿Eliminar este radicado de salida?')">✕ Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Sin radicados de salida registrados.</p>
+  {% endif %}
+
+  <form method="post" action="/correspondencia/{{ reg.id }}/radicado_salida/nuevo" style="display:flex;gap:10px;align-items:flex-end">
+    <div class="field-group" style="flex:1">
+      <label>Agregar N° Radicado Salida</label>
+      <input type="text" name="radicado" placeholder="Ej: 2026-EE-09015" required>
+    </div>
+    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
+  </form>
+</div>
+
+<!-- Botón eliminar registro -->
+<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+  <form method="post" action="/correspondencia/{{ reg.id }}/eliminar" style="display:inline">
+    <button type="submit" class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5"
+            onclick="return confirm('¿Eliminar este oficio y todos sus radicados de salida? Esta acción no se puede deshacer.')">
+      🗑 Eliminar este oficio
+    </button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -48,6 +48,15 @@
 
     <div class="portal-tiles">
 
+        <!-- ══ GRUPO: BASE GENERAL ══ -->
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-bottom:-8px">
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.2)"></div>
+            <span style="color:rgba(255,255,255,0.75);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap">
+                📁 Base General — Expedientes y Reparto
+            </span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.2)"></div>
+        </div>
+
         <!-- MÓDULO 1: Base Expedientes -->
         <a href="/dashboard" class="portal-tile">
             <div class="tile-ico">📁</div>
@@ -60,6 +69,25 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+
+        <!-- MÓDULO 1B: Lista de Reparto de Abogados -->
+        <a href="/correspondencia/" class="portal-tile">
+            <div class="tile-ico">📋</div>
+            <div class="tile-title">Lista de Reparto<br>de Abogados</div>
+            <div class="tile-desc">Control de oficios y correspondencia recibida. Semáforo de respuesta, seguimiento por responsable, importar/exportar Excel.</div>
+            {% if total_corr > 0 %}
+            <span class="tile-stat {% if corr_rojos > 0 %}tile-stat-warn{% endif %}">
+                📋 {{ total_corr }} oficios
+                {% if corr_rojos > 0 %} · 🔴 {{ corr_rojos }} vencidos{% endif %}
+            </span>
+            {% else %}
+            <span class="tile-stat">📋 Sin datos aún</span>
+            {% endif %}
+            <span class="tile-cta">Abrir módulo →</span>
+        </a>
+
+        <!-- ══ SEPARADOR ══ -->
+        <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,0.15);margin:4px 0"></div>
 
         <!-- MÓDULO 2: Seguimiento Digitales -->
         <a href="/digitales/" class="portal-tile">

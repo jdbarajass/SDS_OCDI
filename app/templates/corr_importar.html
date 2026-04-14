@@ -1,0 +1,140 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}Importar Excel{% endblock %}
+{% block heading %}Importar Correspondencia desde Excel{% endblock %}
+
+{% block header_actions %}
+<a href="/correspondencia/" class="btn btn-outline">← Volver a Lista</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.imp-card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:24px 28px; margin-bottom:20px; }
+.imp-title { font-size:15px; font-weight:800; color:var(--primary); margin-bottom:10px; }
+.imp-warning { background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #f59e0b; border-radius:8px; padding:14px 18px; margin-bottom:16px; font-size:13px; color:#92400e; }
+.imp-danger  { background:#fee2e2; border:1px solid #fca5a5; border-left:5px solid #dc2626; border-radius:8px; padding:12px 18px; margin-bottom:16px; font-size:13px; color:#7f1d1d; }
+.upload-zone { border:2px dashed #cbd5e1; border-radius:10px; padding:24px; text-align:center; background:#f8fafc; }
+.file-label  { display:inline-flex; align-items:center; gap:8px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer; }
+.file-label:hover { background:#e2e8f0; }
+.btn-import  { display:inline-flex; align-items:center; gap:8px; background:#dc2626; color:#fff; padding:11px 24px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s; margin-top:14px; }
+.btn-import:hover { background:#b91c1c; }
+.btn-import:disabled { background:#9ca3af; cursor:not-allowed; }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9000; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#fff; border-radius:14px; padding:30px 34px; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.modal-icon  { font-size:44px; text-align:center; margin-bottom:8px; }
+.modal-title { font-size:17px; font-weight:800; color:#7f1d1d; text-align:center; margin-bottom:10px; }
+.modal-body  { font-size:13px; color:#374151; line-height:1.65; }
+.modal-items { background:#fff3cd; border-radius:8px; padding:10px 14px; margin:10px 0; font-size:13px; }
+.modal-btns  { display:flex; gap:12px; justify-content:flex-end; margin-top:18px; }
+.modal-cancel  { padding:9px 22px; border:1px solid #d1d5db; border-radius:6px; background:#f9fafb; font-size:13px; font-weight:600; cursor:pointer; }
+.modal-confirm { padding:9px 22px; background:#dc2626; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }
+.modal-confirm:hover { background:#b91c1c; }
+</style>
+
+<!-- Estado actual -->
+<div class="imp-card">
+  <div class="imp-title">📊 Estado actual</div>
+  <p style="font-size:13px;color:var(--text-muted)">
+    Actualmente hay <strong>{{ total_actual }}</strong> registro(s) en la base de datos de correspondencia.
+  </p>
+</div>
+
+<!-- Instrucciones -->
+<div class="imp-card">
+  <div class="imp-title">📋 Formatos de Excel aceptados</div>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Se acepta el archivo en dos formatos:</p>
+  <ul style="font-size:13px;color:var(--text-muted);margin-left:18px;line-height:1.8">
+    <li><strong>Formato Original</strong> (12 columnas): MES · Fecha Ingreso · N. Radicados · Origen · Asunto · Tipo Doc · Responsable · Caso BMP · N Radicado Salida · Fecha Radicado Salida · Tipo Respuesta · Tramite Salida</li>
+    <li><strong>Formato Exportado</strong> (14 columnas): igual al anterior pero con AÑO en la primera columna y Días Transcurridos al final</li>
+  </ul>
+  <p style="font-size:12px;color:var(--text-muted);margin-top:10px">La hoja debe llamarse <code>CORRESPONDENCIA</code> o <code>2026</code>, o ser la primera hoja del archivo.</p>
+</div>
+
+<!-- Formulario de importación -->
+<div class="imp-card">
+  <div class="imp-title">📥 Cargar archivo</div>
+
+  <div class="imp-warning">
+    <strong>⚠️ Lea antes de importar</strong><br>
+    Al importar un archivo, se borrarán <strong>todos los registros actuales</strong> de correspondencia
+    y se reemplazarán con los del archivo cargado.
+  </div>
+  <div class="imp-danger">
+    🔴 <strong>Esta acción es irreversible.</strong> Si desea conservar los datos actuales,
+    <a href="/correspondencia/exportar" style="color:#dc2626;font-weight:700">descargue el Excel</a> antes de continuar.
+  </div>
+
+  <form id="form-import" method="post" action="/correspondencia/importar" enctype="multipart/form-data">
+    <div class="upload-zone" id="upload-zone">
+      <label class="file-label" for="archivo-input">📂 Seleccionar archivo .xlsx</label>
+      <input type="file" id="archivo-input" name="archivo" accept=".xlsx" style="display:none">
+      <div id="file-name" style="font-size:12px;color:var(--text-muted);margin-top:8px">Ningún archivo seleccionado</div>
+    </div>
+    <div style="text-align:right">
+      <button type="button" class="btn-import" id="btn-import" disabled onclick="mostrarModal()">
+        ⚠️ Importar y reemplazar todo
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">ADVERTENCIA — ACCIÓN IRREVERSIBLE</div>
+    <div class="modal-body">
+      Está a punto de <strong>borrar y reemplazar</strong> todos los registros de correspondencia.
+      <div class="modal-items">
+        📋 <strong>{{ total_actual }}</strong> registro(s) actuales serán eliminados y reemplazados
+        con los del archivo seleccionado.
+      </div>
+      <strong>¿Está seguro de que desea continuar?</strong>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="modal-confirm" onclick="confirmar()">Sí, importar y reemplazar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('archivo-input').addEventListener('change', function(){
+    var btn = document.getElementById('btn-import');
+    var disp = document.getElementById('file-name');
+    if(this.files && this.files.length > 0){
+        disp.textContent = '📄 ' + this.files[0].name;
+        btn.disabled = false;
+    } else {
+        disp.textContent = 'Ningún archivo seleccionado';
+        btn.disabled = true;
+    }
+});
+var zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.borderColor='#1B4F8A'; });
+zone.addEventListener('dragleave', function(){ zone.style.borderColor=''; });
+zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.style.borderColor='';
+    var f = e.dataTransfer.files;
+    if(f.length > 0){
+        document.getElementById('archivo-input').files = f;
+        document.getElementById('file-name').textContent = '📄 ' + f[0].name;
+        document.getElementById('btn-import').disabled = false;
+    }
+});
+function mostrarModal(){ document.getElementById('modal').classList.add('open'); }
+function cerrarModal() { document.getElementById('modal').classList.remove('open'); }
+function confirmar(){
+    cerrarModal();
+    var btn = document.getElementById('btn-import');
+    btn.disabled = true; btn.textContent = '⏳ Importando...';
+    document.getElementById('form-import').submit();
+}
+document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) cerrarModal(); });
+</script>
+{% endblock %}

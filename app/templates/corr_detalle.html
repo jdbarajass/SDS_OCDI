@@ -1,0 +1,111 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}Oficio {{ reg.n_radicado or reg.id }}{% endblock %}
+{% block heading %}Detalle del Oficio{% endblock %}
+
+{% block header_actions %}
+<a href="/correspondencia/{{ reg.id }}/editar?back={{ back | urlencode }}" class="btn btn-primary">✏ Editar</a>
+<a href="{{ back }}" class="btn btn-outline">← Volver</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:20px; }
+.det-card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.det-card-label { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.det-card-value { font-size:14px; font-weight:600; color:var(--text); }
+.det-card-full { grid-column:1/-1; }
+.sem-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; }
+.sem-verde    { background:#dcfce7; color:#166534; }
+.sem-amarilla { background:#fef9c3; color:#854d0e; }
+.sem-roja     { background:#fee2e2; color:#991b1b; }
+.sem-respondido { background:#d1fae5; color:#065f46; }
+</style>
+
+<!-- Semáforo -->
+<div style="margin-bottom:16px">
+  {% if reg.semaforo == 'verde' %}
+  <span class="sem-badge sem-verde">🟢 Al día — {{ reg.dias_transcurridos }} día(s) transcurrido(s)</span>
+  {% elif reg.semaforo == 'amarilla' %}
+  <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
+  {% elif reg.semaforo == 'roja' %}
+  <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
+  {% elif reg.semaforo == 'respondido' %}
+  <span class="sem-badge sem-respondido">✅ Respondido en {{ reg.dias_transcurridos }} día(s)</span>
+  {% endif %}
+</div>
+
+<!-- Datos principales -->
+<div class="det-grid">
+  <div class="det-card">
+    <div class="det-card-label">Año</div>
+    <div class="det-card-value">{{ reg.anio or '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Mes</div>
+    <div class="det-card-value">{{ reg.mes or '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Fecha Ingreso</div>
+    <div class="det-card-value">{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">N. Radicado</div>
+    <div class="det-card-value">{{ reg.n_radicado or '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Tipo de Documento</div>
+    <div class="det-card-value">{{ reg.tipo_documento or '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Responsable</div>
+    <div class="det-card-value">{{ reg.responsable or '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Caso BMP</div>
+    <div class="det-card-value">{{ reg.caso_bmp or '—' }}</div>
+  </div>
+  <div class="det-card det-card-full">
+    <div class="det-card-label">Origen AGILSALUD</div>
+    <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.origen or '—' }}</div>
+  </div>
+  <div class="det-card det-card-full">
+    <div class="det-card-label">Asunto AGILSALUD</div>
+    <div class="det-card-value" style="font-weight:400;font-size:13px;line-height:1.6">{{ reg.asunto or '—' }}</div>
+  </div>
+</div>
+
+<!-- Respuesta -->
+<h3 style="font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Respuesta / Salida</h3>
+<div class="det-grid">
+  <div class="det-card">
+    <div class="det-card-label">Fecha Radicado Salida</div>
+    <div class="det-card-value">{{ reg.fecha_radicado_salida[:10] if reg.fecha_radicado_salida else '—' }}</div>
+  </div>
+  <div class="det-card">
+    <div class="det-card-label">Tipo de Respuesta</div>
+    <div class="det-card-value" style="font-size:13px">{{ reg.tipo_respuesta or '—' }}</div>
+  </div>
+  <div class="det-card det-card-full">
+    <div class="det-card-label">Trámite de Salida</div>
+    <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.tramite_salida or '—' }}</div>
+  </div>
+</div>
+
+<!-- Radicados de salida -->
+{% if radicados %}
+<h3 style="font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">N° Radicados de Salida</h3>
+<table class="data-table">
+  <thead><tr><th>#</th><th>Radicado</th></tr></thead>
+  <tbody>
+    {% for rs in radicados %}
+    <tr><td>{{ loop.index }}</td><td style="font-weight:600">{{ rs.radicado }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Metadata -->
+<div style="margin-top:20px;font-size:11px;color:var(--text-muted)">
+  Registrado: {{ reg.created_at or '—' }} &nbsp;·&nbsp; Actualizado: {{ reg.updated_at or '—' }}
+</div>
+{% endblock %}

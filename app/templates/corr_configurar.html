@@ -1,0 +1,98 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}Configurar Catálogos{% endblock %}
+{% block heading %}⚙️ Configurar Catálogos{% endblock %}
+
+{% block content %}
+<style>
+.cfg-section { background:#fff; border-radius:10px; border:1px solid var(--border); padding:22px 26px; margin-bottom:22px; }
+.cfg-title { font-size:14px; font-weight:800; color:var(--primary); margin-bottom:4px; }
+.cfg-desc  { font-size:12px; color:var(--text-muted); margin-bottom:16px; }
+.cfg-list  { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.cfg-item  { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f8fafc; border-radius:6px; border:1px solid var(--border); }
+.cfg-item-name { flex:1; font-size:13px; font-weight:600; }
+.cfg-add-form  { display:flex; gap:8px; }
+.cfg-add-form input { flex:1; border:1px solid var(--border); border-radius:5px; padding:7px 10px; font-size:13px; }
+.cfg-add-form input:focus { outline:none; border-color:var(--primary); }
+.readonly-list { display:flex; flex-direction:column; gap:4px; }
+.readonly-item { padding:6px 12px; background:#f1f5f9; border-radius:5px; font-size:13px; color:var(--text-muted); }
+</style>
+
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#92400e">
+  ℹ️ Desde aquí puedes agregar, editar o eliminar las opciones que aparecen en los desplegables del formulario de oficios.
+</div>
+
+<!-- Responsables -->
+<div class="cfg-section">
+  <div class="cfg-title">👤 Responsables</div>
+  <div class="cfg-desc">Nombres que aparecen en el campo "Responsable" del formulario.</div>
+
+  <div class="cfg-list">
+    {% for r in responsables %}
+    <div class="cfg-item">
+      <span class="cfg-item-name">{{ r.nombre }}</span>
+      <form method="post" action="/correspondencia/configurar/responsable/{{ r.id }}/editar"
+            style="display:inline;display:flex;gap:6px">
+        <input type="text" name="nombre" value="{{ r.nombre }}" style="width:200px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
+        <button type="submit" class="btn-sm btn-edit" style="white-space:nowrap">💾 Actualizar</button>
+      </form>
+      <form method="post" action="/correspondencia/configurar/responsable/{{ r.id }}/eliminar" style="display:inline">
+        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
+                onclick="return confirm('¿Eliminar a {{ r.nombre }}?')">✕</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:13px">Sin responsables registrados.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="/correspondencia/configurar/responsable/nuevo" class="cfg-add-form">
+    <input type="text" name="nombre" placeholder="Nombre del nuevo responsable..." required>
+    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
+  </form>
+</div>
+
+<!-- Tipos de Documento -->
+<div class="cfg-section">
+  <div class="cfg-title">📄 Tipos de Documento</div>
+  <div class="cfg-desc">Opciones para el campo "Tipo de Documento".</div>
+
+  <div class="cfg-list">
+    {% for t in tipos_doc %}
+    <div class="cfg-item">
+      <span class="cfg-item-name">{{ t.nombre }}</span>
+      <form method="post" action="/correspondencia/configurar/tipo_doc/{{ t.id }}/editar"
+            style="display:flex;gap:6px">
+        <input type="text" name="nombre" value="{{ t.nombre }}" style="width:200px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
+        <button type="submit" class="btn-sm btn-edit">💾 Actualizar</button>
+      </form>
+      <form method="post" action="/correspondencia/configurar/tipo_doc/{{ t.id }}/eliminar" style="display:inline">
+        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
+                onclick="return confirm('¿Eliminar este tipo?')">✕</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:13px">Sin tipos registrados.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="/correspondencia/configurar/tipo_doc/nuevo" class="cfg-add-form">
+    <input type="text" name="nombre" placeholder="Nuevo tipo de documento..." required>
+    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
+  </form>
+</div>
+
+<!-- Tipos de Respuesta (solo lectura - se editan en el código) -->
+<div class="cfg-section">
+  <div class="cfg-title">💬 Tipos de Respuesta (sugerencias predefinidas)</div>
+  <div class="cfg-desc">
+    Estas opciones aparecen como sugerencias en el campo "Tipo de Respuesta".
+    El usuario también puede escribir libremente cualquier valor en ese campo.
+  </div>
+  <div class="readonly-list">
+    {% for t in tipos_respuesta %}
+    <div class="readonly-item">{{ t }}</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

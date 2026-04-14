@@ -147,6 +147,42 @@ CREATE TABLE IF NOT EXISTS sala_agenda (
     responsable     TEXT,
     created_at      TEXT DEFAULT (datetime('now', 'localtime'))
 );
+
+-- ── CORRESPONDENCIA / LISTA DE REPARTO DE ABOGADOS ───────────────────────────
+CREATE TABLE IF NOT EXISTS correspondencia (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    anio                    INTEGER,
+    mes                     TEXT,
+    fecha_ingreso           TEXT,
+    n_radicado              TEXT,
+    origen                  TEXT,
+    asunto                  TEXT,
+    tipo_documento          TEXT,
+    responsable             TEXT,
+    caso_bmp                TEXT,
+    fecha_radicado_salida   TEXT,
+    tipo_respuesta          TEXT,
+    tramite_salida          TEXT,
+    created_at              TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at              TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS correspondencia_radicados_salida (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    correspondencia_id  INTEGER NOT NULL REFERENCES correspondencia(id) ON DELETE CASCADE,
+    radicado            TEXT NOT NULL,
+    created_at          TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS corr_responsables (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS corr_tipos_documento (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE
+);
 """
 
 
@@ -166,7 +202,23 @@ def init_db():
     try:
         conn.execute("ALTER TABLE exp_digitales ADD COLUMN observaciones TEXT")
     except Exception:
-        pass  # columna ya existe
+        pass
+    # Poblar catálogos configurables de correspondencia con valores iniciales
+    for nombre in [
+        "ANDRES SANDOVAL", "CARLOS PARRA", "CESAR IVAN RODRIGUEZ",
+        "CRISTINA MOICA", "DAVID FELIPE MORALES", "JANIK DE LA HOZ",
+        "LUZ ALBA FARFAN", "MABEL GICELLA HURTADO", "MAGDA PAREDES",
+        "MARA LUCIA UCROS", "RODOLFO CARRILLO", "TODOS LOS PROFESIONALES",
+    ]:
+        try:
+            conn.execute("INSERT INTO corr_responsables (nombre) VALUES (?)", (nombre,))
+        except Exception:
+            pass
+    for nombre in ["RADICADO", "CORREO ELECTRONICO", "SDQS"]:
+        try:
+            conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))
+        except Exception:
+            pass
     conn.commit()
     conn.close()
 

@@ -711,6 +711,159 @@ async def tipo_doc_eliminar(tid: int):
     return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
 
 
+# ── IMPORTAR DESDE AGIL SALUD (Documentos.xlsx) ───────────────────────────────
+
+_AGILSALUD_DESTINATARIOS = {
+    "MARTHA PATRICIA AÑEZ MAESTRE",
+    "MABEL GICELA HURTADO SANCHEZ",
+}
+
+_MES_NOMBRES = {
+    1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
+    5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
+    9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE",
+}
+
+
+@router.get("/importar-agilsalud", response_class=HTMLResponse)
+async def importar_agilsalud_form(request: Request, msg: str = ""):
+    return templates.TemplateResponse("corr_importar_agilsalud.html", {
+        "request": request,
+        "active": "corr_importar_agilsalud",
+        "msg": msg,
+        "preview": None,
+    })
+
+
+@router.post("/importar-agilsalud/preview", response_class=HTMLResponse)
+async def importar_agilsalud_preview(request: Request, archivo: UploadFile = File(...)):
+    try:
+        import openpyxl
+    except ImportError:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar_agilsalud",
+            "msg": "error_openpyxl", "preview": None,
+        })
+
+    contenido = await archivo.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
+        ws = wb.active
+    except Exception:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar_agilsalud",
+            "msg": "error_archivo", "preview": None,
+        })
+
+    filas = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(row):
+            continue
+        # Columnas (1-indexed → 0-indexed):
+        # Col 1 (idx 0): Número de radicado → n_radicado
+        # Col 5 (idx 4): Destinatario → responsable (filtrar)
+        # Col 7 (idx 6): Dependencia Remitente → origen
+        # Col 9 (idx 8): Correo Electrónico Remitente → correo_remitente
+        # Col 11 (idx 10): Fecha de radicación → fecha_ingreso
+        # Col 13 (idx 12): Asunto → asunto
+        destinatario = str(row[4] or "").strip().upper() if len(row) > 4 else ""
+        if destinatario not in _AGILSALUD_DESTINATARIOS:
+            continue
+
+        n_radicado = str(row[0] or "").strip() if len(row) > 0 else ""
+        origen = str(row[6] or "").strip() if len(row) > 6 else ""
+        correo_remitente = str(row[8] or "").strip() if len(row) > 8 else ""
+        fecha_raw = row[10] if len(row) > 10 else None
+        asunto = str(row[12] or "").strip() if len(row) > 12 else ""
+
+        # Parsear fecha
+        fecha_ingreso = ""
+        mes = ""
+        anio = ""
+        if fecha_raw:
+            try:
+                if hasattr(fecha_raw, "strftime"):
+                    fecha_ingreso = fecha_raw.strftime("%Y-%m-%d")
+                    mes = _MES_NOMBRES.get(fecha_raw.month, "")
+                    anio = fecha_raw.year
+                else:
+                    s = str(fecha_raw).strip()
+                    # formato '2026-04-01 07:26:27.280000'
+                    fecha_ingreso = s[:10]
+                    from datetime import datetime as _dt
+                    dt = _dt.fromisoformat(fecha_ingreso)
+                    mes = _MES_NOMBRES.get(dt.month, "")
+                    anio = dt.year
+            except Exception:
+                pass
+
+        # Normalizar responsable al nombre canónico del catálogo
+        resp_map = {
+            "MARTHA PATRICIA AÑEZ MAESTRE": "MARTHA PATRICIA AÑEZ MAESTRE",
+            "MABEL GICELA HURTADO SANCHEZ": "MABEL GICELLA HURTADO",
+        }
+        responsable = resp_map.get(destinatario, destinatario.title())
+
+        filas.append({
+            "n_radicado": n_radicado,
+            "responsable": responsable,
+            "origen": origen,
+            "correo_remitente": correo_remitente,
+            "fecha_ingreso": fecha_ingreso,
+            "mes": mes,
+            "anio": anio,
+            "asunto": asunto,
+        })
+
+    if not filas:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar_agilsalud",
+            "msg": "error_vacio", "preview": None,
+        })
+
+    import json
+    preview_json = json.dumps(filas, ensure_ascii=False)
+    return templates.TemplateResponse("corr_importar_agilsalud.html", {
+        "request": request,
+        "active": "corr_importar_agilsalud",
+        "msg": "",
+        "preview": filas,
+        "preview_json": preview_json,
+    })
+
+
+@router.post("/importar-agilsalud/confirmar")
+async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(...)):
+    import json
+    try:
+        filas = json.loads(datos_json)
+    except Exception:
+        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
+
+    conn = get_db()
+    try:
+        insertados = 0
+        for f in filas:
+            conn.execute(
+                """INSERT INTO correspondencia
+                   (anio, mes, fecha_ingreso, n_radicado, origen, asunto,
+                    responsable, correo_remitente)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (f.get("anio") or None, f.get("mes") or None,
+                 f.get("fecha_ingreso") or None, f.get("n_radicado") or None,
+                 f.get("origen") or None, f.get("asunto") or None,
+                 f.get("responsable") or None, f.get("correo_remitente") or None),
+            )
+            insertados += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
+    conn.close()
+    return RedirectResponse(f"/correspondencia/importar-agilsalud?msg=ok_{insertados}", status_code=303)
+
+
 # ── VER / EDITAR / ELIMINAR ────────────────────────────────────────────────────
 
 @router.get("/{reg_id}", response_class=HTMLResponse)
@@ -844,159 +997,6 @@ async def radicado_nuevo(reg_id: int, radicado: str = Form(...)):
         conn.commit()
         conn.close()
     return RedirectResponse(f"/correspondencia/{reg_id}/editar?msg=rad_ok", status_code=303)
-
-
-# ── IMPORTAR DESDE AGIL SALUD (Documentos.xlsx) ───────────────────────────────
-
-_AGILSALUD_DESTINATARIOS = {
-    "MARTHA PATRICIA AÑEZ MAESTRE",
-    "MABEL GICELA HURTADO SANCHEZ",
-}
-
-_MES_NOMBRES = {
-    1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
-    5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
-    9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE",
-}
-
-
-@router.get("/importar-agilsalud", response_class=HTMLResponse)
-async def importar_agilsalud_form(request: Request, msg: str = ""):
-    return templates.TemplateResponse("corr_importar_agilsalud.html", {
-        "request": request,
-        "active": "corr_importar",
-        "msg": msg,
-        "preview": None,
-    })
-
-
-@router.post("/importar-agilsalud/preview", response_class=HTMLResponse)
-async def importar_agilsalud_preview(request: Request, archivo: UploadFile = File(...)):
-    try:
-        import openpyxl
-    except ImportError:
-        return templates.TemplateResponse("corr_importar_agilsalud.html", {
-            "request": request, "active": "corr_importar",
-            "msg": "error_openpyxl", "preview": None,
-        })
-
-    contenido = await archivo.read()
-    try:
-        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
-        ws = wb.active
-    except Exception:
-        return templates.TemplateResponse("corr_importar_agilsalud.html", {
-            "request": request, "active": "corr_importar",
-            "msg": "error_archivo", "preview": None,
-        })
-
-    filas = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if not any(row):
-            continue
-        # Columnas (1-indexed → 0-indexed):
-        # Col 1 (idx 0): Número de radicado → n_radicado
-        # Col 5 (idx 4): Destinatario → responsable (filtrar)
-        # Col 7 (idx 6): Dependencia Remitente → origen
-        # Col 9 (idx 8): Correo Electrónico Remitente → correo_remitente
-        # Col 11 (idx 10): Fecha de radicación → fecha_ingreso
-        # Col 13 (idx 12): Asunto → asunto
-        destinatario = str(row[4] or "").strip().upper() if len(row) > 4 else ""
-        if destinatario not in _AGILSALUD_DESTINATARIOS:
-            continue
-
-        n_radicado = str(row[0] or "").strip() if len(row) > 0 else ""
-        origen = str(row[6] or "").strip() if len(row) > 6 else ""
-        correo_remitente = str(row[8] or "").strip() if len(row) > 8 else ""
-        fecha_raw = row[10] if len(row) > 10 else None
-        asunto = str(row[12] or "").strip() if len(row) > 12 else ""
-
-        # Parsear fecha
-        fecha_ingreso = ""
-        mes = ""
-        anio = ""
-        if fecha_raw:
-            try:
-                if hasattr(fecha_raw, "strftime"):
-                    fecha_ingreso = fecha_raw.strftime("%Y-%m-%d")
-                    mes = _MES_NOMBRES.get(fecha_raw.month, "")
-                    anio = fecha_raw.year
-                else:
-                    s = str(fecha_raw).strip()
-                    # formato '2026-04-01 07:26:27.280000'
-                    fecha_ingreso = s[:10]
-                    from datetime import datetime as _dt
-                    dt = _dt.fromisoformat(fecha_ingreso)
-                    mes = _MES_NOMBRES.get(dt.month, "")
-                    anio = dt.year
-            except Exception:
-                pass
-
-        # Normalizar responsable
-        resp_map = {
-            "MARTHA PATRICIA AÑEZ MAESTRE": "MARTHA PATRICIA AÑEZ MAESTRE",
-            "MABEL GICELA HURTADO SANCHEZ": "MABEL GICELLA HURTADO",
-        }
-        responsable = resp_map.get(destinatario, destinatario.title())
-
-        filas.append({
-            "n_radicado": n_radicado,
-            "responsable": responsable,
-            "origen": origen,
-            "correo_remitente": correo_remitente,
-            "fecha_ingreso": fecha_ingreso,
-            "mes": mes,
-            "anio": anio,
-            "asunto": asunto,
-        })
-
-    if not filas:
-        return templates.TemplateResponse("corr_importar_agilsalud.html", {
-            "request": request, "active": "corr_importar",
-            "msg": "error_vacio", "preview": None,
-        })
-
-    import json
-    preview_json = json.dumps(filas, ensure_ascii=False)
-    return templates.TemplateResponse("corr_importar_agilsalud.html", {
-        "request": request,
-        "active": "corr_importar",
-        "msg": "",
-        "preview": filas,
-        "preview_json": preview_json,
-    })
-
-
-@router.post("/importar-agilsalud/confirmar")
-async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(...)):
-    import json
-    try:
-        filas = json.loads(datos_json)
-    except Exception:
-        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
-
-    conn = get_db()
-    try:
-        insertados = 0
-        for f in filas:
-            conn.execute(
-                """INSERT INTO correspondencia
-                   (anio, mes, fecha_ingreso, n_radicado, origen, asunto,
-                    responsable, correo_remitente)
-                   VALUES (?,?,?,?,?,?,?,?)""",
-                (f.get("anio") or None, f.get("mes") or None,
-                 f.get("fecha_ingreso") or None, f.get("n_radicado") or None,
-                 f.get("origen") or None, f.get("asunto") or None,
-                 f.get("responsable") or None, f.get("correo_remitente") or None),
-            )
-            insertados += 1
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        conn.close()
-        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
-    conn.close()
-    return RedirectResponse(f"/correspondencia/importar-agilsalud?msg=ok_{insertados}", status_code=303)
 
 
 @router.post("/radicado_salida/{rad_id}/eliminar")

@@ -132,12 +132,12 @@ async def dashboard(request: Request):
             SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) AS respondidos,
             SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE') THEN 1
                      WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
-                     AND UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+                     AND (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 1 ELSE 0 END) AS verde,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+            SUM(CASE WHEN (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
                      AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8 THEN 1 ELSE 0 END) AS amarilla,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+            SUM(CASE WHEN (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
                      AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9 THEN 1 ELSE 0 END) AS roja
         FROM correspondencia
@@ -167,7 +167,7 @@ async def dashboard(request: Request):
                {_DIAS_SQL}
         FROM correspondencia c
         WHERE (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida = '')
-        AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+        AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
         AND c.fecha_ingreso IS NOT NULL
         ORDER BY dias_transcurridos DESC LIMIT 20
     """).fetchall()
@@ -223,17 +223,17 @@ async def lista(
             OR (
                 (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='')
                 AND c.fecha_ingreso IS NOT NULL
-                AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+                AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
                 AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5
             )
         )""")
     elif semaforo == "amarilla":
         filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
-            AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+            AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
             AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8""")
     elif semaforo == "roja":
         filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
-            AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
+            AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
             AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) >= 9""")
     elif semaforo == "respondido":
         filtros.append("c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''")

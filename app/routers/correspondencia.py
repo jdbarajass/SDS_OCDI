@@ -213,8 +213,15 @@ async def lista(
         filtros.append("c.anio = ?")
         params.append(int(anio.strip()))
     if semaforo == "verde":
-        filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
-            AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5""")
+        filtros.append("""(
+            UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE'
+            OR (
+                (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='')
+                AND c.fecha_ingreso IS NOT NULL
+                AND UPPER(TRIM(c.tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+                AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5
+            )
+        )""")
     elif semaforo == "amarilla":
         filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
             AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8""")

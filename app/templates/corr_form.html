@@ -32,7 +32,7 @@
     <div class="form-grid-3">
       <div class="field-group">
         <label>Año *</label>
-        <select name="anio">
+        <select name="anio" required>
           <option value="">-- Seleccione --</option>
           {% for a in anios %}
           <option value="{{ a }}" {% if reg.anio|string == a|string %}selected{% endif %}>{{ a }}</option>
@@ -41,7 +41,7 @@
       </div>
       <div class="field-group">
         <label>Mes *</label>
-        <select name="mes">
+        <select name="mes" required>
           <option value="">-- Seleccione --</option>
           {% for m in meses %}
           <option value="{{ m }}" {% if reg.mes == m %}selected{% endif %}>{{ m }}</option>
@@ -50,7 +50,7 @@
       </div>
       <div class="field-group">
         <label>Fecha Ingreso de Oficio *</label>
-        <input type="date" name="fecha_ingreso" value="{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '' }}">
+        <input type="date" name="fecha_ingreso" value="{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '' }}" required>
       </div>
       <div class="field-group">
         <label>N. Radicados</label>

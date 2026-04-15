@@ -78,6 +78,7 @@
             {% elif msg == 'vacio' %}⚠️ El nombre no puede estar vacío.
             {% elif msg == 'no_encontrado' %}⚠️ Registro no encontrado.
             {% elif msg.startswith('ok_') %}✅ Importación completada: {{ msg.replace('ok_','') }} registros cargados.
+            {% elif msg == 'error_openpyxl' %}❌ Librería openpyxl no instalada. Ejecute: pip install openpyxl
             {% elif msg == 'error_archivo' %}⚠️ No se pudo leer el archivo. Verifique que sea un .xlsx válido.
             {% elif msg == 'error_vacio' %}⚠️ El archivo está vacío.
             {% elif msg == 'error_import' %}❌ Error durante la importación. Los datos no fueron modificados.

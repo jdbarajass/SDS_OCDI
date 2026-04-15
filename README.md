@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v2.3** — Última actualización: 2026-04-14
+> **Versión actual: v2.4** — Última actualización: 2026-04-15
 
 ---
 
@@ -102,7 +102,7 @@ Aplicación **web local** (LAN) que:
 | `exp_comunicaciones` | Digitales | Comunicaciones hijo de cada expediente digital (N:1) con ON DELETE CASCADE |
 | `exp_revisiones` | Digitales | Historial de revisiones por expediente digital con fecha |
 | `sala_agenda` | Sala | Eventos de sala por fecha y franja horaria |
-| `correspondencia` | Reparto | Oficios de la lista de reparto de abogados (13 campos + metadata) |
+| `correspondencia` | Reparto | Oficios de la lista de reparto de abogados (14 campos + metadata, incluye `correo_remitente`) |
 | `correspondencia_radicados_salida` | Reparto | Radicados de salida múltiples por oficio (N:1) con ON DELETE CASCADE |
 | `corr_responsables` | Reparto | Catálogo de responsables (abogados) configurable |
 | `corr_tipos_documento` | Reparto | Catálogo de tipos de documento configurable |
@@ -187,17 +187,18 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
 | 1 | **Dashboard** — Tarjetas 🟢/🟡/🔴/✅, barras por responsable y por mes, tabla de críticos ordenada por días sin respuesta | ✅ v2.3 |
-| 2 | **Lista de oficios** — Semáforo por fila, filtros por semáforo/responsable/mes/año/texto, paginación | ✅ v2.3 |
-| 3 | **Gestión de oficios** — Crear, ver detalle, editar, eliminar | ✅ v2.3 |
+| 2 | **Lista de oficios** — Semáforo por fila, filtros por semáforo/responsable/mes/año/texto, scroll horizontal, paginación | ✅ v2.3 |
+| 3 | **Gestión de oficios** — Crear, ver detalle, editar, eliminar. Campo `correo_remitente` visible en formulario y detalle | ✅ v2.4 |
 | 4 | **Radicados de salida múltiples** — Por oficio se puede registrar N radicados de salida en tabla separada | ✅ v2.3 |
-| 5 | **Semáforo de respuesta** — 🟢 0–5 días · 🟡 6–8 días · 🔴 9+ días · ✅ Respondido. Calculado desde `fecha_ingreso` con `julianday()` SQLite | ✅ v2.3 |
-| 6 | **Excepción ANEXO EXPEDIENTE** — Los oficios con `tipo_respuesta = ANEXO EXPEDIENTE` siempre aparecen en 🟢 con 0 días y se excluyen de alertas y conteos de vencidos | ✅ v2.3 |
+| 5 | **Semáforo de respuesta** — 🟢 0–5 días · 🟡 6–8 días · 🔴 9+ días · ✅ Respondido. Calculado con `julianday()` SQLite | ✅ v2.3 |
+| 6 | **Excepción ANEXO EXPEDIENTE / ANEXO AL EXPEDIENTE** — Ambas variantes siempre aparecen en 🟢 sin conteo de días (muestra `—`). Excluidas de alertas, dashboard rojo/amarillo, portal y backup | ✅ v2.4 |
 | 7 | **Catálogos configurables** — CRUD de responsables y tipos de documento desde `/correspondencia/configurar` | ✅ v2.3 |
-| 8 | **Tipo de Respuesta — combobox** — 11 opciones predefinidas + texto libre (HTML5 `<datalist>`) | ✅ v2.3 |
-| 9 | **Importar desde Excel** — Acepta formato original (12 cols) y formato exportado (14 cols con AÑO y Días); reemplaza todo con confirmación doble | ✅ v2.3 |
-| 10 | **Exportar a Excel** — Con columna Días Transcurridos y formato completo | ✅ v2.3 |
+| 8 | **Tipo de Respuesta — combobox** — 12 opciones predefinidas + texto libre (HTML5 `<datalist>`). Incluye "ANEXO AL EXPEDIENTE" | ✅ v2.4 |
+| 9 | **Importar desde Excel histórico** — Acepta formato original (12 cols) y exportado (14 cols); reemplaza todo con confirmación doble | ✅ v2.3 |
+| 10 | **Importar desde AgilSalud** (`/correspondencia/importar-agilsalud`) — Carga el archivo `Documentos.xlsx` de AgilSalud; filtra por 2 destinatarias; muestra previsualización; agrega sin borrar datos existentes | ✅ v2.4 |
+| 11 | **Exportar a Excel** — Incluye columnas Días Transcurridos y Correo Remitente | ✅ v2.4 |
 
-**Regla de negocio — semáforo:** El semáforo es activo (cuenta días desde hoy) mientras no haya `fecha_radicado_salida`. Una vez registrada la fecha de salida, el registro pasa a ✅ Respondido y muestra los días que tardó la respuesta. Los oficios tipo `ANEXO EXPEDIENTE` son siempre 🟢 independientemente de los días transcurridos.
+**Regla de negocio — semáforo:** El semáforo es activo (cuenta días desde hoy) mientras no haya `fecha_radicado_salida`. Una vez registrada la fecha de salida, el registro pasa a ✅ Respondido y muestra los días que tardó la respuesta. Los oficios con `tipo_respuesta` = `ANEXO EXPEDIENTE` o `ANEXO AL EXPEDIENTE` son siempre 🟢 sin conteo de días; se excluyen de toda alerta.
 
 ### Módulo 3 — SEGUIMIENTO EXPEDIENTES DIGITALES 2025-2026 (`/digitales/`)
 
@@ -253,12 +254,32 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 | 4 | v2.1 — Mejoras UX: paginación, filtros avanzados, modal exportar, métricas nuevas, búsqueda inteligente | ✅ | 2026-02-27 |
 | 5 | v2.2 — Hub portal + Módulo Expedientes Digitales + Sala de Audiencias + sistema de alertas por días | ✅ | 2026-03-03 |
 | 6 | v2.3 — Módulo Correspondencia + mejoras Digitales + Backup ZIP + Exportar/Importar General | ✅ | 2026-04-14 |
-| 7 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
-| 8 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
+| 7 | v2.4 — ANEXO AL EXPEDIENTE + Importador AgilSalud + campo correo_remitente + fix orden rutas | ✅ | 2026-04-15 |
+| 8 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
+| 9 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
 
 ---
 
 ### Changelog detallado
+
+#### v2.4 — 2026-04-15 · commits `070095a` → `daa9f11`
+
+**Módulo Correspondencia — mejoras:**
+
+- **Excepción ANEXO AL EXPEDIENTE:** Se extiende la regla de negocio de "ANEXO EXPEDIENTE" a la variante "ANEXO AL EXPEDIENTE". Ambas siempre aparecen en 🟢 verde con días `—` (NULL en SQL, guion en pantalla). Excluidas de: semáforo activo, dashboard rojo/amarillo, portal badge de alertas, tabla de críticos y backup ZIP. Lógica aplicada en `_SEMAFORO_SQL`, `_DIAS_SQL`, bloque Python de detalle, `portal.py` y `backup.py`. Ambas variantes agregadas al datalist del formulario.
+
+- **Importador AgilSalud** (`GET/POST /correspondencia/importar-agilsalud`): Nueva ruta de dos pasos para cargar el archivo `Documentos.xlsx` exportado de AgilSalud.
+  - **Filtrado automático:** solo conserva registros cuyo destinatario sea "MARTHA PATRICIA AÑEZ MAESTRE" o "MABEL GICELA HURTADO SANCHEZ". Del Excel de 108 filas se extraen 32 registros.
+  - **Columnas mapeadas:** Número de radicado → `n_radicado`, Dependencia Remitente → `origen`, Correo Electrónico Remitente → `correo_remitente`, Fecha de radicación → `fecha_ingreso` + `mes` + `anio` (inferidos), Asunto → `asunto`.
+  - **Previsualización obligatoria:** el sistema muestra una tabla con todos los registros a importar antes de confirmar. Solo al confirmar se ejecuta el INSERT.
+  - **Modo ADD:** no borra ni sobreescribe datos existentes; solo agrega nuevos registros.
+  - Botón de acceso desde sidebar y desde la lista de oficios.
+
+- **Campo `correo_remitente`:** Nueva columna TEXT en la tabla `correspondencia`. Migración automática en `init_db()` para BDs existentes. Visible en formulario de edición, página de detalle, exportar Excel y backup ZIP.
+
+- **Fix crítico de orden de rutas:** Las rutas `/importar-agilsalud` se registraban después de `/{reg_id}`. El path pattern `[^/]+` de Starlette captura cualquier string antes de llegar a las rutas específicas. Se reordenaron todas las rutas estáticas (`/importar-agilsalud`, `/importar-agilsalud/preview`, `/importar-agilsalud/confirmar`) para que queden **antes** de `/{reg_id}` en el router.
+
+---
 
 #### v2.3 — 2026-04-14 · commits `536d120` → `aa1899a`
 
@@ -369,6 +390,9 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 | 2026-04-14 | **`RESPONSABLE_MAP` en importación** de Correspondencia | El Excel histórico tiene 21 variantes sucias del mismo nombre (ej. "CESAR IVAN", "CESAR RODRIGUEZ", "CESAR IVAN RODRIGUEZ"). El mapa normaliza al vuelo durante la importación. |
 | 2026-04-14 | **Excepción `ANEXO EXPEDIENTE`** en semáforo | Regla de negocio: estos oficios no requieren respuesta formal, por lo tanto no acumulan días de vencimiento. Se aplica en SQL (`_SEMAFORO_SQL`, `_DIAS_SQL`) y en código Python para el detalle. |
 | 2026-04-14 | **Backup ZIP estructurado** desde el portal | Un solo clic genera un respaldo completo organizado por módulo, sin necesidad de entrar a cada sección. Facilita copias periódicas sin conocimiento técnico. |
+| 2026-04-15 | **`IN (...)` para variantes de ANEXO** en semáforo | Se usó `UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE')` en lugar de `=` para cubrir ambas variantes del texto en un solo chequeo, tanto en SQL como en Python. |
+| 2026-04-15 | **Importador AgilSalud con previsualización de 2 pasos** | El archivo de AgilSalud varía en contenido pero no en estructura. El paso de previsualización permite verificar los datos antes de insertar, evitando importaciones erróneas. Se usa JSON oculto en el form para pasar los datos del preview al confirm sin re-leer el archivo. |
+| 2026-04-15 | **Rutas AgilSalud antes de `/{reg_id}`** | Starlette compila `/{reg_id}` con regex `[^/]+` que captura cualquier segmento, incluyendo strings como "importar-agilsalud". Si se registra después de `/{reg_id}`, la ruta nunca se alcanza. Todas las rutas estáticas van primero. |
 
 ---
 
@@ -422,7 +446,8 @@ SDS_OCDI/
 │       ├── corr_dashboard.html             # /correspondencia/dashboard
 │       ├── corr_detalle.html               # /correspondencia/{id} detalle
 │       ├── corr_form.html                  # Crear/editar oficio de correspondencia
-│       ├── corr_importar.html              # Importar Excel correspondencia
+│       ├── corr_importar.html              # Importar Excel correspondencia (formato histórico)
+│       ├── corr_importar_agilsalud.html    # Importar desde AgilSalud (Documentos.xlsx) — 2 pasos
 │       └── corr_configurar.html            # Configurar catálogos (responsables, tipos doc)
 ├── data/
 │   └── ocdi.db                             # Base de datos SQLite (se crea al iniciar)

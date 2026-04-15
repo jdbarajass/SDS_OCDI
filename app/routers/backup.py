@@ -421,7 +421,7 @@ async def backup_zip():
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
                CASE
                    WHEN c.fecha_ingreso IS NULL THEN NULL
-                   WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 0
+                   WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN NULL
                    WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
                        THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10))
                                  - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
@@ -504,7 +504,7 @@ async def backup_zip():
         fill = PatternFill("solid", fgColor="1B4F8A")
         headers = [
             "AÑO","MES","FECHA INGRESO DE OFICIO","N. RADICADOS",
-            "ORIGEN AGILSALUD","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
+            "ORIGEN AGILSALUD","CORREO REMITENTE","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
             "RESPONSABLE","CASO BMP","N RADICADO SALIDA",
             "FECHA RADICADO DE SALIDA","TIPO DE RESPUESTA","TRAMITE DE SALIDA",
             "DÍAS TRANSCURRIDOS",
@@ -519,7 +519,7 @@ async def backup_zip():
             vals = [
                 d.get("anio"), d.get("mes"),
                 d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-                d.get("n_radicado"), d.get("origen"), d.get("asunto"),
+                d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
                 d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
                 d.get("radicados_salida"),
                 d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
@@ -527,9 +527,9 @@ async def backup_zip():
             ]
             for ci, v in enumerate(vals, 1):
                 cell = ws.cell(row=ri, column=ci, value=v)
-                cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 6))
+                cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
                 if rf: cell.fill = rf
-        col_widths = [6, 12, 20, 18, 35, 45, 18, 22, 10, 20, 20, 25, 25, 8]
+        col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 20, 20, 25, 25, 8]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS correspondencia (
     fecha_radicado_salida   TEXT,
     tipo_respuesta          TEXT,
     tramite_salida          TEXT,
+    correo_remitente        TEXT,
     created_at              TEXT DEFAULT (datetime('now', 'localtime')),
     updated_at              TEXT DEFAULT (datetime('now', 'localtime'))
 );
@@ -201,6 +202,10 @@ def init_db():
     # Migraciones: agregar columnas nuevas a tablas existentes
     try:
         conn.execute("ALTER TABLE exp_digitales ADD COLUMN observaciones TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE correspondencia ADD COLUMN correo_remitente TEXT")
     except Exception:
         pass
     # Poblar catálogos configurables de correspondencia con valores iniciales

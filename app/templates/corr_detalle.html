@@ -24,7 +24,7 @@
 <!-- Semáforo -->
 <div style="margin-bottom:16px">
   {% if reg.semaforo == 'verde' %}
-  <span class="sem-badge sem-verde">🟢 Al día — {{ reg.dias_transcurridos }} día(s) transcurrido(s)</span>
+  <span class="sem-badge sem-verde">🟢 Al día{% if reg.dias_transcurridos is not none %} — {{ reg.dias_transcurridos }} día(s) transcurrido(s){% endif %}</span>
   {% elif reg.semaforo == 'amarilla' %}
   <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
   {% elif reg.semaforo == 'roja' %}
@@ -68,6 +68,12 @@
     <div class="det-card-label">Origen AGILSALUD</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.origen or '—' }}</div>
   </div>
+  {% if reg.correo_remitente %}
+  <div class="det-card det-card-full">
+    <div class="det-card-label">Correo Remitente</div>
+    <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.correo_remitente }}</div>
+  </div>
+  {% endif %}
   <div class="det-card det-card-full">
     <div class="det-card-label">Asunto AGILSALUD</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px;line-height:1.6">{{ reg.asunto or '—' }}</div>

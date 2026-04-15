@@ -81,6 +81,10 @@
         <input type="text" name="origen" value="{{ reg.origen or '' }}" placeholder="Dependencia o entidad de origen">
       </div>
       <div class="field-group field-full">
+        <label>Correo Remitente</label>
+        <input type="email" name="correo_remitente" value="{{ reg.correo_remitente or '' }}" placeholder="correo@entidad.gov.co">
+      </div>
+      <div class="field-group field-full">
         <label>Asunto AGILSALUD</label>
         <textarea name="asunto" rows="3" placeholder="Descripción del asunto">{{ reg.asunto or '' }}</textarea>
       </div>

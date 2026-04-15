@@ -238,10 +238,7 @@ async def lista(
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         WHERE {where}
         GROUP BY c.id
-        ORDER BY
-            CASE WHEN (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') THEN 0 ELSE 1 END,
-            dias_transcurridos DESC,
-            c.fecha_ingreso DESC
+        ORDER BY c.fecha_ingreso DESC
         LIMIT ? OFFSET ?
     """, params + [por_pagina, offset]).fetchall()
 
@@ -345,7 +342,7 @@ async def exportar():
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         GROUP BY c.id
-        ORDER BY c.anio DESC, c.fecha_ingreso DESC
+        ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     conn.close()
 
@@ -436,14 +433,31 @@ async def importar_post(archivo: UploadFile = File(...)):
     except Exception:
         return RedirectResponse("/correspondencia/importar?msg=error_archivo", status_code=303)
 
-    # Aceptar hoja llamada "2026", "CORRESPONDENCIA" o la primera
-    ws = None
-    for nombre in ["CORRESPONDENCIA", "2026"]:
-        if nombre in wb.sheetnames:
-            ws = wb[nombre]
-            break
-    if ws is None:
-        ws = wb.active
+    # ── Detectar formato ──────────────────────────────────────────────────────
+    # Formato ORIGINAL: hojas con nombres de meses ("ENERO 2026", "FEBRERO2026",...)
+    #   - Filas 1-5 son título/encabezado, datos empiezan en fila 6
+    #   - 14 cols: MES|FECHA|N.RAD|ORIGEN|ASUNTO|TIPO_DOC|RESPONSABLE|CASO_BMP|
+    #              RADICADO_BMP(vacío)|TRAMITE_SAL(vacío)|N_RAD_SAL|FECHA_RADIC|TIPO_RESP|TRAMITE
+    # Formato EXPORTADO: hoja "CORRESPONDENCIA" con encabezado en fila 1
+    #   - 14 cols: AÑO|MES|FECHA|N.RAD|ORIGEN|ASUNTO|TIPO_DOC|RESPONSABLE|CASO_BMP|
+    #              N_RAD_SAL|FECHA_SAL|TIPO_RESP|TRAMITE|DÍAS
+
+    MESES_HOJAS = ("ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
+                   "JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE")
+
+    hojas_originales = [
+        sn for sn in wb.sheetnames
+        if any(sn.upper().startswith(m) for m in MESES_HOJAS)
+    ]
+    es_formato_original = len(hojas_originales) > 0
+
+    def _norm_fecha(f):
+        if not f:
+            return None
+        s = str(f).strip()
+        if len(s) >= 10:
+            return s[:10]
+        return s
 
     conn = get_db()
     insertados = 0
@@ -451,25 +465,96 @@ async def importar_post(archivo: UploadFile = File(...)):
         conn.execute("DELETE FROM correspondencia_radicados_salida")
         conn.execute("DELETE FROM correspondencia")
 
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not any(v for v in row if v is not None):
-                continue
+        if es_formato_original:
+            # ── Formato original: iterar todas las hojas de meses ─────────────
+            for nombre_hoja in hojas_originales:
+                ws = wb[nombre_hoja]
+                # Columnas del Excel original (0-indexed):
+                # 0:MES 1:FECHA 2:N.RADICADOS 3:ORIGEN 4:ASUNTO 5:TIPO_DOC
+                # 6:RESPONSABLE 7:CASO_BMP 8:RADICADO_BMP(vacío) 9:TRAMITE_SAL(vacío)
+                # 10:N_RADICADO_SALIDA 11:FECHA_RADIC_DOC 12:TIPO_RESPUESTA 13:TRAMITE(sin header)
+                for row in ws.iter_rows(min_row=6, values_only=True):
+                    if not any(v for v in row if v is not None):
+                        continue
+                    # Saltar fila de encabezado si por alguna razón quedó en datos
+                    if _v(row[0]) and str(row[0]).strip().upper() in ("MES", "MES "):
+                        continue
 
-            # Detectar si es el formato EXPORTADO (14 cols, col 0 = AÑO int)
-            # o el formato ORIGINAL (12 cols, col 0 = MES)
-            if len(row) >= 14 and row[0] is not None:
+                    mes_val    = _v(row[0])
+                    fi_val     = _norm_fecha(_v(row[1]))
+                    rad_val    = _v(row[2])
+                    orig_val   = _v(row[3])
+                    asunto_val = _v(row[4])
+                    tipo_d_val = _v(row[5])
+                    resp_val   = _v(row[6])
+                    bmp_val    = _v(row[7])
+                    # row[8] = RADICADO BMP  → siempre vacío, se omite
+                    # row[9] = TRAMITE DE SALIDA (header) → siempre vacío, se omite
+                    rad_sal    = _v(row[10]) if len(row) > 10 else None
+                    fsal_val   = _norm_fecha(_v(row[11]) if len(row) > 11 else None)
+                    tipor_val  = _v(row[12]) if len(row) > 12 else None
+                    tram_val   = _v(row[13]) if len(row) > 13 else None
+
+                    # Inferir año de la fecha de ingreso
+                    anio_val = None
+                    if fi_val:
+                        try:
+                            anio_val = int(fi_val[:4])
+                        except Exception:
+                            pass
+
+                    if mes_val:
+                        mes_val = mes_val.strip().upper()
+                    resp_val = _clean_responsable(resp_val)
+
+                    # Necesita al menos fecha o radicado para ser un registro válido
+                    if not fi_val and not rad_val:
+                        continue
+
+                    cur = conn.execute("""
+                        INSERT INTO correspondencia
+                        (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
+                         responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, [anio_val, mes_val, fi_val, rad_val, orig_val, asunto_val,
+                          tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val])
+                    cid = cur.lastrowid
+                    insertados += 1
+
+                    if rad_sal:
+                        for r in str(rad_sal).split("|"):
+                            r = r.strip()
+                            if r:
+                                conn.execute(
+                                    "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado) VALUES (?,?)",
+                                    (cid, r),
+                                )
+
+        else:
+            # ── Formato exportado: hoja "CORRESPONDENCIA" con headers en fila 1 ──
+            ws = None
+            for nombre in ["CORRESPONDENCIA", "CORR", "2026"]:
+                if nombre in wb.sheetnames:
+                    ws = wb[nombre]
+                    break
+            if ws is None:
+                ws = wb.active
+
+            # Columnas exportadas (0-indexed):
+            # 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ORIGEN 5:ASUNTO 6:TIPO_DOC
+            # 7:RESPONSABLE 8:CASO_BMP 9:N_RAD_SAL 10:FECHA_SAL 11:TIPO_RESP 12:TRAMITE 13:DÍAS
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not any(v for v in row if v is not None):
+                    continue
+                # Detectar que col[0] sea un año (número entero)
                 try:
                     int(row[0])
-                    formato_export = True
                 except (ValueError, TypeError):
-                    formato_export = False
-            else:
-                formato_export = False
+                    continue  # Saltar filas que no sean datos
 
-            if formato_export:
                 anio_val   = _v(row[0])
                 mes_val    = _v(row[1])
-                fi_val     = _v(row[2])
+                fi_val     = _norm_fecha(_v(row[2]))
                 rad_val    = _v(row[3])
                 orig_val   = _v(row[4])
                 asunto_val = _v(row[5])
@@ -477,68 +562,33 @@ async def importar_post(archivo: UploadFile = File(...)):
                 resp_val   = _v(row[7])
                 bmp_val    = _v(row[8])
                 rad_sal    = _v(row[9])
-                fsal_val   = _v(row[10])
-                tipor_val  = _v(row[11])
-                tram_val   = _v(row[12])
-            else:
-                mes_val    = _v(row[0])
-                fi_val     = _v(row[1])
-                rad_val    = _v(row[2])
-                orig_val   = _v(row[3])
-                asunto_val = _v(row[4])
-                tipo_d_val = _v(row[5])
-                resp_val   = _v(row[6])
-                bmp_val    = _v(row[7])
-                rad_sal    = _v(row[8])
-                fsal_val   = _v(row[9])
-                tipor_val  = _v(row[10])
-                tram_val   = _v(row[11]) if len(row) > 11 else None
-                # Inferir año de la fecha de ingreso
-                anio_val = None
-                if fi_val:
-                    try:
-                        anio_val = str(fi_val[:4])
-                    except Exception:
-                        pass
+                fsal_val   = _norm_fecha(_v(row[10]) if len(row) > 10 else None)
+                tipor_val  = _v(row[11]) if len(row) > 11 else None
+                tram_val   = _v(row[12]) if len(row) > 12 else None
+                # row[13] = DÍAS TRANSCURRIDOS → se omite (valor calculado)
 
-            # Normalizar mes
-            if mes_val:
-                mes_val = mes_val.strip().upper()
+                if mes_val:
+                    mes_val = mes_val.strip().upper()
+                resp_val = _clean_responsable(resp_val)
 
-            # Limpiar responsable
-            resp_val = _clean_responsable(resp_val)
+                cur = conn.execute("""
+                    INSERT INTO correspondencia
+                    (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
+                     responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                """, [anio_val, mes_val, fi_val, rad_val, orig_val, asunto_val,
+                      tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val])
+                cid = cur.lastrowid
+                insertados += 1
 
-            # Normalizar fecha (puede venir como datetime con hora)
-            def _norm_fecha(f):
-                if not f:
-                    return None
-                s = str(f).strip()
-                if len(s) >= 10:
-                    return s[:10]
-                return s
-
-            fi_val   = _norm_fecha(fi_val)
-            fsal_val = _norm_fecha(fsal_val)
-
-            cur = conn.execute("""
-                INSERT INTO correspondencia
-                (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
-                 responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-            """, [anio_val, mes_val, fi_val, rad_val, orig_val, asunto_val,
-                  tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val])
-            cid = cur.lastrowid
-            insertados += 1
-
-            # Radicados de salida (puede ser pipe-separated o single value)
-            if rad_sal:
-                for r in str(rad_sal).split("|"):
-                    r = r.strip()
-                    if r:
-                        conn.execute(
-                            "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado) VALUES (?,?)",
-                            (cid, r),
-                        )
+                if rad_sal:
+                    for r in str(rad_sal).split("|"):
+                        r = r.strip()
+                        if r:
+                            conn.execute(
+                                "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado) VALUES (?,?)",
+                                (cid, r),
+                            )
 
         conn.commit()
     except Exception as e:

@@ -14,6 +14,13 @@
 <form method="get" action="/correspondencia/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
   <input type="text" name="q" value="{{ q }}" placeholder="Buscar radicado, origen, asunto, BMP…" class="filter-input" style="min-width:220px">
 
+  <select name="anio" class="filter-select">
+    <option value="">Todos los años</option>
+    {% for a in anios %}
+    <option value="{{ a }}" {% if anio|string == a|string %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
   <select name="responsable" class="filter-select">
     <option value="">Todos los responsables</option>
     {% for r in responsables %}
@@ -25,13 +32,6 @@
     <option value="">Todos los meses</option>
     {% for m in meses %}
     <option value="{{ m }}" {% if mes == m %}selected{% endif %}>{{ m }}</option>
-    {% endfor %}
-  </select>
-
-  <select name="anio" class="filter-select">
-    <option value="">Todos los años</option>
-    {% for a in anios %}
-    <option value="{{ a }}" {% if anio|string == a|string %}selected{% endif %}>{{ a }}</option>
     {% endfor %}
   </select>
 
@@ -50,6 +50,7 @@
 <!-- Badges de filtro activo -->
 {% if semaforo or responsable or mes or anio %}
 <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+  {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
   {% if semaforo %}
   <span style="background:#dbeafe;color:#1d4ed8;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">
     {% if semaforo == 'verde' %}🟢 Verde{% elif semaforo == 'amarilla' %}🟡 Amarillo{% elif semaforo == 'roja' %}🔴 Rojo{% else %}✅ Respondido{% endif %}
@@ -57,41 +58,69 @@
   {% endif %}
   {% if responsable %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">👤 {{ responsable }}</span>{% endif %}
   {% if mes %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📅 {{ mes }}</span>{% endif %}
-  {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
 </div>
 {% endif %}
 
 <style>
-.sem-verde    { background:#dcfce7; color:#166534; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
-.sem-amarilla { background:#fef9c3; color:#854d0e; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
-.sem-roja     { background:#fee2e2; color:#991b1b; border-radius:50%; width:18px; height:18px; display:inline-block; text-align:center; line-height:18px; font-size:11px; }
-.sem-respondido { color:#16a34a; }
-.row-roja td { background:#fff5f5 !important; }
+.sem-verde    { background:#dcfce7; color:#166534; }
+.sem-amarilla { background:#fef9c3; color:#854d0e; }
+.sem-roja     { background:#fee2e2; color:#991b1b; }
+.row-roja td  { background:#fff5f5 !important; }
 .row-amarilla td { background:#fffdf0 !important; }
+
+/* Scroll horizontal */
+.corr-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.corr-scroll-wrap::-webkit-scrollbar { height: 8px; }
+.corr-scroll-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+.corr-scroll-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+.corr-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+#tabla-corr { min-width: 1500px; border-collapse: collapse; width: 100%; }
+#tabla-corr th { position: sticky; top: 0; background: var(--sidebar-bg, #1e3a5f); color:#fff;
+  padding: 9px 10px; font-size: 11px; white-space: nowrap; text-align: left; }
+#tabla-corr td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+#tabla-corr tbody tr:hover td { background: #f8fafc !important; }
+.td-clip { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-asunto { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 
-<div class="table-wrapper">
-  <table class="data-table" id="tabla-corr">
+<!-- Indicador de scroll -->
+<div style="font-size:11px;color:#64748b;margin-bottom:4px;display:flex;align-items:center;gap:5px">
+  <span>◀ ▶</span> <span>Desliza horizontalmente para ver todas las columnas</span>
+</div>
+
+<div class="corr-scroll-wrap">
+  <table id="tabla-corr">
     <thead>
       <tr>
-        <th style="width:28px"></th>
-        <th>Año</th>
+        <th style="width:30px"></th>
         <th>Mes</th>
         <th>Fecha Ingreso</th>
         <th>N. Radicado</th>
         <th>Origen</th>
-        <th>Responsable</th>
+        <th>Asunto</th>
         <th>Tipo Doc.</th>
+        <th>Responsable</th>
+        <th>Caso BMP</th>
         <th>Tipo Respuesta</th>
+        <th>Trámite Salida</th>
         <th>N. Rad. Salida</th>
         <th>Fecha Salida</th>
         <th style="text-align:center">Días</th>
-        <th></th>
+        <th style="width:110px"></th>
       </tr>
     </thead>
     <tbody>
       {% for r in rows %}
       <tr class="{% if r.semaforo == 'roja' %}row-roja{% elif r.semaforo == 'amarilla' %}row-amarilla{% endif %}">
+
+        <!-- Semáforo -->
         <td style="text-align:center;padding:4px">
           {% if r.semaforo == 'verde' %}
           <span title="🟢 Al día ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟢</span>
@@ -105,27 +134,34 @@
           <span style="color:var(--text-muted)">—</span>
           {% endif %}
         </td>
-        <td style="font-size:12px">{{ r.anio or '—' }}</td>
-        <td style="font-size:12px">{{ r.mes or '—' }}</td>
-        <td style="font-size:12px;white-space:nowrap">{{ r.fecha_ingreso[:10] if r.fecha_ingreso else '—' }}</td>
-        <td style="font-size:12px;font-weight:600">{{ r.n_radicado or '—' }}</td>
-        <td class="td-texto" style="font-size:11px;max-width:160px">{{ r.origen or '—' }}</td>
-        <td style="font-size:12px">{{ r.responsable or '—' }}</td>
-        <td style="font-size:11px">{{ r.tipo_documento or '—' }}</td>
-        <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
-        <td style="font-size:11px">{{ r.radicados_salida or '—' }}</td>
-        <td style="font-size:12px;white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
-        <td style="text-align:center;font-weight:700;font-size:13px;
+
+        <td style="white-space:nowrap">{{ r.mes or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.fecha_ingreso[:10] if r.fecha_ingreso else '—' }}</td>
+        <td style="font-weight:600;white-space:nowrap">{{ r.n_radicado or '—' }}</td>
+        <td class="td-clip" title="{{ r.origen or '' }}">{{ r.origen or '—' }}</td>
+        <td class="td-asunto" title="{{ r.asunto or '' }}">{{ r.asunto or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.tipo_documento or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.responsable or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.caso_bmp or '—' }}</td>
+        <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.tramite_salida or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.radicados_salida or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
+
+        <!-- Días -->
+        <td style="text-align:center;font-weight:700;font-size:13px;white-space:nowrap;
           {% if r.semaforo == 'roja' %}color:#dc2626{% elif r.semaforo == 'amarilla' %}color:#d97706{% elif r.semaforo == 'verde' %}color:#16a34a{% else %}color:var(--text-muted){% endif %}">
           {{ r.dias_transcurridos if r.dias_transcurridos is not none else '—' }}
         </td>
+
+        <!-- Acciones -->
         <td style="white-space:nowrap">
           <a href="/correspondencia/{{ r.id }}?back={{ back_url | quote_plus }}" class="btn-sm btn-ver">👁 Ver</a>
           <a href="/correspondencia/{{ r.id }}/editar?back={{ back_url | quote_plus }}" class="btn-sm btn-edit">✏ Editar</a>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text-muted)">
+      <tr><td colspan="15" style="text-align:center;padding:32px;color:var(--text-muted)">
         Sin resultados. <a href="/correspondencia/nuevo">Registrar nuevo oficio</a> o <a href="/correspondencia/importar">importar desde Excel</a>.
       </td></tr>
       {% endfor %}

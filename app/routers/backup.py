@@ -431,7 +431,7 @@ async def backup_zip():
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         GROUP BY c.id
-        ORDER BY c.anio DESC, c.fecha_ingreso DESC
+        ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     conn.close()
 

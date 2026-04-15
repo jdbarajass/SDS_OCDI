@@ -22,6 +22,7 @@ TIPOS_RESPUESTA = [
     "RESPUESTA",
     "TRASLADO",
     "ANEXO EXPEDIENTE",
+    "ANEXO AL EXPEDIENTE",
     "DEVOLUCION",
     "INFORMATIVO",
     "REUNION",
@@ -93,10 +94,13 @@ def _get_catalogos(conn):
 
 # ── Semáforo SQL (cols calculadas) ────────────────────────────────────────────
 
+# Condición reutilizable para ambas variantes de ANEXO (sin conteo de días)
+_ANEXO_COND = "UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE')"
+
 _SEMAFORO_SQL = """
     CASE
         WHEN c.fecha_ingreso IS NULL THEN NULL
-        WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 'verde'
+        WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN 'verde'
         WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != '' THEN 'respondido'
         WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 'verde'
         WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 8 THEN 'amarilla'
@@ -107,7 +111,7 @@ _SEMAFORO_SQL = """
 _DIAS_SQL = """
     CASE
         WHEN c.fecha_ingreso IS NULL THEN NULL
-        WHEN UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 0
+        WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN NULL
         WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
             THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10)) - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
         ELSE CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
@@ -126,13 +130,14 @@ async def dashboard(request: Request):
     stats = conn.execute(f"""
         SELECT
             SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) AS respondidos,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) = 'ANEXO EXPEDIENTE' THEN 1
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE') THEN 1
                      WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
+                     AND UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 1 ELSE 0 END) AS verde,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
                      AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8 THEN 1 ELSE 0 END) AS amarilla,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
                      AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
                      AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9 THEN 1 ELSE 0 END) AS roja
         FROM correspondencia
@@ -162,7 +167,7 @@ async def dashboard(request: Request):
                {_DIAS_SQL}
         FROM correspondencia c
         WHERE (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida = '')
-        AND UPPER(TRIM(c.tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+        AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
         AND c.fecha_ingreso IS NOT NULL
         ORDER BY dias_transcurridos DESC LIMIT 20
     """).fetchall()
@@ -214,19 +219,21 @@ async def lista(
         params.append(int(anio.strip()))
     if semaforo == "verde":
         filtros.append("""(
-            UPPER(TRIM(c.tipo_respuesta)) = 'ANEXO EXPEDIENTE'
+            UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
             OR (
                 (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='')
                 AND c.fecha_ingreso IS NOT NULL
-                AND UPPER(TRIM(c.tipo_respuesta)) != 'ANEXO EXPEDIENTE'
+                AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
                 AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5
             )
         )""")
     elif semaforo == "amarilla":
         filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
+            AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
             AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8""")
     elif semaforo == "roja":
         filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
+            AND UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
             AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) >= 9""")
     elif semaforo == "respondido":
         filtros.append("c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''")
@@ -313,17 +320,20 @@ async def nuevo_post(
     fecha_radicado_salida: str = Form(""),
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
+    correo_remitente: str = Form(""),
 ):
     conn = get_db()
     cur = conn.execute("""
         INSERT INTO correspondencia
         (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
-         responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+         responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
+         correo_remitente)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
+        _v(correo_remitente),
     ])
     new_id = cur.lastrowid
     conn.commit()
@@ -364,7 +374,7 @@ async def exportar():
 
     headers = [
         "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
-        "ORIGEN AGILSALUD", "ASUNTO AGILSALUD", "TIPO DE DOCUMENTO",
+        "ORIGEN AGILSALUD", "CORREO REMITENTE", "ASUNTO AGILSALUD", "TIPO DE DOCUMENTO",
         "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
         "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRAMITE DE SALIDA",
         "DÍAS TRANSCURRIDOS",
@@ -381,18 +391,18 @@ async def exportar():
         fill = alt_fill if ri % 2 == 0 else None
         vals = [
             d.get("anio"), d.get("mes"), d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-            d.get("n_radicado"), d.get("origen"), d.get("asunto"),
+            d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
             d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
             d.get("radicados_salida"), d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
             d.get("tipo_respuesta"), d.get("tramite_salida"), d.get("dias_transcurridos"),
         ]
         for ci, v in enumerate(vals, 1):
             cell = ws.cell(row=ri, column=ci, value=v)
-            cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 6))
+            cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
             if fill:
                 cell.fill = fill
 
-    col_widths = [6, 12, 20, 18, 35, 45, 18, 22, 10, 20, 20, 25, 25, 8]
+    col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 20, 20, 25, 25, 8]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -727,10 +737,11 @@ async def ver(request: Request, reg_id: int, back: str = ""):
                 dias = (date.today() - fi).days
         except Exception:
             pass
-    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() == "ANEXO EXPEDIENTE":
-        dias = 0
+    _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
+    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
+        dias = None
     reg["dias_transcurridos"] = dias
-    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() == "ANEXO EXPEDIENTE":
+    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
         reg["semaforo"] = "verde"
     elif reg.get("fecha_radicado_salida"):
         reg["semaforo"] = "respondido"
@@ -789,20 +800,21 @@ async def editar_post(
     fecha_radicado_salida: str = Form(""),
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
+    correo_remitente: str = Form(""),
 ):
     conn = get_db()
     conn.execute("""
         UPDATE correspondencia SET
         anio=?, mes=?, fecha_ingreso=?, n_radicado=?, origen=?, asunto=?,
         tipo_documento=?, responsable=?, caso_bmp=?, fecha_radicado_salida=?,
-        tipo_respuesta=?, tramite_salida=?,
+        tipo_respuesta=?, tramite_salida=?, correo_remitente=?,
         updated_at=datetime('now','localtime')
         WHERE id=?
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
-        reg_id,
+        _v(correo_remitente), reg_id,
     ])
     conn.commit()
     conn.close()
@@ -832,6 +844,159 @@ async def radicado_nuevo(reg_id: int, radicado: str = Form(...)):
         conn.commit()
         conn.close()
     return RedirectResponse(f"/correspondencia/{reg_id}/editar?msg=rad_ok", status_code=303)
+
+
+# ── IMPORTAR DESDE AGIL SALUD (Documentos.xlsx) ───────────────────────────────
+
+_AGILSALUD_DESTINATARIOS = {
+    "MARTHA PATRICIA AÑEZ MAESTRE",
+    "MABEL GICELA HURTADO SANCHEZ",
+}
+
+_MES_NOMBRES = {
+    1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
+    5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
+    9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE",
+}
+
+
+@router.get("/importar-agilsalud", response_class=HTMLResponse)
+async def importar_agilsalud_form(request: Request, msg: str = ""):
+    return templates.TemplateResponse("corr_importar_agilsalud.html", {
+        "request": request,
+        "active": "corr_importar",
+        "msg": msg,
+        "preview": None,
+    })
+
+
+@router.post("/importar-agilsalud/preview", response_class=HTMLResponse)
+async def importar_agilsalud_preview(request: Request, archivo: UploadFile = File(...)):
+    try:
+        import openpyxl
+    except ImportError:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar",
+            "msg": "error_openpyxl", "preview": None,
+        })
+
+    contenido = await archivo.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
+        ws = wb.active
+    except Exception:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar",
+            "msg": "error_archivo", "preview": None,
+        })
+
+    filas = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(row):
+            continue
+        # Columnas (1-indexed → 0-indexed):
+        # Col 1 (idx 0): Número de radicado → n_radicado
+        # Col 5 (idx 4): Destinatario → responsable (filtrar)
+        # Col 7 (idx 6): Dependencia Remitente → origen
+        # Col 9 (idx 8): Correo Electrónico Remitente → correo_remitente
+        # Col 11 (idx 10): Fecha de radicación → fecha_ingreso
+        # Col 13 (idx 12): Asunto → asunto
+        destinatario = str(row[4] or "").strip().upper() if len(row) > 4 else ""
+        if destinatario not in _AGILSALUD_DESTINATARIOS:
+            continue
+
+        n_radicado = str(row[0] or "").strip() if len(row) > 0 else ""
+        origen = str(row[6] or "").strip() if len(row) > 6 else ""
+        correo_remitente = str(row[8] or "").strip() if len(row) > 8 else ""
+        fecha_raw = row[10] if len(row) > 10 else None
+        asunto = str(row[12] or "").strip() if len(row) > 12 else ""
+
+        # Parsear fecha
+        fecha_ingreso = ""
+        mes = ""
+        anio = ""
+        if fecha_raw:
+            try:
+                if hasattr(fecha_raw, "strftime"):
+                    fecha_ingreso = fecha_raw.strftime("%Y-%m-%d")
+                    mes = _MES_NOMBRES.get(fecha_raw.month, "")
+                    anio = fecha_raw.year
+                else:
+                    s = str(fecha_raw).strip()
+                    # formato '2026-04-01 07:26:27.280000'
+                    fecha_ingreso = s[:10]
+                    from datetime import datetime as _dt
+                    dt = _dt.fromisoformat(fecha_ingreso)
+                    mes = _MES_NOMBRES.get(dt.month, "")
+                    anio = dt.year
+            except Exception:
+                pass
+
+        # Normalizar responsable
+        resp_map = {
+            "MARTHA PATRICIA AÑEZ MAESTRE": "MARTHA PATRICIA AÑEZ MAESTRE",
+            "MABEL GICELA HURTADO SANCHEZ": "MABEL GICELLA HURTADO",
+        }
+        responsable = resp_map.get(destinatario, destinatario.title())
+
+        filas.append({
+            "n_radicado": n_radicado,
+            "responsable": responsable,
+            "origen": origen,
+            "correo_remitente": correo_remitente,
+            "fecha_ingreso": fecha_ingreso,
+            "mes": mes,
+            "anio": anio,
+            "asunto": asunto,
+        })
+
+    if not filas:
+        return templates.TemplateResponse("corr_importar_agilsalud.html", {
+            "request": request, "active": "corr_importar",
+            "msg": "error_vacio", "preview": None,
+        })
+
+    import json
+    preview_json = json.dumps(filas, ensure_ascii=False)
+    return templates.TemplateResponse("corr_importar_agilsalud.html", {
+        "request": request,
+        "active": "corr_importar",
+        "msg": "",
+        "preview": filas,
+        "preview_json": preview_json,
+    })
+
+
+@router.post("/importar-agilsalud/confirmar")
+async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(...)):
+    import json
+    try:
+        filas = json.loads(datos_json)
+    except Exception:
+        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
+
+    conn = get_db()
+    try:
+        insertados = 0
+        for f in filas:
+            conn.execute(
+                """INSERT INTO correspondencia
+                   (anio, mes, fecha_ingreso, n_radicado, origen, asunto,
+                    responsable, correo_remitente)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (f.get("anio") or None, f.get("mes") or None,
+                 f.get("fecha_ingreso") or None, f.get("n_radicado") or None,
+                 f.get("origen") or None, f.get("asunto") or None,
+                 f.get("responsable") or None, f.get("correo_remitente") or None),
+            )
+            insertados += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
+    conn.close()
+    return RedirectResponse(f"/correspondencia/importar-agilsalud?msg=ok_{insertados}", status_code=303)
 
 
 @router.post("/radicado_salida/{rad_id}/eliminar")

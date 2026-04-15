@@ -1,0 +1,115 @@
+{% extends "base_correspondencia.html" %}
+{% block title %}Importar AgilSalud{% endblock %}
+{% block heading %}Importar desde AgilSalud (Documentos.xlsx){% endblock %}
+
+{% block header_actions %}
+<a href="/correspondencia/" class="btn btn-outline">← Volver a Lista</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.import-card { background:#fff; border-radius:10px; border:1px solid var(--border); padding:24px; margin-bottom:20px; }
+.import-card-title { font-size:13px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--primary-bg); }
+.info-box { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px 18px; font-size:13px; margin-bottom:18px; }
+.info-box ul { margin:6px 0 0 18px; padding:0; }
+.info-box li { margin-bottom:4px; color:#1e40af; }
+.preview-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); margin-top:16px; }
+.preview-wrap::-webkit-scrollbar { height:7px; }
+.preview-wrap::-webkit-scrollbar-thumb { background:#94a3b8; border-radius:4px; }
+#tabla-preview { min-width:900px; border-collapse:collapse; width:100%; font-size:12px; }
+#tabla-preview th { background:#1e3a5f; color:#fff; padding:8px 10px; text-align:left; white-space:nowrap; font-size:11px; }
+#tabla-preview td { padding:6px 10px; border-bottom:1px solid #f0f4f8; vertical-align:middle; }
+#tabla-preview tbody tr:hover td { background:#f8fafc; }
+.td-clip { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+
+{% if not preview %}
+<!-- ── PASO 1: SUBIR ARCHIVO ─────────────────────────────── -->
+<div class="import-card">
+  <div class="import-card-title">1. Seleccionar archivo de AgilSalud</div>
+
+  <div class="info-box">
+    <strong>¿Qué hace este importador?</strong>
+    <ul>
+      <li>Lee el archivo <strong>Documentos.xlsx</strong> exportado desde AgilSalud.</li>
+      <li>Filtra solo los registros con destinatario <strong>MARTHA PATRICIA AÑEZ MAESTRE</strong> o <strong>MABEL GICELA HURTADO SANCHEZ</strong>.</li>
+      <li>Extrae: Número de radicado, Dependencia Remitente, Correo, Fecha de radicación y Asunto.</li>
+      <li>Muestra una vista previa antes de confirmar la importación.</li>
+      <li><strong>No elimina datos existentes</strong> — solo agrega nuevos registros.</li>
+    </ul>
+  </div>
+
+  <form method="post" action="/correspondencia/importar-agilsalud/preview" enctype="multipart/form-data">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:5px">
+          Archivo Excel (.xlsx) de AgilSalud
+        </label>
+        <input type="file" name="archivo" accept=".xlsx" required
+               style="border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;width:100%;background:#fff">
+      </div>
+      <button type="submit" class="btn btn-primary" style="white-space:nowrap">
+        🔍 Previsualizar
+      </button>
+    </div>
+  </form>
+</div>
+
+{% else %}
+<!-- ── PASO 2: PREVISUALIZACIÓN ─────────────────────────── -->
+<div class="import-card">
+  <div class="import-card-title">
+    2. Vista previa — {{ preview|length }} registro(s) encontrado(s)
+  </div>
+
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+    Verifique los datos antes de confirmar. Se agregarán <strong>{{ preview|length }}</strong> registro(s) nuevos.
+  </p>
+
+  <div class="preview-wrap">
+    <table id="tabla-preview">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>N. Radicado</th>
+          <th>Fecha Ingreso</th>
+          <th>Mes</th>
+          <th>Año</th>
+          <th>Responsable</th>
+          <th>Origen</th>
+          <th>Correo Remitente</th>
+          <th>Asunto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in preview %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td style="font-weight:600;white-space:nowrap">{{ f.n_radicado or '—' }}</td>
+          <td style="white-space:nowrap">{{ f.fecha_ingreso or '—' }}</td>
+          <td style="white-space:nowrap">{{ f.mes or '—' }}</td>
+          <td>{{ f.anio or '—' }}</td>
+          <td style="white-space:nowrap">{{ f.responsable or '—' }}</td>
+          <td class="td-clip" title="{{ f.origen or '' }}">{{ f.origen or '—' }}</td>
+          <td class="td-clip" title="{{ f.correo_remitente or '' }}">{{ f.correo_remitente or '—' }}</td>
+          <td class="td-clip" title="{{ f.asunto or '' }}">{{ f.asunto or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Botones confirmar / cancelar -->
+  <div style="display:flex;gap:12px;margin-top:20px;align-items:center">
+    <form method="post" action="/correspondencia/importar-agilsalud/confirmar">
+      <input type="hidden" name="datos_json" value="{{ preview_json | e }}">
+      <button type="submit" class="btn btn-primary">
+        ✅ Confirmar e Importar {{ preview|length }} registro(s)
+      </button>
+    </form>
+    <a href="/correspondencia/importar-agilsalud" class="btn btn-outline">✕ Cancelar</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -101,6 +101,19 @@
             <span class="tile-cta">Abrir módulo →</span>
         </a>
 
+        <!-- MÓDULO 1C: Control de Autos de Sustanciación -->
+        <a href="/control-autos/" class="portal-tile">
+            <div class="tile-ico">⚖️</div>
+            <div class="tile-title">Control de Autos de<br>Sustanciación y/o Trámites</div>
+            <div class="tile-desc">Registro y seguimiento de autos de sustanciación disciplinaria. Formato SDS-CDO-FT-001 v4. Importar/exportar Excel con el formato oficial.</div>
+            {% if total_control_autos > 0 %}
+            <span class="tile-stat">⚖️ {{ total_control_autos }} auto{{ 's' if total_control_autos != 1 else '' }} registrado{{ 's' if total_control_autos != 1 else '' }}</span>
+            {% else %}
+            <span class="tile-stat">⚖️ Sin datos aún — importar Excel</span>
+            {% endif %}
+            <span class="tile-cta">Abrir módulo →</span>
+        </a>
+
         <!-- ══ SEPARADOR ══ -->
         <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,0.15);margin:4px 0"></div>
 

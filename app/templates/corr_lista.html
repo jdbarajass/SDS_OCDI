@@ -13,7 +13,7 @@
 {% block content %}
 <!-- Filtros -->
 <form method="get" action="/correspondencia/" class="filter-bar" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
-  <input type="text" name="q" value="{{ q }}" placeholder="Buscar radicado, origen, asunto, BMP…" class="filter-input" style="min-width:220px">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar radicado, entidad, asunto, BMP…" class="filter-input" style="min-width:220px">
 
   <select name="anio" class="filter-select">
     <option value="">Todos los años</option>
@@ -38,9 +38,9 @@
 
   <select name="semaforo" class="filter-select">
     <option value="">Todos los estados</option>
-    <option value="verde"      {% if semaforo == 'verde' %}selected{% endif %}>🟢 Verde (0–5 días)</option>
-    <option value="amarilla"   {% if semaforo == 'amarilla' %}selected{% endif %}>🟡 Amarillo (6–8 días)</option>
-    <option value="roja"       {% if semaforo == 'roja' %}selected{% endif %}>🔴 Rojo (9+ días)</option>
+    <option value="verde"      {% if semaforo == 'verde' %}selected{% endif %}>🟢 Verde</option>
+    <option value="amarilla"   {% if semaforo == 'amarilla' %}selected{% endif %}>🟡 Amarillo</option>
+    <option value="roja"       {% if semaforo == 'roja' %}selected{% endif %}>🔴 Rojo</option>
     <option value="respondido" {% if semaforo == 'respondido' %}selected{% endif %}>✅ Respondido</option>
   </select>
 
@@ -69,7 +69,6 @@
 .row-roja td  { background:#fff5f5 !important; }
 .row-amarilla td { background:#fffdf0 !important; }
 
-/* Scroll horizontal */
 .corr-scroll-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -82,7 +81,7 @@
 .corr-scroll-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
 .corr-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-#tabla-corr { min-width: 1500px; border-collapse: collapse; width: 100%; }
+#tabla-corr { min-width: 1700px; border-collapse: collapse; width: 100%; }
 #tabla-corr th { position: sticky; top: 0; background: var(--sidebar-bg, #1e3a5f); color:#fff;
   padding: 9px 10px; font-size: 11px; white-space: nowrap; text-align: left; }
 #tabla-corr td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
@@ -91,7 +90,6 @@
 .td-asunto { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 
-<!-- Indicador de scroll -->
 <div style="font-size:11px;color:#64748b;margin-bottom:4px;display:flex;align-items:center;gap:5px">
   <span>◀ ▶</span> <span>Desliza horizontalmente para ver todas las columnas</span>
 </div>
@@ -104,16 +102,18 @@
         <th>Mes</th>
         <th>Fecha Ingreso</th>
         <th>N. Radicado</th>
-        <th>Origen</th>
+        <th>Entidad</th>
         <th>Asunto</th>
         <th>Tipo Doc.</th>
         <th>Responsable</th>
         <th>Caso BMP</th>
+        <th>Tipo Req.</th>
+        <th style="text-align:center">Término</th>
         <th>Tipo Respuesta</th>
-        <th>Trámite Salida</th>
+        <th>Observaciones</th>
         <th>N. Rad. Salida</th>
         <th>Fecha Salida</th>
-        <th style="text-align:center">Días</th>
+        <th style="text-align:center">Días / Límite</th>
         <th style="width:110px"></th>
       </tr>
     </thead>
@@ -124,11 +124,23 @@
         <!-- Semáforo -->
         <td style="text-align:center;padding:4px">
           {% if r.semaforo == 'verde' %}
-          <span title="🟢 Al día ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟢</span>
+            {% if r.fecha_termino_respuesta %}
+            <span title="🟢 Al día — vence {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟢</span>
+            {% else %}
+            <span title="🟢 Al día ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟢</span>
+            {% endif %}
           {% elif r.semaforo == 'amarilla' %}
-          <span title="🟡 Atención ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟡</span>
+            {% if r.fecha_termino_respuesta %}
+            <span title="🟡 Por vencer — límite {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟡</span>
+            {% else %}
+            <span title="🟡 Atención ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟡</span>
+            {% endif %}
           {% elif r.semaforo == 'roja' %}
-          <span title="🔴 Vencido ({{ r.dias_transcurridos }}d)" style="font-size:16px">🔴</span>
+            {% if r.fecha_termino_respuesta %}
+            <span title="🔴 Vencido — límite {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d)" style="font-size:16px">🔴</span>
+            {% else %}
+            <span title="🔴 Vencido ({{ r.dias_transcurridos }}d)" style="font-size:16px">🔴</span>
+            {% endif %}
           {% elif r.semaforo == 'respondido' %}
           <span title="✅ Respondido" style="font-size:14px">✅</span>
           {% else %}
@@ -144,15 +156,27 @@
         <td style="white-space:nowrap">{{ r.tipo_documento or '—' }}</td>
         <td style="white-space:nowrap">{{ r.responsable or '—' }}</td>
         <td style="white-space:nowrap">{{ r.caso_bmp or '—' }}</td>
+        <td class="td-clip" title="{{ r.tipo_requerimiento or '' }}" style="font-size:11px">{{ r.tipo_requerimiento or '—' }}</td>
+        <td style="text-align:center;white-space:nowrap">
+          {% if r.termino_dias %}
+          <span style="background:#EBF3FD;color:#1B4F8A;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">{{ r.termino_dias }}d</span>
+          {% else %}—{% endif %}
+        </td>
         <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
         <td style="white-space:nowrap">{{ r.tramite_salida or '—' }}</td>
         <td style="white-space:nowrap">{{ r.radicados_salida or '—' }}</td>
         <td style="white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
 
-        <!-- Días -->
-        <td style="text-align:center;font-weight:700;font-size:13px;white-space:nowrap;
+        <!-- Días / Fecha límite -->
+        <td style="text-align:center;font-weight:700;font-size:12px;white-space:nowrap;
           {% if r.semaforo == 'roja' %}color:#dc2626{% elif r.semaforo == 'amarilla' %}color:#d97706{% elif r.semaforo == 'verde' %}color:#16a34a{% else %}color:var(--text-muted){% endif %}">
-          {{ r.dias_transcurridos if r.dias_transcurridos is not none else '—' }}
+          {% if r.fecha_termino_respuesta %}
+            {{ r.fecha_termino_respuesta }}
+          {% elif r.dias_transcurridos is not none %}
+            {{ r.dias_transcurridos }}d
+          {% else %}
+            —
+          {% endif %}
         </td>
 
         <!-- Acciones -->
@@ -162,7 +186,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="15" style="text-align:center;padding:32px;color:var(--text-muted)">
+      <tr><td colspan="17" style="text-align:center;padding:32px;color:var(--text-muted)">
         Sin resultados. <a href="/correspondencia/nuevo">Registrar nuevo oficio</a> o <a href="/correspondencia/importar">importar desde Excel</a>.
       </td></tr>
       {% endfor %}

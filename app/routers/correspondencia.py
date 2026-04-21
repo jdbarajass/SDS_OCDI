@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 import io
 
 from urllib.parse import quote_plus as _quote_plus
@@ -30,6 +30,20 @@ TIPOS_RESPUESTA = [
     "AUTO INHIBITORIO",
     "ANTECEDENTES",
     "RESPUESTA CORREO ELECTRONICO",
+]
+
+TERMINOS_DIAS = [3, 5, 10, 15, 30]
+
+TIPOS_REQUERIMIENTO = [
+    "DERECHO DE PETICION",
+    "TUTELA",
+    "PROPOSICION DEL CONSEJO",
+    "REQUERIMIENTO ENTES DE CONTROL",
+    "PROCURADURIA",
+    "CONTRALORIA",
+    "PERSONERIA",
+    "ANONIMO",
+    "DIRECCION DE ASUNTOS DISCIPLINARIOS DE LA SECRETARIA JURIDICA GENERAL",
 ]
 
 # Mapa de limpieza de nombres para importación histórica
@@ -64,20 +78,6 @@ def _clean_responsable(nombre: str | None) -> str | None:
     return RESPONSABLE_MAP.get(n, n.title() if n.islower() else n)
 
 
-def _semaforo(dias) -> str | None:
-    if dias is None:
-        return None
-    try:
-        d = int(dias)
-    except (TypeError, ValueError):
-        return None
-    if d <= 5:
-        return "verde"
-    if d <= 8:
-        return "amarilla"
-    return "roja"
-
-
 def _anios_disponibles():
     return list(range(2024, date.today().year + 3))
 
@@ -92,31 +92,119 @@ def _get_catalogos(conn):
     return responsables, tipos_doc
 
 
-# ── Semáforo SQL (cols calculadas) ────────────────────────────────────────────
+# ── Días hábiles Colombia ──────────────────────────────────────────────────────
 
-# Condición reutilizable para ambas variantes de ANEXO (sin conteo de días)
-_ANEXO_COND = "UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE')"
+def _easter(year: int) -> date:
+    """Gauss algorithm for Easter Sunday."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
 
-_SEMAFORO_SQL = """
-    CASE
-        WHEN c.fecha_ingreso IS NULL THEN NULL
-        WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN 'verde'
-        WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != '' THEN 'respondido'
-        WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 'verde'
-        WHEN CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 8 THEN 'amarilla'
-        ELSE 'roja'
-    END AS semaforo
-"""
 
-_DIAS_SQL = """
-    CASE
-        WHEN c.fecha_ingreso IS NULL THEN NULL
-        WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN NULL
-        WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
-            THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10)) - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
-        ELSE CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
-    END AS dias_transcurridos
-"""
+def _next_monday(d: date) -> date:
+    """Return d if Monday, else advance to next Monday."""
+    days_ahead = (7 - d.weekday()) % 7
+    return d if days_ahead == 0 else d + timedelta(days=days_ahead)
+
+
+def _festivos_colombia(year: int) -> set:
+    festivos = set()
+    for m, day in [(1, 1), (5, 1), (7, 20), (8, 7), (12, 8), (12, 25)]:
+        festivos.add(date(year, m, day))
+    for m, day in [(1, 6), (3, 19), (6, 29), (8, 15), (10, 12), (11, 1), (11, 11)]:
+        festivos.add(_next_monday(date(year, m, day)))
+    easter = _easter(year)
+    festivos.add(easter - timedelta(days=3))   # Jueves Santo
+    festivos.add(easter - timedelta(days=2))   # Viernes Santo
+    festivos.add(_next_monday(easter + timedelta(days=39)))   # Ascensión
+    festivos.add(_next_monday(easter + timedelta(days=60)))   # Corpus Christi
+    festivos.add(_next_monday(easter + timedelta(days=68)))   # Sagrado Corazón
+    return festivos
+
+
+def _add_dias_habiles(inicio: date, dias: int) -> date:
+    festivos = _festivos_colombia(inicio.year) | _festivos_colombia(inicio.year + 1)
+    current = inicio
+    count = 0
+    while count < dias:
+        current += timedelta(days=1)
+        if current.weekday() < 5 and current not in festivos:
+            count += 1
+    return current
+
+
+def _calcular_semaforo_row(r: dict) -> dict:
+    _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
+    r["dias_restantes"] = None
+    r["fecha_termino_respuesta"] = None
+
+    if r.get("tipo_respuesta") and r["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
+        r["semaforo"] = "verde"
+        r["dias_transcurridos"] = None
+        return r
+
+    if r.get("fecha_radicado_salida"):
+        r["semaforo"] = "respondido"
+        if r.get("fecha_ingreso"):
+            try:
+                fi = date.fromisoformat(r["fecha_ingreso"][:10])
+                fs = date.fromisoformat(r["fecha_radicado_salida"][:10])
+                r["dias_transcurridos"] = (fs - fi).days
+            except Exception:
+                pass
+        return r
+
+    if not r.get("fecha_ingreso"):
+        r["semaforo"] = None
+        r["dias_transcurridos"] = None
+        return r
+
+    if r.get("termino_dias"):
+        try:
+            fi = date.fromisoformat(r["fecha_ingreso"][:10])
+            termino = int(r["termino_dias"])
+            fecha_limite = _add_dias_habiles(fi, termino) - timedelta(days=2)
+            r["fecha_termino_respuesta"] = fecha_limite.isoformat()
+            dias_restantes = (fecha_limite - date.today()).days
+            r["dias_restantes"] = dias_restantes
+            r["dias_transcurridos"] = None
+            if dias_restantes >= 2:
+                r["semaforo"] = "verde"
+            elif dias_restantes >= 0:
+                r["semaforo"] = "amarilla"
+            else:
+                r["semaforo"] = "roja"
+        except Exception:
+            r["semaforo"] = None
+        return r
+
+    # Lógica antigua: días transcurridos
+    try:
+        fi = date.fromisoformat(r["fecha_ingreso"][:10])
+        dias = (date.today() - fi).days
+        r["dias_transcurridos"] = dias
+        if dias <= 5:
+            r["semaforo"] = "verde"
+        elif dias <= 8:
+            r["semaforo"] = "amarilla"
+        else:
+            r["semaforo"] = "roja"
+    except Exception:
+        r["semaforo"] = None
+
+    return r
 
 
 # ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -127,7 +215,7 @@ async def dashboard(request: Request):
 
     total = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
 
-    stats = conn.execute(f"""
+    stats = conn.execute("""
         SELECT
             SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) AS respondidos,
             SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE') THEN 1
@@ -161,10 +249,9 @@ async def dashboard(request: Request):
             ELSE 99 END
     """).fetchall()
 
-    # Pendientes críticos (rojos) para tabla de alerta — excluye ANEXO EXPEDIENTE
-    criticos = conn.execute(f"""
+    criticos = conn.execute("""
         SELECT c.id, c.n_radicado, c.responsable, c.asunto, c.mes, c.fecha_ingreso,
-               {_DIAS_SQL}
+               CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) AS dias_transcurridos
         FROM correspondencia c
         WHERE (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida = '')
         AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
@@ -217,56 +304,41 @@ async def lista(
     if anio.strip():
         filtros.append("c.anio = ?")
         params.append(int(anio.strip()))
-    if semaforo == "verde":
-        filtros.append("""(
-            UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE')
-            OR (
-                (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='')
-                AND c.fecha_ingreso IS NOT NULL
-                AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-                AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) <= 5
-            )
-        )""")
-    elif semaforo == "amarilla":
-        filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
-            AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-            AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8""")
-    elif semaforo == "roja":
-        filtros.append("""(c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida='') AND c.fecha_ingreso IS NOT NULL
-            AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-            AND CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) >= 9""")
-    elif semaforo == "respondido":
-        filtros.append("c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''")
 
     where = " AND ".join(filtros)
 
-    total = conn.execute(f"SELECT COUNT(*) FROM correspondencia c WHERE {where}", params).fetchone()[0]
-    offset = (page - 1) * por_pagina
-
-    rows = conn.execute(f"""
+    # Fetch all qualifying rows — semaphore filter applied in Python
+    rows_raw = conn.execute(f"""
         SELECT c.*,
-               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
-               {_SEMAFORO_SQL},
-               {_DIAS_SQL}
+               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         WHERE {where}
         GROUP BY c.id
         ORDER BY c.fecha_ingreso DESC
-        LIMIT ? OFFSET ?
-    """, params + [por_pagina, offset]).fetchall()
+    """, params).fetchall()
 
     anios_bd = [r[0] for r in conn.execute(
         "SELECT DISTINCT anio FROM correspondencia WHERE anio IS NOT NULL ORDER BY anio DESC"
     ).fetchall()]
     conn.close()
 
+    # Compute semaphore for all rows in Python
+    all_rows = [_calcular_semaforo_row(dict(r)) for r in rows_raw]
+
+    # Apply semaphore filter in Python
+    if semaforo:
+        all_rows = [r for r in all_rows if r.get("semaforo") == semaforo]
+
+    total = len(all_rows)
     total_pages = max(1, (total + por_pagina - 1) // por_pagina)
+    offset = (page - 1) * por_pagina
+    rows = all_rows[offset:offset + por_pagina]
 
     return templates.TemplateResponse("corr_lista.html", {
         "request": request,
         "active": "corr_lista",
-        "rows": [dict(r) for r in rows],
+        "rows": rows,
         "total": total,
         "page": page,
         "total_pages": total_pages,
@@ -300,6 +372,8 @@ async def nuevo_form(request: Request):
         "responsables": responsables,
         "tipos_doc": tipos_doc,
         "tipos_respuesta": TIPOS_RESPUESTA,
+        "terminos_dias": TERMINOS_DIAS,
+        "tipos_requerimiento": TIPOS_REQUERIMIENTO,
         "meses": MESES,
         "anios": _anios_disponibles(),
     })
@@ -321,19 +395,23 @@ async def nuevo_post(
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
     correo_remitente: str = Form(""),
+    sinproc_personeria: str = Form(""),
+    tipo_requerimiento: str = Form(""),
+    termino_dias: str = Form(""),
 ):
     conn = get_db()
+    termino_val = int(termino_dias) if termino_dias.strip() else None
     cur = conn.execute("""
         INSERT INTO correspondencia
         (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
          responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
-         correo_remitente)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+         correo_remitente, sinproc_personeria, tipo_requerimiento, termino_dias)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
-        _v(correo_remitente),
+        _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento), termino_val,
     ])
     new_id = cur.lastrowid
     conn.commit()
@@ -352,10 +430,11 @@ async def exportar():
         return RedirectResponse("/correspondencia/?msg=error_openpyxl")
 
     conn = get_db()
-    rows = conn.execute(f"""
+    rows = conn.execute("""
         SELECT c.*,
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
-               {_DIAS_SQL}
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls,
+               CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) AS dias_transcurridos
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         GROUP BY c.id
@@ -374,9 +453,10 @@ async def exportar():
 
     headers = [
         "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
-        "ORIGEN AGILSALUD", "CORREO REMITENTE", "ASUNTO AGILSALUD", "TIPO DE DOCUMENTO",
-        "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
-        "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRAMITE DE SALIDA",
+        "ENTIDAD", "CORREO REMITENTE", "ASUNTO AGILSALUD", "TIPO DE DOCUMENTO",
+        "RESPONSABLE", "CASO BMP", "SINPROC PERSONERIA", "TIPO DE REQUERIMIENTO",
+        "TERMINO (DIAS)", "N RADICADO SALIDA", "URL RADICADO SALIDA",
+        "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
         "DÍAS TRANSCURRIDOS",
     ]
     for ci, h in enumerate(headers, 1):
@@ -390,11 +470,25 @@ async def exportar():
         d = dict(row)
         fill = alt_fill if ri % 2 == 0 else None
         vals = [
-            d.get("anio"), d.get("mes"), d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-            d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
-            d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
-            d.get("radicados_salida"), d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
-            d.get("tipo_respuesta"), d.get("tramite_salida"), d.get("dias_transcurridos"),
+            d.get("anio"),
+            d.get("mes"),
+            d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
+            d.get("n_radicado"),
+            d.get("origen"),
+            d.get("correo_remitente"),
+            d.get("asunto"),
+            d.get("tipo_documento"),
+            d.get("responsable"),
+            d.get("caso_bmp"),
+            d.get("sinproc_personeria"),
+            d.get("tipo_requerimiento"),
+            d.get("termino_dias"),
+            d.get("radicados_salida"),
+            d.get("radicados_urls"),
+            d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
+            d.get("tipo_respuesta"),
+            d.get("tramite_salida"),
+            d.get("dias_transcurridos"),
         ]
         for ci, v in enumerate(vals, 1):
             cell = ws.cell(row=ri, column=ci, value=v)
@@ -402,7 +496,7 @@ async def exportar():
             if fill:
                 cell.fill = fill
 
-    col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 20, 20, 25, 25, 8]
+    col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 18, 40, 10, 20, 40, 20, 25, 25, 8]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -450,15 +544,6 @@ async def importar_post(archivo: UploadFile = File(...)):
     except Exception:
         return RedirectResponse("/correspondencia/importar?msg=error_archivo", status_code=303)
 
-    # ── Detectar formato ──────────────────────────────────────────────────────
-    # Formato ORIGINAL: hojas con nombres de meses ("ENERO 2026", "FEBRERO2026",...)
-    #   - Filas 1-5 son título/encabezado, datos empiezan en fila 6
-    #   - 14 cols: MES|FECHA|N.RAD|ORIGEN|ASUNTO|TIPO_DOC|RESPONSABLE|CASO_BMP|
-    #              RADICADO_BMP(vacío)|TRAMITE_SAL(vacío)|N_RAD_SAL|FECHA_RADIC|TIPO_RESP|TRAMITE
-    # Formato EXPORTADO: hoja "CORRESPONDENCIA" con encabezado en fila 1
-    #   - 14 cols: AÑO|MES|FECHA|N.RAD|ORIGEN|ASUNTO|TIPO_DOC|RESPONSABLE|CASO_BMP|
-    #              N_RAD_SAL|FECHA_SAL|TIPO_RESP|TRAMITE|DÍAS
-
     MESES_HOJAS = ("ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
                    "JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE")
 
@@ -483,17 +568,12 @@ async def importar_post(archivo: UploadFile = File(...)):
         conn.execute("DELETE FROM correspondencia")
 
         if es_formato_original:
-            # ── Formato original: iterar todas las hojas de meses ─────────────
+            # Formato original: iterar todas las hojas de meses
             for nombre_hoja in hojas_originales:
                 ws = wb[nombre_hoja]
-                # Columnas del Excel original (0-indexed):
-                # 0:MES 1:FECHA 2:N.RADICADOS 3:ORIGEN 4:ASUNTO 5:TIPO_DOC
-                # 6:RESPONSABLE 7:CASO_BMP 8:RADICADO_BMP(vacío) 9:TRAMITE_SAL(vacío)
-                # 10:N_RADICADO_SALIDA 11:FECHA_RADIC_DOC 12:TIPO_RESPUESTA 13:TRAMITE(sin header)
                 for row in ws.iter_rows(min_row=6, values_only=True):
                     if not any(v for v in row if v is not None):
                         continue
-                    # Saltar fila de encabezado si por alguna razón quedó en datos
                     if _v(row[0]) and str(row[0]).strip().upper() in ("MES", "MES "):
                         continue
 
@@ -505,14 +585,11 @@ async def importar_post(archivo: UploadFile = File(...)):
                     tipo_d_val = _v(row[5])
                     resp_val   = _v(row[6])
                     bmp_val    = _v(row[7])
-                    # row[8] = RADICADO BMP  → siempre vacío, se omite
-                    # row[9] = TRAMITE DE SALIDA (header) → siempre vacío, se omite
                     rad_sal    = _v(row[10]) if len(row) > 10 else None
                     fsal_val   = _norm_fecha(_v(row[11]) if len(row) > 11 else None)
                     tipor_val  = _v(row[12]) if len(row) > 12 else None
                     tram_val   = _v(row[13]) if len(row) > 13 else None
 
-                    # Inferir año de la fecha de ingreso
                     anio_val = None
                     if fi_val:
                         try:
@@ -524,7 +601,6 @@ async def importar_post(archivo: UploadFile = File(...)):
                         mes_val = mes_val.strip().upper()
                     resp_val = _clean_responsable(resp_val)
 
-                    # Necesita al menos fecha o radicado para ser un registro válido
                     if not fi_val and not rad_val:
                         continue
 
@@ -548,7 +624,7 @@ async def importar_post(archivo: UploadFile = File(...)):
                                 )
 
         else:
-            # ── Formato exportado: hoja "CORRESPONDENCIA" con headers en fila 1 ──
+            # Formato exportado: hoja "CORRESPONDENCIA" con headers en fila 1
             ws = None
             for nombre in ["CORRESPONDENCIA", "CORR", "2026"]:
                 if nombre in wb.sheetnames:
@@ -557,32 +633,66 @@ async def importar_post(archivo: UploadFile = File(...)):
             if ws is None:
                 ws = wb.active
 
-            # Columnas exportadas (0-indexed):
-            # 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ORIGEN 5:ASUNTO 6:TIPO_DOC
-            # 7:RESPONSABLE 8:CASO_BMP 9:N_RAD_SAL 10:FECHA_SAL 11:TIPO_RESP 12:TRAMITE 13:DÍAS
+            # Detectar si es formato nuevo (19 cols) o antiguo (15 cols)
+            # Buscando header en fila 1
+            header_row = [str(c.value or "").strip().upper() for c in ws[1]]
+            es_nuevo_formato = len(header_row) >= 19 or any(
+                h in header_row for h in ("SINPROC PERSONERIA", "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)")
+            )
+
             for row in ws.iter_rows(min_row=2, values_only=True):
                 if not any(v for v in row if v is not None):
                     continue
-                # Detectar que col[0] sea un año (número entero)
                 try:
                     int(row[0])
                 except (ValueError, TypeError):
-                    continue  # Saltar filas que no sean datos
+                    continue
 
                 anio_val   = _v(row[0])
                 mes_val    = _v(row[1])
                 fi_val     = _norm_fecha(_v(row[2]))
                 rad_val    = _v(row[3])
                 orig_val   = _v(row[4])
-                asunto_val = _v(row[5])
-                tipo_d_val = _v(row[6])
-                resp_val   = _v(row[7])
-                bmp_val    = _v(row[8])
-                rad_sal    = _v(row[9])
-                fsal_val   = _norm_fecha(_v(row[10]) if len(row) > 10 else None)
-                tipor_val  = _v(row[11]) if len(row) > 11 else None
-                tram_val   = _v(row[12]) if len(row) > 12 else None
-                # row[13] = DÍAS TRANSCURRIDOS → se omite (valor calculado)
+
+                if es_nuevo_formato:
+                    # Cols: 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ENTIDAD 5:CORREO 6:ASUNTO
+                    # 7:TIPO_DOC 8:RESPONSABLE 9:CASO_BMP 10:SINPROC 11:TIPO_REQ 12:TERMINO
+                    # 13:N_RAD_SAL 14:URL_RAD_SAL 15:FECHA_SAL 16:TIPO_RESP 17:OBSERV 18:DÍAS
+                    correo_val = _v(row[5]) if len(row) > 5 else None
+                    asunto_val = _v(row[6]) if len(row) > 6 else None
+                    tipo_d_val = _v(row[7]) if len(row) > 7 else None
+                    resp_val   = _v(row[8]) if len(row) > 8 else None
+                    bmp_val    = _v(row[9]) if len(row) > 9 else None
+                    sinproc_val = _v(row[10]) if len(row) > 10 else None
+                    tiporeq_val = _v(row[11]) if len(row) > 11 else None
+                    termino_val_str = _v(row[12]) if len(row) > 12 else None
+                    rad_sal    = _v(row[13]) if len(row) > 13 else None
+                    url_sal    = _v(row[14]) if len(row) > 14 else None
+                    fsal_val   = _norm_fecha(_v(row[15]) if len(row) > 15 else None)
+                    tipor_val  = _v(row[16]) if len(row) > 16 else None
+                    tram_val   = _v(row[17]) if len(row) > 17 else None
+                    termino_val = None
+                    if termino_val_str:
+                        try:
+                            termino_val = int(float(termino_val_str))
+                        except Exception:
+                            pass
+                else:
+                    # Antiguo: 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ORIGEN 5:ASUNTO 6:TIPO_DOC
+                    # 7:RESPONSABLE 8:CASO_BMP 9:N_RAD_SAL 10:FECHA_SAL 11:TIPO_RESP 12:TRAMITE 13:DÍAS
+                    correo_val = None
+                    asunto_val = _v(row[5]) if len(row) > 5 else None
+                    tipo_d_val = _v(row[6]) if len(row) > 6 else None
+                    resp_val   = _v(row[7]) if len(row) > 7 else None
+                    bmp_val    = _v(row[8]) if len(row) > 8 else None
+                    sinproc_val = None
+                    tiporeq_val = None
+                    termino_val = None
+                    rad_sal    = _v(row[9]) if len(row) > 9 else None
+                    url_sal    = None
+                    fsal_val   = _norm_fecha(_v(row[10]) if len(row) > 10 else None)
+                    tipor_val  = _v(row[11]) if len(row) > 11 else None
+                    tram_val   = _v(row[12]) if len(row) > 12 else None
 
                 if mes_val:
                     mes_val = mes_val.strip().upper()
@@ -591,24 +701,29 @@ async def importar_post(archivo: UploadFile = File(...)):
                 cur = conn.execute("""
                     INSERT INTO correspondencia
                     (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
-                     responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                     responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
+                     correo_remitente, sinproc_personeria, tipo_requerimiento, termino_dias)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, [anio_val, mes_val, fi_val, rad_val, orig_val, asunto_val,
-                      tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val])
+                      tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val,
+                      correo_val, sinproc_val, tiporeq_val, termino_val])
                 cid = cur.lastrowid
                 insertados += 1
 
                 if rad_sal:
-                    for r in str(rad_sal).split("|"):
+                    # url_sal can be pipe-separated if there are multiple
+                    urls = [u.strip() for u in url_sal.split("|")] if url_sal else []
+                    for idx, r in enumerate(str(rad_sal).split("|")):
                         r = r.strip()
                         if r:
+                            u = urls[idx] if idx < len(urls) else None
                             conn.execute(
-                                "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado) VALUES (?,?)",
-                                (cid, r),
+                                "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado, url) VALUES (?,?,?)",
+                                (cid, r, u or None),
                             )
 
         conn.commit()
-    except Exception as e:
+    except Exception:
         conn.rollback()
         conn.close()
         return RedirectResponse(f"/correspondencia/importar?msg=error_import", status_code=303)
@@ -759,13 +874,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(row):
             continue
-        # Columnas (1-indexed → 0-indexed):
-        # Col 1 (idx 0): Número de radicado → n_radicado
-        # Col 5 (idx 4): Destinatario → responsable (filtrar)
-        # Col 7 (idx 6): Dependencia Remitente → origen
-        # Col 9 (idx 8): Correo Electrónico Remitente → correo_remitente
-        # Col 11 (idx 10): Fecha de radicación → fecha_ingreso
-        # Col 13 (idx 12): Asunto → asunto
         destinatario = str(row[4] or "").strip().upper() if len(row) > 4 else ""
         if destinatario not in _AGILSALUD_DESTINATARIOS:
             continue
@@ -776,7 +884,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
         fecha_raw = row[10] if len(row) > 10 else None
         asunto = str(row[12] or "").strip() if len(row) > 12 else ""
 
-        # Parsear fecha
         fecha_ingreso = ""
         mes = ""
         anio = ""
@@ -788,7 +895,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
                     anio = fecha_raw.year
                 else:
                     s = str(fecha_raw).strip()
-                    # formato '2026-04-01 07:26:27.280000'
                     fecha_ingreso = s[:10]
                     from datetime import datetime as _dt
                     dt = _dt.fromisoformat(fecha_ingreso)
@@ -797,7 +903,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
             except Exception:
                 pass
 
-        # Normalizar responsable al nombre canónico del catálogo
         resp_map = {
             "MARTHA PATRICIA AÑEZ MAESTRE": "MARTHA PATRICIA AÑEZ MAESTRE",
             "MABEL GICELA HURTADO SANCHEZ": "MABEL GICELLA HURTADO",
@@ -878,28 +983,7 @@ async def ver(request: Request, reg_id: int, back: str = ""):
         (reg_id,),
     ).fetchall()
     conn.close()
-    reg = dict(row)
-    dias = None
-    if reg.get("fecha_ingreso"):
-        try:
-            fi = date.fromisoformat(reg["fecha_ingreso"][:10])
-            if reg.get("fecha_radicado_salida"):
-                fs = date.fromisoformat(reg["fecha_radicado_salida"][:10])
-                dias = (fs - fi).days
-            else:
-                dias = (date.today() - fi).days
-        except Exception:
-            pass
-    _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
-    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
-        dias = None
-    reg["dias_transcurridos"] = dias
-    if reg.get("tipo_respuesta") and reg["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
-        reg["semaforo"] = "verde"
-    elif reg.get("fecha_radicado_salida"):
-        reg["semaforo"] = "respondido"
-    else:
-        reg["semaforo"] = _semaforo(dias)
+    reg = _calcular_semaforo_row(dict(row))
     return templates.TemplateResponse("corr_detalle.html", {
         "request": request,
         "active": "corr_lista",
@@ -931,6 +1015,8 @@ async def editar_form(request: Request, reg_id: int, msg: str = "", back: str = 
         "responsables": responsables,
         "tipos_doc": tipos_doc,
         "tipos_respuesta": TIPOS_RESPUESTA,
+        "terminos_dias": TERMINOS_DIAS,
+        "tipos_requerimiento": TIPOS_REQUERIMIENTO,
         "meses": MESES,
         "anios": _anios_disponibles(),
         "msg": msg,
@@ -954,20 +1040,26 @@ async def editar_post(
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
     correo_remitente: str = Form(""),
+    sinproc_personeria: str = Form(""),
+    tipo_requerimiento: str = Form(""),
+    termino_dias: str = Form(""),
 ):
+    termino_val = int(termino_dias) if termino_dias.strip() else None
     conn = get_db()
     conn.execute("""
         UPDATE correspondencia SET
         anio=?, mes=?, fecha_ingreso=?, n_radicado=?, origen=?, asunto=?,
         tipo_documento=?, responsable=?, caso_bmp=?, fecha_radicado_salida=?,
         tipo_respuesta=?, tramite_salida=?, correo_remitente=?,
+        sinproc_personeria=?, tipo_requerimiento=?, termino_dias=?,
         updated_at=datetime('now','localtime')
         WHERE id=?
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
-        _v(correo_remitente), reg_id,
+        _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento),
+        termino_val, reg_id,
     ])
     conn.commit()
     conn.close()
@@ -986,13 +1078,14 @@ async def eliminar(reg_id: int):
 # ── RADICADOS DE SALIDA ────────────────────────────────────────────────────────
 
 @router.post("/{reg_id}/radicado_salida/nuevo")
-async def radicado_nuevo(reg_id: int, radicado: str = Form(...)):
+async def radicado_nuevo(reg_id: int, radicado: str = Form(...), url: str = Form("")):
     r = radicado.strip()
+    u = url.strip() or None
     if r:
         conn = get_db()
         conn.execute(
-            "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado) VALUES (?,?)",
-            (reg_id, r),
+            "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado, url) VALUES (?,?,?)",
+            (reg_id, r, u),
         )
         conn.commit()
         conn.close()

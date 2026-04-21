@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v2.4** — Última actualización: 2026-04-15
+> **Versión actual: v2.5** — Última actualización: 2026-04-21
 
 ---
 
@@ -102,10 +102,15 @@ Aplicación **web local** (LAN) que:
 | `exp_comunicaciones` | Digitales | Comunicaciones hijo de cada expediente digital (N:1) con ON DELETE CASCADE |
 | `exp_revisiones` | Digitales | Historial de revisiones por expediente digital con fecha |
 | `sala_agenda` | Sala | Eventos de sala por fecha y franja horaria |
-| `correspondencia` | Reparto | Oficios de la lista de reparto de abogados (14 campos + metadata, incluye `correo_remitente`) |
-| `correspondencia_radicados_salida` | Reparto | Radicados de salida múltiples por oficio (N:1) con ON DELETE CASCADE |
+| `control_autos_sustanciacion` | Control Autos | Autos de sustanciación y/o trámites — formato SDS-CDO-FT-001 v4 (6 campos + metadata) |
+| `correspondencia` | Reparto | Oficios de la lista de reparto de abogados (17 campos + metadata; incluye `sinproc_personeria`, `tipo_requerimiento`, `termino_dias`) |
+| `correspondencia_radicados_salida` | Reparto | Radicados de salida múltiples por oficio (N:1) con ON DELETE CASCADE; incluye campo `url` para hipervínculos |
 | `corr_responsables` | Reparto | Catálogo de responsables (abogados) configurable |
 | `corr_tipos_documento` | Reparto | Catálogo de tipos de documento configurable |
+
+### Campos de `correspondencia`
+
+`id`, `anio`, `mes`, `fecha_ingreso`, `n_radicado`, `origen` (etiqueta: **Entidad**), `asunto`, `tipo_documento`, `responsable`, `caso_bmp`, `fecha_radicado_salida`, `tipo_respuesta`, `tramite_salida` (etiqueta: **Observaciones**), `correo_remitente`, `sinproc_personeria`, `tipo_requerimiento`, `termino_dias`, `created_at`, `updated_at`
 
 ### Campos del expediente por bloques
 
@@ -180,25 +185,55 @@ Aplicación **web local** (LAN) que:
 | 7 | **Exportar reporte completo** — Excel con formato y colores por alerta | ✅ v1.0 |
 | 8 | **Exportar reporte filtrado** — Filtros avanzados + selección de bloques de columnas + opción "todo + indicador EN FILTRO" | ✅ v2.1 |
 
+### Módulo 1B — CONTROL DE AUTOS DE SUSTANCIACIÓN Y/O TRÁMITES (`/control-autos/`)
+
+Módulo para el registro y seguimiento de autos de sustanciación disciplinaria. Replica el formato oficial **SDS-CDO-FT-001 v4**.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Lista de autos** — Paginación 25/página, filtros por abogado (select predefinido), texto, exportación Excel | ✅ v2.5 |
+| 2 | **CRUD** — Crear, ver detalle, editar, eliminar | ✅ v2.5 |
+| 3 | **Encabezado oficial** — Formulario y exportación replican el formato SDS-CDO-FT-001 con membrete institucional, código, versión y firmas | ✅ v2.5 |
+| 4 | **ABOGADO RESPONSABLE** — Select con 11 nombres completos en mayúsculas (lista predefinida) | ✅ v2.5 |
+| 5 | **ASUNTO AUTO** — Select con 26 tipos oficiales de autos de sustanciación | ✅ v2.5 |
+| 6 | **NÚMERO DEL AUTO** — Acepta consecutivo numérico (001, 002…) o texto "DIGITAL" | ✅ v2.5 |
+| 7 | **Importar Excel** — Acepta formato original (hoja "NUEVO", datos desde fila 8) y formato exportado (hoja "CONTROL AUTOS", desde fila 7). Filtra filas de pie de página con longitud > 20 caracteres | ✅ v2.5 |
+| 8 | **Exportar Excel** — Replica el encabezado oficial con institución, código, versión y firmas. Hoja "CONTROL AUTOS" con 6 columnas | ✅ v2.5 |
+| 9 | **Tile en portal** — Muestra conteo de autos registrados | ✅ v2.5 |
+| 10 | **Integrado en Backup General** — Hoja 4 "Control Autos" (verde oscuro) en export/import y en ZIP (carpeta `05_Control_Autos_Sustanciacion/`) | ✅ v2.5 |
+
+**Constantes predefinidas:**
+- `ABOGADOS_RESPONSABLES` (11): ANDRES EDUARDO SANDOVAL MAYORGA, CARLOS ALFONSO PARRA MALAVER, CESAR IVAN RODRIGUEZ DAMIAN, DAVID FELIPE MORALES NOGUERA, JANIK HERNANDO DE LA HOZ RIOS, JOSE DE JESUS BARAJAS SOTELO, LUNA GICELL GUZMAN YATE, MABEL GICELLA HURTADO SANCHEZ, MAGDA XIMENA PAREDES LIEVANO, MARA LUCIA UCROS MERLANO, MARTHA PATRICIA AÑEZ MAESTRE.
+- `ASUNTOS_COMUNES` (26): Apertura Indagación Preliminar, Apertura Investigación Disciplinaria, Auto Inhibitorio, Citar a descargos, Citar a diligencia de versión libre, Comisionar, Decretar pruebas, Dejar sin efecto, Desarchivo, Devolver expediente, Informe de gestión, Nulidad, Ordena traslado, Pliego de Cargos, Prórroga de términos, Recurso de apelación, Recurso de queja, Recurso de reposición, Remisión, Solicitar información, Suspensión provisional, Auto de Archivo, Traslado probatorio, Vista Fiscal, Declarar Prescripción, Envío de Expediente.
+
 ### Módulo 2 — LISTA DE REPARTO DE ABOGADOS (`/correspondencia/`)
 
-Módulo para el control de oficios y correspondencia recibida, con semáforo de respuesta, catálogos configurables y gestión de múltiples radicados de salida por oficio.
+Módulo para el control de oficios y correspondencia recibida. Incluye semáforo de respuesta dual (días transcurridos o fecha límite según configuración), catálogos configurables y gestión de múltiples radicados de salida con URL.
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
 | 1 | **Dashboard** — Tarjetas 🟢/🟡/🔴/✅, barras por responsable y por mes, tabla de críticos ordenada por días sin respuesta | ✅ v2.3 |
-| 2 | **Lista de oficios** — Semáforo por fila, filtros por semáforo/responsable/mes/año/texto, scroll horizontal, paginación | ✅ v2.3 |
-| 3 | **Gestión de oficios** — Crear, ver detalle, editar, eliminar. Campo `correo_remitente` visible en formulario y detalle | ✅ v2.4 |
-| 4 | **Radicados de salida múltiples** — Por oficio se puede registrar N radicados de salida en tabla separada | ✅ v2.3 |
-| 5 | **Semáforo de respuesta** — 🟢 0–5 días · 🟡 6–8 días · 🔴 9+ días · ✅ Respondido. Calculado con `julianday()` SQLite | ✅ v2.3 |
-| 6 | **Excepción ANEXO EXPEDIENTE / ANEXO AL EXPEDIENTE** — Ambas variantes siempre aparecen en 🟢 sin conteo de días (muestra `—`). Excluidas de alertas, dashboard rojo/amarillo, portal y backup | ✅ v2.4 |
-| 7 | **Catálogos configurables** — CRUD de responsables y tipos de documento desde `/correspondencia/configurar` | ✅ v2.3 |
-| 8 | **Tipo de Respuesta — combobox** — 12 opciones predefinidas + texto libre (HTML5 `<datalist>`). Incluye "ANEXO AL EXPEDIENTE" | ✅ v2.4 |
-| 9 | **Importar desde Excel histórico** — Acepta formato original (12 cols) y exportado (14 cols); reemplaza todo con confirmación doble | ✅ v2.3 |
-| 10 | **Importar desde AgilSalud** (`/correspondencia/importar-agilsalud`) — Carga el archivo `Documentos.xlsx` de AgilSalud; filtra por 2 destinatarias; muestra previsualización; agrega sin borrar datos existentes | ✅ v2.4 |
-| 11 | **Exportar a Excel** — Incluye columnas Días Transcurridos y Correo Remitente | ✅ v2.4 |
+| 2 | **Lista de oficios** — Semáforo por fila, filtros por semáforo/responsable/mes/año/texto, scroll horizontal, paginación. Columnas: Tipo Req., Término, Observaciones, Entidad | ✅ v2.5 |
+| 3 | **Gestión de oficios** — Crear, ver detalle, editar, eliminar. Campos: SINPROC Personería, Tipo de Requerimiento, Término (Días), Entidad (antes "Origen"), Observaciones (antes "Trámite de Salida") | ✅ v2.5 |
+| 4 | **Radicados de salida múltiples con URL** — Por oficio se registran N radicados con campo `url` opcional. En formulario y detalle el radicado es un hipervínculo clickable que abre en nueva pestaña | ✅ v2.5 |
+| 5 | **Semáforo dual de respuesta** | ✅ v2.5 |
+|   | *Modo A — días transcurridos* (cuando `termino_dias` no está definido): 🟢 0–5 días / 🟡 6–8 días / 🔴 9+ días | |
+|   | *Modo B — fecha límite* (cuando `termino_dias` está definido): calcula `fecha_termino = fecha_ingreso + N días hábiles Colombia − 2 días`. 🟢 ≥2 días restantes / 🟡 0–1 días restantes / 🔴 pasó la fecha | |
+| 6 | **Días hábiles Colombia** — Función Python `_add_dias_habiles()` con cálculo de Pascua (algoritmo de Gauss), festivos fijos, festivos Ley Emiliani (siguiente lunes) y festivos móviles basados en Pascua | ✅ v2.5 |
+| 7 | **Excepción ANEXO EXPEDIENTE / ANEXO AL EXPEDIENTE** — Ambas variantes siempre aparecen en 🟢 sin conteo de días. Excluidas de alertas, dashboard y portal | ✅ v2.4 |
+| 8 | **TIPO DE REQUERIMIENTO** — Select con 9 valores predefinidos: DERECHO DE PETICION, TUTELA, PROPOSICION DEL CONSEJO, REQUERIMIENTO ENTES DE CONTROL, PROCURADURIA, CONTRALORIA, PERSONERIA, ANONIMO, DIRECCION DE ASUNTOS DISCIPLINARIOS DE LA SECRETARIA JURIDICA GENERAL | ✅ v2.5 |
+| 9 | **TÉRMINO (DIAS)** — Select: 3 / 5 / 10 / 15 / 30 días | ✅ v2.5 |
+| 10 | **SINPROC PERSONERÍA** — Campo alfanumérico de texto libre (Ej: 2026-SP-001) | ✅ v2.5 |
+| 11 | **Catálogos configurables** — CRUD de responsables y tipos de documento desde `/correspondencia/configurar` | ✅ v2.3 |
+| 12 | **Tipo de Respuesta — combobox** — 11 opciones predefinidas + texto libre (HTML5 `<datalist>`) | ✅ v2.4 |
+| 13 | **Importar desde Excel** — Detecta automáticamente formato antiguo (15 cols) vs. nuevo (19 cols, con SINPROC/TIPO_REQ/TERMINO/URL). Reemplaza todo | ✅ v2.5 |
+| 14 | **Importar desde AgilSalud** — Carga `Documentos.xlsx`; filtra por 2 destinatarias; previsualización obligatoria; modo ADD | ✅ v2.4 |
+| 15 | **Exportar a Excel** — 19 columnas: AÑO, MES, FECHA INGRESO, N. RADICADOS, ENTIDAD, CORREO REMITENTE, ASUNTO, TIPO DOC, RESPONSABLE, CASO BMP, SINPROC PERSONERIA, TIPO DE REQUERIMIENTO, TERMINO (DIAS), N RADICADO SALIDA, URL RADICADO SALIDA, FECHA RADICADO DE SALIDA, TIPO DE RESPUESTA, OBSERVACIONES, DÍAS TRANSCURRIDOS | ✅ v2.5 |
 
-**Regla de negocio — semáforo:** El semáforo es activo (cuenta días desde hoy) mientras no haya `fecha_radicado_salida`. Una vez registrada la fecha de salida, el registro pasa a ✅ Respondido y muestra los días que tardó la respuesta. Los oficios con `tipo_respuesta` = `ANEXO EXPEDIENTE` o `ANEXO AL EXPEDIENTE` son siempre 🟢 sin conteo de días; se excluyen de toda alerta.
+**Regla de negocio — semáforo:**
+- Sin `termino_dias`: semáforo activo cuenta días desde `fecha_ingreso` hasta hoy. Al registrar `fecha_radicado_salida` pasa a ✅ Respondido.
+- Con `termino_dias`: se calcula `fecha_termino_respuesta = fecha_ingreso + N días hábiles − 2 días`. Semáforo 🟢/🟡/🔴 según días restantes hasta esa fecha.
+- Ambas variantes de ANEXO siempre son 🟢 sin conteo de días.
 
 ### Módulo 3 — SEGUIMIENTO EXPEDIENTES DIGITALES 2025-2026 (`/digitales/`)
 
@@ -229,15 +264,15 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
-| 1 | **Exportar Excel consolidado** — Un único `.xlsx` con 3 hojas: Base Expedientes, Exp. Digitales, Sala de Audiencias | ✅ v2.3 |
-| 2 | **Importar Excel consolidado** — Carga el mismo archivo de vuelta reemplazando todo; modal de confirmación doble | ✅ v2.3 |
+| 1 | **Exportar Excel consolidado** — Un único `.xlsx` con **4 hojas**: Base Expedientes, Exp. Digitales, Sala de Audiencias, **Control Autos** (verde oscuro). La hoja Correspondencia se exporta desde su propio módulo | ✅ v2.5 |
+| 2 | **Importar Excel consolidado** — Carga el mismo archivo de vuelta reemplazando todo; modal de confirmación doble | ✅ v2.5 |
 
 ### Portal Hub (`/`)
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
-| 1 | **Página de inicio** — 5 tiles clickables con stats en tiempo real para cada módulo, agrupados visualmente | ✅ v2.3 |
-| 2 | **Botón Backup ZIP completo** — Descarga un `.zip` con 4 carpetas (una por módulo), cada una con su Excel actualizado | ✅ v2.3 |
+| 1 | **Página de inicio** — 6 tiles clickables con stats en tiempo real para cada módulo, agrupados visualmente | ✅ v2.5 |
+| 2 | **Botón Backup ZIP completo** — Descarga un `.zip` con 5 carpetas (una por módulo), cada una con su Excel actualizado | ✅ v2.5 |
 
 ---
 
@@ -255,29 +290,92 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 | 5 | v2.2 — Hub portal + Módulo Expedientes Digitales + Sala de Audiencias + sistema de alertas por días | ✅ | 2026-03-03 |
 | 6 | v2.3 — Módulo Correspondencia + mejoras Digitales + Backup ZIP + Exportar/Importar General | ✅ | 2026-04-14 |
 | 7 | v2.4 — ANEXO AL EXPEDIENTE + Importador AgilSalud + campo correo_remitente + fix orden rutas | ✅ | 2026-04-15 |
-| 8 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
-| 9 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
+| 8 | v2.5 — Módulo Control de Autos SDS-CDO-FT-001 + mejoras Correspondencia (3 campos, semáforo dual, URLs) | ✅ | 2026-04-21 |
+| 9 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
+| 10 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
 
 ---
 
 ### Changelog detallado
 
+#### v2.5 — 2026-04-21
+
+**Nuevo módulo: Control de Autos de Sustanciación y/o Trámites (`/control-autos/`)**
+
+- Implementación completa del formato oficial **SDS-CDO-FT-001 v4** en web.
+- **6 campos de datos:** EXPEDIENTE, NÚMERO DEL AUTO, FECHA DEL AUTO, ASUNTO AUTO, ABOGADO RESPONSABLE, OBSERVACIONES.
+- **ABOGADO RESPONSABLE:** `<select>` con 11 abogados en mayúsculas. El mismo select se usa en el filtro de la lista.
+- **ASUNTO AUTO:** `<select>` con 26 tipos oficiales de autos de sustanciación. Admite valor fuera de lista en registros existentes.
+- **NÚMERO DEL AUTO:** acepta consecutivos numéricos (001, 002…) o la palabra "DIGITAL". Badge azul para numéricos, morado para DIGITAL en la lista.
+- **Importar Excel:** acepta el formato original del OCDI (hoja "NUEVO", datos desde fila 8, encabezados en fila 7) y el formato exportado (hoja "CONTROL AUTOS", desde fila 7). Filtra filas de glosario del pie de página comprobando `len(numero_auto) > 20`.
+- **Exportar Excel:** replica el encabezado oficial con institución, código SDS-CDO-FT-001, versión 4 y firmantes.
+- **Tile en portal:** muestra conteo de autos con pluralización correcta.
+- **Backup General integrado:** Hoja 4 "Control Autos" (cabecera verde `#2E7D32`) en export/import del backup. ZIP incluye carpeta `05_Control_Autos_Sustanciacion/`.
+- **Base de datos:** nueva tabla `control_autos_sustanciacion` (10 campos). Migración automática si BD existente.
+- **Fix corrección de datos:** 96 registros importados tenían nombres abreviados en ABOGADO_RESPONSABLE (ej. "ANDRES SANDOVAL" → "ANDRES EDUARDO SANDOVAL MAYORGA"). Se normalizaron los 7 patrones abreviados mediante SQL UPDATE con LIKE. LUZ ALBA FARFAN (7 registros, no en lista predefinida) se dejó tal cual.
+- **Fix ca_form.html:** Faltaba `{% endif %}` antes de `{% endblock %}` en `{% block heading %}`, causando `TemplateSyntaxError` (Internal Server Error 500) en todos los endpoints del módulo.
+
+---
+
+**Mejoras módulo Correspondencia (`/correspondencia/`)**
+
+- **3 nuevos campos en BD** (migración automática para BDs existentes):
+  - `sinproc_personeria TEXT` — número alfanumérico de la Personería (Ej: 2026-SP-001)
+  - `tipo_requerimiento TEXT` — tipo de requerimiento con 9 valores predefinidos
+  - `termino_dias INTEGER` — plazo legal de respuesta en días (select: 3/5/10/15/30)
+  - `correspondencia_radicados_salida.url TEXT` — URL del radicado de salida para hipervínculo
+
+- **Semáforo dual de respuesta:** el cálculo de semáforo se movió completamente a Python (`_calcular_semaforo_row()`):
+  - *Sin `termino_dias`:* misma lógica anterior de días transcurridos (verde ≤5 / amarilla 6-8 / roja ≥9).
+  - *Con `termino_dias`:* calcula `fecha_termino_respuesta = fecha_ingreso + N días hábiles Colombia − 2 días`. Semáforo según días restantes hasta esa fecha (verde ≥2 / amarilla 0-1 / roja <0).
+  - Los tooltips del semáforo en la lista muestran la fecha límite y días restantes cuando aplica.
+
+- **Días hábiles Colombia** — función `_add_dias_habiles(inicio, dias)`:
+  - Festivos fijos: 1-ene, 1-may, 20-jul, 7-ago, 8-dic, 25-dic.
+  - Festivos Ley Emiliani (siguiente lunes si no cae en lunes): 6-ene, 19-mar, 29-jun, 15-ago, 12-oct, 1-nov, 11-nov.
+  - Festivos basados en Pascua (algoritmo Gauss): Jueves Santo (−3), Viernes Santo (−2), Ascensión (Ley Emiliani, +39), Corpus Christi (Ley Emiliani, +60), Sagrado Corazón (Ley Emiliani, +68).
+
+- **Hipervínculos radicado de salida:** en el formulario de edición se muestra una tabla con radicado + URL; en el detalle el radicado es un `<a target="_blank">`. En la lista el texto queda plano (la URL se ve en detalle/editar).
+
+- **Formulario `corr_form.html`** reorganizado en 4 secciones:
+  1. Identificación del Oficio
+  2. Contenido del Oficio
+  3. **Datos del Requerimiento** (nueva): SINPROC Personería, Tipo de Requerimiento, Término (Días)
+  4. Respuesta / Salida
+
+- **Renombrado de etiquetas UI** (sin cambio en columna BD):
+  - "Origen AGILSALUD" → **Entidad**
+  - "Trámite de Salida" → **Observaciones**
+
+- **Lista `corr_lista.html`:** nuevas columnas "Tipo Req." y "Término"; columna "Días / Límite" muestra fecha ISO cuando hay `termino_dias`, o conteo de días si no lo hay.
+
+- **Exportar (19 columnas):** ENTIDAD, SINPROC PERSONERIA, TIPO DE REQUERIMIENTO, TERMINO (DIAS), N RADICADO SALIDA, URL RADICADO SALIDA, OBSERVACIONES (renombradas desde ORIGEN y TRAMITE DE SALIDA).
+
+- **Importar — detección de formato:**
+  - Formato original (hojas con nombres de meses): sin cambios.
+  - Formato exportado — detecta si es **nuevo (≥19 cols)** o **antiguo (15 cols)** leyendo el encabezado; en el nuevo lee SINPROC, TIPO_REQ, TERMINO, URL.
+
+- **Backup ZIP:** la hoja Correspondencia del ZIP también pasa a 19 columnas con el nuevo formato.
+
+- **Filtrado semáforo en Python:** el endpoint `/correspondencia/` ya no usa SQL para filtrar por semáforo; recupera todas las filas que cumplen los otros filtros, calcula el semáforo en Python para cada fila y aplica el filtro en memoria. Esto permite que los dos modos de semáforo funcionen correctamente en el filtro lateral.
+
+---
+
 #### v2.4 — 2026-04-15 · commits `070095a` → `daa9f11`
 
 **Módulo Correspondencia — mejoras:**
 
-- **Excepción ANEXO AL EXPEDIENTE:** Se extiende la regla de negocio de "ANEXO EXPEDIENTE" a la variante "ANEXO AL EXPEDIENTE". Ambas siempre aparecen en 🟢 verde con días `—` (NULL en SQL, guion en pantalla). Excluidas de: semáforo activo, dashboard rojo/amarillo, portal badge de alertas, tabla de críticos y backup ZIP. Lógica aplicada en `_SEMAFORO_SQL`, `_DIAS_SQL`, bloque Python de detalle, `portal.py` y `backup.py`. Ambas variantes agregadas al datalist del formulario.
+- **Excepción ANEXO AL EXPEDIENTE:** Se extiende la regla de negocio de "ANEXO EXPEDIENTE" a la variante "ANEXO AL EXPEDIENTE". Ambas siempre aparecen en 🟢 verde con días `—` (NULL en SQL, guion en pantalla). Excluidas de: semáforo activo, dashboard rojo/amarillo, portal badge de alertas, tabla de críticos y backup ZIP.
 
 - **Importador AgilSalud** (`GET/POST /correspondencia/importar-agilsalud`): Nueva ruta de dos pasos para cargar el archivo `Documentos.xlsx` exportado de AgilSalud.
-  - **Filtrado automático:** solo conserva registros cuyo destinatario sea "MARTHA PATRICIA AÑEZ MAESTRE" o "MABEL GICELA HURTADO SANCHEZ". Del Excel de 108 filas se extraen 32 registros.
-  - **Columnas mapeadas:** Número de radicado → `n_radicado`, Dependencia Remitente → `origen`, Correo Electrónico Remitente → `correo_remitente`, Fecha de radicación → `fecha_ingreso` + `mes` + `anio` (inferidos), Asunto → `asunto`.
-  - **Previsualización obligatoria:** el sistema muestra una tabla con todos los registros a importar antes de confirmar. Solo al confirmar se ejecuta el INSERT.
-  - **Modo ADD:** no borra ni sobreescribe datos existentes; solo agrega nuevos registros.
-  - Botón de acceso desde sidebar y desde la lista de oficios.
+  - **Filtrado automático:** solo conserva registros cuyo destinatario sea "MARTHA PATRICIA AÑEZ MAESTRE" o "MABEL GICELA HURTADO SANCHEZ".
+  - **Columnas mapeadas:** Número de radicado → `n_radicado`, Dependencia Remitente → `origen`, Correo Electrónico Remitente → `correo_remitente`, Fecha de radicación → `fecha_ingreso` + `mes` + `anio`, Asunto → `asunto`.
+  - **Previsualización obligatoria:** muestra tabla antes de confirmar; usa JSON oculto en form para pasar datos del preview al confirm.
+  - **Modo ADD:** no borra datos existentes; solo agrega nuevos registros.
 
-- **Campo `correo_remitente`:** Nueva columna TEXT en la tabla `correspondencia`. Migración automática en `init_db()` para BDs existentes. Visible en formulario de edición, página de detalle, exportar Excel y backup ZIP.
+- **Campo `correo_remitente`:** Nueva columna TEXT en `correspondencia`. Migración automática en `init_db()`.
 
-- **Fix crítico de orden de rutas:** Las rutas `/importar-agilsalud` se registraban después de `/{reg_id}`. El path pattern `[^/]+` de Starlette captura cualquier string antes de llegar a las rutas específicas. Se reordenaron todas las rutas estáticas (`/importar-agilsalud`, `/importar-agilsalud/preview`, `/importar-agilsalud/confirmar`) para que queden **antes** de `/{reg_id}` en el router.
+- **Fix crítico de orden de rutas:** Rutas `/importar-agilsalud` reubicadas **antes** de `/{reg_id}` en el router para evitar captura por el path pattern `[^/]+`.
 
 ---
 
@@ -285,87 +383,39 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 
 **Nuevo módulo: Lista de Reparto de Abogados (`/correspondencia/`)**
 
-- Control completo de oficios y correspondencia recibida con 8 rutas: dashboard, lista, nuevo, detalle, editar, eliminar, importar, exportar, configurar catálogos.
+- Control completo de oficios con 8 rutas: dashboard, lista, nuevo, detalle, editar, eliminar, importar, exportar, configurar catálogos.
 - **Semáforo de respuesta** por `julianday()` SQLite: 🟢 0–5 días / 🟡 6–8 días / 🔴 9+ días / ✅ Respondido.
-- **Excepción ANEXO EXPEDIENTE:** oficios con ese tipo de respuesta siempre se muestran en 🟢 con 0 días; excluidos de conteos de vencidos en portal, dashboard y tabla de críticos.
-- **Radicados de salida múltiples:** tabla `correspondencia_radicados_salida` con CASCADE; se pueden agregar/eliminar desde el formulario de edición.
-- **Catálogos configurables** desde `/correspondencia/configurar`: CRUD de responsables y tipos de documento. 12 nombres de abogados prellenados; normalización de 21 variantes del Excel histórico vía `RESPONSABLE_MAP`.
-- **Combobox Tipo de Respuesta:** 11 opciones predefinidas + texto libre usando HTML5 `<datalist>`.
-- **Importación inteligente del Excel histórico** (295 registros): detección automática de formato — 12 cols (original) o 14 cols (exportado, con AÑO en col[0]); normalización de nombres sucios; reemplaza todo con modal doble de confirmación.
-- **Portal actualizado:** nuevo tile "Lista de Reparto de Abogados" con contador de oficios y badge de alerta roja; tiles de Base Expedientes y Reparto agrupados con subtítulo visual.
+- **Radicados de salida múltiples:** tabla `correspondencia_radicados_salida` con CASCADE.
+- **Catálogos configurables** desde `/correspondencia/configurar`.
+- **Portal actualizado:** nuevo tile con contador y badge de alerta roja.
 
 **Nuevo módulo: Exportar/Importar General (`/backup/`)**
 
-- Exporta un único `.xlsx` con 3 hojas: Base Expedientes, Exp. Digitales, Sala de Audiencias.
-- Importa el mismo archivo reemplazando todo el contenido de las 3 tablas con confirmación doble.
-
-**Nuevo feature: Backup ZIP completo (`/backup/zip`)**
-
-- Botón en el portal principal (visible sin entrar a ningún módulo) que descarga `OCDI_Backup_Completo_YYYYMMDD.zip`.
-- Estructura ZIP:
-  ```
-  OCDI/
-  ├── 01_Base_Expedientes/Base_Expedientes_YYYYMMDD.xlsx
-  ├── 02_Lista_Reparto_Abogados/Correspondencia_YYYYMMDD.xlsx
-  ├── 03_Expedientes_Digitales/Exp_Digitales_YYYYMMDD.xlsx
-  └── 04_Sala_Audiencias/Sala_Audiencias_YYYYMMDD.xlsx
-  ```
-- Cada Excel usa el mismo formato que el exportador individual del módulo.
-
-**Mejoras en Expedientes Digitales:**
-
-- **Campo Observaciones Generales** (`observaciones`): campo de notas libres por expediente; visible en lista, exportable en Excel y en Backup ZIP.
-- **Columna Últ. Revisión**: registra la última fecha en que el abogado marcó el expediente como revisado (`exp_revisiones`); visible en lista y en exportación.
-- **Filtros tipo Excel por columna**: menú desplegable en cada encabezado de la lista con valores únicos de esa columna; permite filtrar por Abogado, Etapa, Año, etc. de forma independiente.
-- **Popup de confirmación de descarga Excel**: antes de generar el archivo, muestra cuántos registros se exportarán.
+- Excel único con 3 hojas (luego ampliado a 4 en v2.5) + Backup ZIP completo por módulo.
 
 ---
 
 #### v2.2 — 2026-03-03 · commits `4d204ee` → `7b8f24e`
 
-**Nuevos módulos:**
-
-- **Hub Portal (`/`):** página de inicio con 3 tiles clickables que muestran stats en tiempo real de cada módulo. Reemplaza a `/` como landing page; el módulo Base pasa a `/expedientes`.
-- **Módulo Expedientes Digitales 2025-2026 (`/digitales/`):** gestión completa de seguimiento digital con CRUD, importación desde Excel padre-hijo (39 expedientes / 88 comunicaciones), exportación, dashboard con métricas y vista global de comunicaciones.
-- **Sala de Audiencias (`/sala/`):** calendario mensual con franjas horarias (08-10, 10-12, 14-16, 16-18), estados Disponible/Ocupado/Reservado, modal de detalle, CRUD de eventos y navegación mes a mes.
-
-**Sistema de alertas por días (Módulo Digitales):**
-- Calcula días transcurridos desde `fecha_envio` hasta hoy con `julianday()` de SQLite solo para comunicaciones sin `fecha_respuesta`
-- 🔵 Azul: 8–12 días · 🟡 Amarilla: 13 días · 🔴 Roja: 14+ días
-- Las alertas aparecen en: columna "Días" de la vista comunicaciones, badge emoji por fila en lista de expedientes, y 3 tarjetas clickables en el dashboard
-- Filtros por nivel de alerta en lista de expedientes y en vista comunicaciones
-
-**Sidebars independientes por módulo:**
-- Cada módulo tiene su propio base template (`base.html`, `base_digitales.html`, `base_sala.html`) con nav contextual. No se mezclan ítems de navegación entre módulos.
-
-**Correcciones:**
-- Orden numérico de N° expediente: `CAST(n_expediente AS INTEGER) ASC` en lugar de orden texto
-- Orden de rutas en `digitales.py`: rutas estáticas (`/importar`, `/exportar`, `/comunicaciones`) registradas antes de `/{exp_id}` para evitar que FastAPI intente parsear strings como int
-- Variable Jinja2 en loops: uso de `{% set ns = namespace() %}` + `{% set ns.id = valor %}` en lugar de `__setattr__`
+- Hub Portal (`/`), Módulo Expedientes Digitales, Sala de Audiencias, sidebars independientes por módulo, sistema de alertas por días (julianday SQLite).
 
 ---
 
 #### v2.1 — 2026-02-27 · commit `8e33f33`
 
-- **Lista de expedientes — paginación:** selector 25 / 50 / 100 / Todos por página con controles de navegación
-- **Lista de expedientes — filtros adicionales:** Origen del proceso, Alerta de vencimiento, Fecha radicado desde/hasta
-- **Lista de expedientes — ordenamiento:** click en cualquier encabezado ordena ASC/DESC
-- **Lista de expedientes — búsqueda inteligente:** busca número con y sin cero a la izquierda; busca en `n_radicado` y `quejoso`
-- **Dashboard — modal de exportación:** tarjetas de alerta abren popup con opciones: solo filtrados / todos con indicador EN FILTRO / ver en lista
-- **Dashboard — nuevas métricas:** panel "Por Origen del Proceso", "Top Tipologías", gráfica "Tendencia Mensual de Ingreso" (últimos 24 meses)
-- **Bug crítico — alertas con `#VALUE!`:** valores de error de Excel causaban falsos positivos. Filtros ahora usan `date()` SQLite que devuelve NULL para no-fechas.
+- Paginación, filtros adicionales, ordenamiento de columnas, búsqueda inteligente, modal exportar, nuevas métricas en dashboard. Fix alertas con `#VALUE!`.
 
 ---
 
 #### v2.0 — 2026-02-27 · commit `fbf2906`
 
-- Corrección crítica de importación Excel: el archivo fuente no tiene hoja "ENCABEZADO"; el sistema ahora busca la primera hoja donde A1 contiene "EXPEDIENTE". Resultado: 243 expedientes importados correctamente.
+- Corrección crítica de importación: 243 expedientes importados correctamente desde la hoja correcta.
 
 ---
 
 #### v1.0 — 2026-02-25 · commit `635a1d6`
 
-- Sistema completo inicial: dashboard, gestión de expedientes (CRUD), seguimiento mensual, control de autos, importar desde Excel, exportar Excel completo y filtrado.
+- Sistema completo inicial: dashboard, gestión de expedientes (CRUD), seguimiento mensual, control de autos, importar/exportar Excel.
 
 ---
 
@@ -377,22 +427,22 @@ Módulo para el control de oficios y correspondencia recibida, con semáforo de 
 | 2026-02-24 | **Interfaz web** (no app de escritorio) | Los clientes solo necesitan un navegador. Sin instalación en los 10 PCs usuario. |
 | 2026-02-24 | **Python + FastAPI** como backend | Ecosistema maduro, fácil de instalar en Windows, openpyxl para Excel. |
 | 2026-02-24 | **PC de la oficina como servidor** en la LAN | No requiere servidores externos ni pagos. Usa la red de cable existente de la SDS. |
-| 2026-02-24 | **Lógica condicional por etapa** en el formulario | Evitar que se llenen campos irrelevantes según el estado del expediente. |
 | 2026-02-25 | **Construcción por fases** empezando con módulos críticos | El prototipo construye los cimientos compartidos. Los módulos restantes se añaden sin reescribir lo existente. |
 | 2026-02-27 | **`date()` de SQLite** en todos los filtros de fecha | Previene falsos positivos cuando hay valores no-fecha en columnas de fecha (errores `#VALUE!` de Excel). |
-| 2026-02-27 | **`CAST(n_expediente AS INTEGER)`** en búsqueda numérica | Permite buscar "046" y encontrar expedientes guardados como "46" (sin cero a la izquierda, como los lee Excel al importar). |
-| 2026-02-27 | **AutoFiltro en exportación** con `incluir_todos=1` | El usuario puede quitar el filtro EN FILTRO desde Excel para ver todos los expedientes. |
-| 2026-03-03 | **Sidebars independientes por módulo** | Cada ventana tiene su propio menú lateral. Evita confusión entre los módulos. |
+| 2026-02-27 | **`CAST(n_expediente AS INTEGER)`** en búsqueda numérica | Permite buscar "046" y encontrar expedientes guardados como "46" (sin cero a la izquierda, como los lee Excel). |
 | 2026-03-03 | **`julianday()` de SQLite** para alertas de días | Calcula días transcurridos directamente en SQL sin lógica Python post-proceso. |
 | 2026-03-03 | **Rutas estáticas antes de `/{id}`** en cada router | FastAPI evalúa rutas en orden de registro. Rutas como `/importar` deben ir antes de `/{id}` para no ser capturadas como parámetro. |
-| 2026-04-14 | **Tabla separada `correspondencia_radicados_salida`** para radicados de salida | Un oficio puede tener N radicados de salida. Usar una tabla hija con CASCADE evita concatenar en un solo campo y permite agregar/eliminar individualmente. |
-| 2026-04-14 | **HTML5 `<datalist>`** para Tipo de Respuesta | Ofrece sugerencias predefinidas sin restringir el texto libre. Permite importar las ~80 variantes históricas del Excel sin mapeo. |
-| 2026-04-14 | **`RESPONSABLE_MAP` en importación** de Correspondencia | El Excel histórico tiene 21 variantes sucias del mismo nombre (ej. "CESAR IVAN", "CESAR RODRIGUEZ", "CESAR IVAN RODRIGUEZ"). El mapa normaliza al vuelo durante la importación. |
-| 2026-04-14 | **Excepción `ANEXO EXPEDIENTE`** en semáforo | Regla de negocio: estos oficios no requieren respuesta formal, por lo tanto no acumulan días de vencimiento. Se aplica en SQL (`_SEMAFORO_SQL`, `_DIAS_SQL`) y en código Python para el detalle. |
-| 2026-04-14 | **Backup ZIP estructurado** desde el portal | Un solo clic genera un respaldo completo organizado por módulo, sin necesidad de entrar a cada sección. Facilita copias periódicas sin conocimiento técnico. |
-| 2026-04-15 | **`IN (...)` para variantes de ANEXO** en semáforo | Se usó `UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE')` en lugar de `=` para cubrir ambas variantes del texto en un solo chequeo, tanto en SQL como en Python. |
-| 2026-04-15 | **Importador AgilSalud con previsualización de 2 pasos** | El archivo de AgilSalud varía en contenido pero no en estructura. El paso de previsualización permite verificar los datos antes de insertar, evitando importaciones erróneas. Se usa JSON oculto en el form para pasar los datos del preview al confirm sin re-leer el archivo. |
-| 2026-04-15 | **Rutas AgilSalud antes de `/{reg_id}`** | Starlette compila `/{reg_id}` con regex `[^/]+` que captura cualquier segmento, incluyendo strings como "importar-agilsalud". Si se registra después de `/{reg_id}`, la ruta nunca se alcanza. Todas las rutas estáticas van primero. |
+| 2026-04-14 | **Tabla separada `correspondencia_radicados_salida`** para radicados de salida | Un oficio puede tener N radicados de salida. Tabla hija con CASCADE permite agregar/eliminar individualmente. |
+| 2026-04-14 | **HTML5 `<datalist>`** para Tipo de Respuesta | Ofrece sugerencias predefinidas sin restringir el texto libre. |
+| 2026-04-14 | **`RESPONSABLE_MAP`** en importación de Correspondencia | El Excel histórico tiene 21 variantes sucias del mismo nombre. El mapa normaliza al vuelo durante la importación. |
+| 2026-04-14 | **Backup ZIP estructurado** desde el portal | Un solo clic genera un respaldo completo organizado por módulo, sin conocimiento técnico. |
+| 2026-04-15 | **`IN (...)` para variantes de ANEXO** en semáforo | Cubre ambas variantes del texto en un solo chequeo, tanto en SQL como en Python. |
+| 2026-04-15 | **Importador AgilSalud con previsualización de 2 pasos** | JSON oculto en form pasa datos del preview al confirm sin re-leer el archivo. |
+| 2026-04-21 | **Listas predefinidas para Control de Autos** (`ABOGADOS_RESPONSABLES`, `ASUNTOS_COMUNES`) | El formato SDS-CDO-FT-001 tiene valores estandarizados que no deben variar libre. Selects garantizan consistencia; admiten valores fuera de lista en edición para compatibilidad histórica. |
+| 2026-04-21 | **Filtro de pie de página en importación de Control Autos** (`len(numero_auto) > 20`) | El Excel oficial tiene filas de glosario al final (ej. "NUMERO DEL EXPEDIENTE — Corresponde al..."). Los números de auto válidos son ≤7 caracteres ("DIGITAL" o "001"). La longitud descarta las filas de descripción sin necesitar leer el contenido. |
+| 2026-04-21 | **Semáforo Correspondencia movido a Python** | La nueva lógica de fecha límite requiere calcular días hábiles (Pascua, Ley Emiliani), imposible en SQLite. Se recuperan todas las filas que cumplen los filtros no-semáforo y se filtra el semáforo en Python. Con ~300 filas el overhead es nulo. |
+| 2026-04-21 | **`fecha_termino = fecha_ingreso + N días hábiles − 2`** | Los 2 días de "colchón" sirven como alerta temprana (amarillo) antes del vencimiento real, permitiendo actuar a tiempo. |
+| 2026-04-21 | **`url TEXT` en `correspondencia_radicados_salida`** | Los radicados de salida tienen un hipervínculo en el sistema AgilSalud. Almacenar la URL en la BD permite mostrar el enlace directo sin salir de la aplicación. |
 
 ---
 
@@ -403,7 +453,7 @@ SDS_OCDI/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                             # FastAPI app — registra todos los routers
-│   ├── database.py                         # Esquema SQLite (11 tablas), get_db(), init_db()
+│   ├── database.py                         # Esquema SQLite (12 tablas), get_db(), init_db()
 │   ├── routers/
 │   │   ├── __init__.py
 │   │   ├── portal.py                       # GET /  → hub portal con tiles y stats
@@ -411,11 +461,12 @@ SDS_OCDI/
 │   │   ├── dashboard.py                    # /dashboard — métricas BASE 2023U
 │   │   ├── importar.py                     # /importar — cargue masivo Excel BASE
 │   │   ├── seguimiento.py                  # /seguimiento — actuaciones mensuales
-│   │   ├── autos.py                        # /autos — control de autos
+│   │   ├── autos.py                        # /autos — control de autos BASE
 │   │   ├── digitales.py                    # /digitales/* — módulo completo digitales 2025-2026
 │   │   ├── sala.py                         # /sala/* — sala de audiencias
-│   │   ├── backup.py                       # /backup/* — exportar/importar general + ZIP
-│   │   └── correspondencia.py             # /correspondencia/* — lista de reparto abogados
+│   │   ├── backup.py                       # /backup/* — exportar/importar general (4 hojas) + ZIP
+│   │   ├── correspondencia.py              # /correspondencia/* — lista de reparto abogados
+│   │   └── control_autos.py               # /control-autos/* — autos de sustanciación SDS-CDO-FT-001
 │   ├── static/
 │   │   ├── css/style.css                   # Estilos completos (sin dependencias externas)
 │   │   └── js/app.js                       # Lógica de formulario, tabs, escaneos dinámicos
@@ -424,7 +475,8 @@ SDS_OCDI/
 │       ├── base_digitales.html             # Sidebar EXP. DIGITALES
 │       ├── base_sala.html                  # Sidebar SALA AUDIENCIAS
 │       ├── base_correspondencia.html       # Sidebar LISTA DE REPARTO
-│       ├── portal.html                     # Hub sin sidebar — tiles + botón backup ZIP
+│       ├── base_control_autos.html         # Sidebar CONTROL DE AUTOS
+│       ├── portal.html                     # Hub sin sidebar — 6 tiles + botón backup ZIP
 │       ├── lista.html                      # /expedientes lista
 │       ├── form.html                       # Crear/editar expediente BASE (7 bloques)
 │       ├── detalle.html                    # Detalle expediente BASE
@@ -432,8 +484,8 @@ SDS_OCDI/
 │       ├── importar.html                   # Importar Excel BASE
 │       ├── exportar_filtrado.html          # Exportar reporte personalizado
 │       ├── seguimiento.html                # Seguimiento mensual
-│       ├── autos.html                      # Control de autos
-│       ├── backup.html                     # Exportar/Importar general (3 módulos)
+│       ├── autos.html                      # Control de autos BASE
+│       ├── backup.html                     # Exportar/Importar general (4 módulos)
 │       ├── digitales_lista.html            # /digitales/ lista con filtros tipo Excel
 │       ├── digitales_dashboard.html        # /digitales/dashboard con tarjetas de alerta
 │       ├── digitales_detalle.html          # /digitales/{id} detalle + comunicaciones
@@ -442,13 +494,17 @@ SDS_OCDI/
 │       ├── digitales_importar.html         # Importar Excel digitales
 │       ├── sala.html                       # /sala/ calendario mensual
 │       ├── sala_form.html                  # Crear/editar evento de sala
-│       ├── corr_lista.html                 # /correspondencia/ lista con semáforo
+│       ├── corr_lista.html                 # /correspondencia/ lista con semáforo dual
 │       ├── corr_dashboard.html             # /correspondencia/dashboard
-│       ├── corr_detalle.html               # /correspondencia/{id} detalle
-│       ├── corr_form.html                  # Crear/editar oficio de correspondencia
-│       ├── corr_importar.html              # Importar Excel correspondencia (formato histórico)
+│       ├── corr_detalle.html               # /correspondencia/{id} detalle + hipervínculos
+│       ├── corr_form.html                  # Crear/editar oficio (4 secciones + URL radicado)
+│       ├── corr_importar.html              # Importar Excel correspondencia (auto-detecta formato)
 │       ├── corr_importar_agilsalud.html    # Importar desde AgilSalud (Documentos.xlsx) — 2 pasos
-│       └── corr_configurar.html            # Configurar catálogos (responsables, tipos doc)
+│       ├── corr_configurar.html            # Configurar catálogos (responsables, tipos doc)
+│       ├── ca_lista.html                   # /control-autos/ lista con filtros
+│       ├── ca_form.html                    # Crear/editar auto (encabezado oficial SDS)
+│       ├── ca_detalle.html                 # /control-autos/{id} detalle
+│       └── ca_importar.html               # Importar Excel formato original y exportado
 ├── data/
 │   └── ocdi.db                             # Base de datos SQLite (se crea al iniciar)
 ├── iniciar.bat                             # Script Windows — libera puerto 8000 e inicia
@@ -491,9 +547,14 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 3. Los expedientes duplicados (mismo N° + mismo año) se omiten
 
 **Correspondencia:**
-1. Módulo Lista de Reparto → Importar → seleccionar `CORRESPONDENCIA 2026.xlsx`
-2. Acepta formato original (12 columnas) o exportado (14 columnas con AÑO y Días)
+1. Módulo Lista de Reparto → Importar → seleccionar el Excel de correspondencia
+2. Acepta formato original (hojas de meses) o exportado (auto-detecta 15 o 19 columnas)
 3. **Reemplaza todos los registros actuales** — confirmar en el modal de alerta
+
+**Control de Autos:**
+1. Módulo Control de Autos → Importar → seleccionar el `.xlsx`
+2. Acepta formato original OCDI (hoja "NUEVO", fila 8+) o exportado (hoja "CONTROL AUTOS")
+3. Filtra automáticamente las filas de glosario del pie de página
 
 **Expedientes Digitales:**
 1. Módulo Digitales → Importar → seleccionar el Excel padre-hijo de seguimiento digital
@@ -502,7 +563,7 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 
 **Backup ZIP completo (recomendado):**
 - En el portal principal, clic en **"📦 Descargar Backup Completo (.zip)"**
-- Descarga un ZIP con 4 carpetas, una por módulo, con el Excel actualizado de cada uno
+- Descarga un ZIP con 5 carpetas, una por módulo, con el Excel actualizado de cada uno
 
 **Backup de base de datos:**
 - Copiar el archivo `data/ocdi.db` a una carpeta segura, USB o nube
@@ -513,16 +574,14 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 **Reporte completo (Base Expedientes):**
 - Lista de Expedientes → botón "Exportar Excel"
 
-**Reporte filtrado/personalizado:**
-- Menú → Exportar Reporte, o desde el dashboard → tarjeta de alerta → "Exportar →"
-- Opción 1 — "Solo los filtrados": Excel limpio con solo los expedientes del filtro
-- Opción 2 — "Todo + indicador": todos los expedientes con columna `EN FILTRO` (SI/NO)
-
 **Correspondencia:**
-- Lista de Reparto → Exportar (desde el sidebar)
+- Lista de Reparto → Exportar (19 columnas con nuevos campos)
+
+**Control de Autos:**
+- Lista de Autos → Exportar (formato oficial SDS-CDO-FT-001)
 
 **Exportar/Importar General:**
-- Módulo Backup → descarga un único Excel con Base + Digitales + Sala en 3 hojas
+- Módulo Backup → descarga un único Excel con 4 hojas: Base + Digitales + Sala + Control Autos
 
 ---
 
@@ -544,5 +603,6 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 | Archivo | Descripción |
 |---------|-------------|
 | `BASE EXPEDIENTES 2023U ORIGINAL 22-10-2025.xlsx` | Archivo de datos históricos importado. 243 expedientes en hoja `2023 - 2024`. Columnas 1–51 mapean a los 48 campos de la BD. |
-| `CORRESPONDENCIA 2026.xlsx` | Archivo histórico de correspondencia. 295 registros importables desde `/correspondencia/importar`. |
+| `CORRESPONDENCIA 2026.xlsx` / `Correspondencia_20260421.xlsx` | Archivo histórico de correspondencia. 302 registros. Desde v2.5 soporta formato de 19 columnas con SINPROC, TIPO_REQ, TERMINO y URL. |
+| `SDS-CDO-FT-001_v4control_AUTOS1.xlsx` | Formato oficial de Control de Autos. Hoja "NUEVO", encabezados fila 7, datos desde fila 8, 6 columnas (B:G). Pie de página con glosario (filas 122+). |
 | `INSTALACION.md` | Guía paso a paso para instalar Python y ejecutar el sistema en Windows. |

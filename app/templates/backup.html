@@ -160,7 +160,8 @@
         Se cargaron: <strong>{{ partes[0] }}</strong> expedientes base —
         <strong>{{ partes[1] }}</strong> expedientes digitales con
         <strong>{{ partes[2] }}</strong> comunicaciones —
-        <strong>{{ partes[3] }}</strong> eventos de sala.
+        <strong>{{ partes[3] }}</strong> eventos de sala —
+        <strong>{{ partes[4] if partes|length > 4 else '0' }}</strong> autos de sustanciación.
     </div>
     {% elif msg == 'error_archivo' %}
     <div class="bk-flash-err">⚠️ No se pudo leer el archivo. Asegúrese de que sea un Excel (.xlsx) generado por este sistema.</div>
@@ -173,7 +174,7 @@
     {% endif %}
 
     <!-- Estado actual -->
-    <div class="bk-stats">
+    <div class="bk-stats" style="grid-template-columns: repeat(4, 1fr)">
         <div class="bk-stat-card">
             <div class="bk-stat-num">{{ total_base }}</div>
             <div class="bk-stat-label">📁 Expedientes Base</div>
@@ -186,6 +187,10 @@
             <div class="bk-stat-num">{{ total_sala }}</div>
             <div class="bk-stat-label">🗓️ Eventos Sala</div>
         </div>
+        <div class="bk-stat-card">
+            <div class="bk-stat-num">{{ total_control_autos }}</div>
+            <div class="bk-stat-label">⚖️ Autos Sustanciación</div>
+        </div>
     </div>
 
     <!-- ── EXPORTAR ──────────────────────────────────────────────────────── -->
@@ -195,15 +200,16 @@
             <span class="chip chip-base">📁 Hoja 1 — Base Expedientes</span>
             <span class="chip chip-dig">💻 Hoja 2 — Exp. Digitales</span>
             <span class="chip chip-sala">🗓️ Hoja 3 — Sala de Audiencias</span>
+            <span class="chip" style="background:#E8F5E9;color:#1B5E20">⚖️ Hoja 4 — Control Autos</span>
         </div>
         <div class="bk-card-desc">
-            Descarga un único archivo Excel con <strong>3 hojas</strong>, una por cada módulo del sistema.<br>
+            Descarga un único archivo Excel con <strong>4 hojas</strong>, una por cada módulo del sistema.<br>
             Este archivo contiene <em>todos</em> los registros actuales y sirve tanto como respaldo como
             plantilla para la importación. Puede editarlo manualmente y cargarlo de vuelta usando la sección de abajo.<br>
             <span style="font-size:12px;color:#9ca3af">Nota: Los registros de escaneos y actuaciones mensuales del módulo Base no se incluyen en este respaldo.</span>
         </div>
         <a href="/backup/exportar" class="btn-export" id="btn-export-all">
-            📥 Descargar Excel completo (3 hojas)
+            📥 Descargar Excel completo (4 hojas)
         </a>
     </div>
 
@@ -213,12 +219,13 @@
 
         <div class="bk-warning">
             <strong>⚠️ Lea esto antes de importar</strong>
-            Al importar un archivo, el sistema <strong>borrará completamente</strong> los datos actuales de los 3 módulos
+            Al importar un archivo, el sistema <strong>borrará completamente</strong> los datos actuales de los 4 módulos
             y los reemplazará con los del archivo cargado:
             <ul>
                 <li>Todos los expedientes de la <strong>Base</strong> serán eliminados y reemplazados.</li>
                 <li>Todos los expedientes digitales y sus comunicaciones serán eliminados y reemplazados.</li>
                 <li>Todos los eventos de sala serán eliminados y reemplazados.</li>
+                <li>Todos los <strong>Autos de Sustanciación</strong> serán eliminados y reemplazados.</li>
             </ul>
         </div>
 
@@ -255,6 +262,7 @@
                 <li>📁 <strong>{{ total_base }}</strong> expedientes base actuales serán eliminados.</li>
                 <li>💻 <strong>{{ total_digitales }}</strong> expedientes digitales actuales serán eliminados.</li>
                 <li>🗓️ <strong>{{ total_sala }}</strong> eventos de sala actuales serán eliminados.</li>
+                <li>⚖️ <strong>{{ total_control_autos }}</strong> autos de sustanciación actuales serán eliminados.</li>
             </ul>
             <strong>¿Está completamente seguro de que desea continuar?</strong>
             <p class="modal-note">Si no tiene un respaldo del estado actual, cancele y descargue el Excel antes de proceder.</p>

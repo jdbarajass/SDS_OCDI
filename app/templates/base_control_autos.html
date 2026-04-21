@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Control de Autos{% endblock %} — SDS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">⚖️</div>
+            <div class="brand-text">
+                <span class="brand-title">CONTROL AUTOS</span>
+                <span class="brand-sub">Sustanciación y Trámites · OCDI</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-link nav-link-hub">
+                <span class="nav-ico">🏠</span>
+                <span>Portal Principal</span>
+            </a>
+
+            <div class="nav-section-label">⚖️ CONTROL DE AUTOS</div>
+            <a href="/control-autos/" class="nav-link {% if active == 'ca_lista' %}active{% endif %}">
+                <span class="nav-ico">📄</span>
+                <span>Lista de Autos</span>
+            </a>
+            <a href="/control-autos/nuevo" class="nav-link {% if active == 'ca_nuevo' %}active{% endif %}">
+                <span class="nav-ico">➕</span>
+                <span>Nuevo Registro</span>
+            </a>
+
+            <div class="nav-section-label">📁 ARCHIVOS</div>
+            <a href="/control-autos/importar" class="nav-link {% if active == 'ca_importar' %}active{% endif %}">
+                <span class="nav-ico">📥</span>
+                <span>Importar Excel</span>
+            </a>
+            <a href="/control-autos/exportar" class="nav-link {% if active == 'ca_exportar' %}active{% endif %}">
+                <span class="nav-ico">📤</span>
+                <span>Exportar Excel</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>SDS · OCDI v2.5 — SDS-CDO-FT-001 v4</span>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="page-header">
+            <h1 class="page-title">{% block heading %}{% endblock %}</h1>
+            <div class="page-actions">{% block header_actions %}{% endblock %}</div>
+        </div>
+
+        {% if msg %}
+        <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+            {% if msg == 'creado' %}✅ Registro creado correctamente.
+            {% elif msg == 'actualizado' %}✅ Registro actualizado.
+            {% elif msg == 'eliminado' %}✅ Registro eliminado.
+            {% elif msg == 'no_encontrado' %}⚠️ Registro no encontrado.
+            {% elif msg.startswith('ok_') %}✅ Importación completada: {{ msg.replace('ok_','') }} registros cargados.
+            {% elif msg == 'error_openpyxl' %}❌ Librería openpyxl no instalada. Ejecute: pip install openpyxl
+            {% elif msg == 'error_archivo' %}⚠️ No se pudo leer el archivo. Verifique que sea un .xlsx válido.
+            {% elif msg == 'error_vacio' %}⚠️ El archivo está vacío.
+            {% elif msg == 'error_import' %}❌ Error durante la importación. Los datos no fueron modificados.
+            {% else %}{{ msg }}
+            {% endif %}
+        </div>
+        <script>
+            setTimeout(function(){
+                var el = document.getElementById('flash-msg');
+                if(el){ el.style.transition='opacity .5s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); },500); }
+            }, 5000);
+        </script>
+        {% endif %}
+
+        <div class="page-body">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+</div>
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -27,9 +27,10 @@ def _v(val):
 @router.get("/", response_class=HTMLResponse)
 async def backup_home(request: Request, msg: str = ""):
     conn = get_db()
-    total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
-    total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
-    total_sala      = conn.execute("SELECT COUNT(*) FROM sala_agenda").fetchone()[0]
+    total_base          = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    total_digitales     = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
+    total_sala          = conn.execute("SELECT COUNT(*) FROM sala_agenda").fetchone()[0]
+    total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("backup.html", {
         "request": request,
@@ -37,6 +38,7 @@ async def backup_home(request: Request, msg: str = ""):
         "total_base": total_base,
         "total_digitales": total_digitales,
         "total_sala": total_sala,
+        "total_control_autos": total_control_autos,
     })
 
 
@@ -51,15 +53,18 @@ async def backup_exportar():
         return RedirectResponse("/backup/?msg=error_openpyxl")
 
     conn = get_db()
-    exps       = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
-    dig_exps   = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
-    dig_coms   = conn.execute(
+    exps        = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
+    dig_exps    = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
+    dig_coms    = conn.execute(
         "SELECT * FROM exp_comunicaciones ORDER BY exp_digital_id ASC, fecha_envio ASC, id ASC"
     ).fetchall()
-    dig_revs   = conn.execute(
+    dig_revs    = conn.execute(
         "SELECT exp_digital_id, MAX(fecha_revision) AS ultima_revision FROM exp_revisiones GROUP BY exp_digital_id"
     ).fetchall()
-    sala       = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
+    sala        = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
+    ctrl_autos  = conn.execute(
+        "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
+    ).fetchall()
     conn.close()
 
     ultima_rev = {r["exp_digital_id"]: r["ultima_revision"] for r in dig_revs}
@@ -217,6 +222,34 @@ async def backup_exportar():
         ws3.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws3.freeze_panes = "A2"
 
+    # ── Hoja 4: Control de Autos de Sustanciación ─────────────────────────────
+    ws4 = wb.create_sheet("Control Autos")
+    fill_autos = PatternFill("solid", fgColor="2E7D32")
+
+    headers4 = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES"]
+    campos4   = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones"]
+
+    for col_idx, h in enumerate(headers4, 1):
+        cell = ws4.cell(row=1, column=col_idx, value=h)
+        cell.fill = fill_autos
+        cell.font = h_font
+        cell.alignment = center
+    ws4.row_dimensions[1].height = 30
+
+    for row_idx, row in enumerate(ctrl_autos, 2):
+        d = dict(row)
+        fill = alt_fill if row_idx % 2 == 0 else None
+        for col_idx, campo in enumerate(campos4, 1):
+            cell = ws4.cell(row=row_idx, column=col_idx, value=d.get(campo))
+            cell.alignment = Alignment(vertical="center")
+            if fill:
+                cell.fill = fill
+
+    col_widths4 = [18, 16, 16, 48, 22, 30]
+    for i, w in enumerate(col_widths4, 1):
+        ws4.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws4.freeze_panes = "A2"
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -248,7 +281,7 @@ async def backup_importar(archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_archivo", status_code=303)
 
     conn = get_db()
-    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0}
+    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0, "autos": 0}
 
     try:
         # ── Hoja 1: Base Expedientes ───────────────────────────────────────────
@@ -382,6 +415,48 @@ async def backup_importar(archivo: UploadFile = File(...)):
                 )
                 stats["sala"] += 1
 
+        # ── Hoja 4: Control de Autos de Sustanciación ─────────────────────────
+        if "Control Autos" in wb.sheetnames:
+            ws4 = wb["Control Autos"]
+            conn.execute("DELETE FROM control_autos_sustanciacion")
+            for row in ws4.iter_rows(min_row=2, values_only=True):
+                if not any(v for v in row if v is not None):
+                    continue
+                expediente  = _v(row[0]) if len(row) > 0 else None
+                numero_auto = _v(row[1]) if len(row) > 1 else None
+                fecha_raw   = row[2] if len(row) > 2 else None
+                from datetime import datetime as _dt
+                if fecha_raw and hasattr(fecha_raw, 'strftime'):
+                    fecha_auto = fecha_raw.strftime("%Y-%m-%d")
+                elif fecha_raw:
+                    s = str(fecha_raw).strip()
+                    fecha_auto = None
+                    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+                        try:
+                            fecha_auto = _dt.strptime(s, fmt).strftime("%Y-%m-%d")
+                            break
+                        except ValueError:
+                            pass
+                    if not fecha_auto:
+                        fecha_auto = s
+                else:
+                    fecha_auto = None
+                asunto_auto = _v(row[3]) if len(row) > 3 else None
+                abogado     = _v(row[4]) if len(row) > 4 else None
+                obs         = _v(row[5]) if len(row) > 5 else None
+                if not any([expediente, numero_auto, fecha_auto, asunto_auto, abogado]):
+                    continue
+                # Saltar filas de descripción del pie del formato
+                if numero_auto and len(numero_auto) > 20:
+                    continue
+                conn.execute(
+                    """INSERT INTO control_autos_sustanciacion
+                       (expediente, numero_auto, fecha_auto, asunto_auto, abogado_responsable, observaciones)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    [expediente, numero_auto, fecha_auto, asunto_auto, abogado, obs],
+                )
+                stats["autos"] += 1
+
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -389,7 +464,7 @@ async def backup_importar(archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_import", status_code=303)
 
     conn.close()
-    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}"
+    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}_{stats['autos']}"
     return RedirectResponse(f"/backup/?msg={msg}", status_code=303)
 
 
@@ -415,10 +490,14 @@ async def backup_zip():
     dig_revs  = conn.execute(
         "SELECT exp_digital_id, MAX(fecha_revision) AS ultima_revision FROM exp_revisiones GROUP BY exp_digital_id"
     ).fetchall()
-    sala      = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
+    sala         = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
+    ctrl_autos_z = conn.execute(
+        "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
+    ).fetchall()
     corr_rows = conn.execute("""
         SELECT c.*,
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls,
                CASE
                    WHEN c.fecha_ingreso IS NULL THEN NULL
                    WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN NULL
@@ -504,9 +583,10 @@ async def backup_zip():
         fill = PatternFill("solid", fgColor="1B4F8A")
         headers = [
             "AÑO","MES","FECHA INGRESO DE OFICIO","N. RADICADOS",
-            "ORIGEN AGILSALUD","CORREO REMITENTE","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
-            "RESPONSABLE","CASO BMP","N RADICADO SALIDA",
-            "FECHA RADICADO DE SALIDA","TIPO DE RESPUESTA","TRAMITE DE SALIDA",
+            "ENTIDAD","CORREO REMITENTE","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
+            "RESPONSABLE","CASO BMP","SINPROC PERSONERIA","TIPO DE REQUERIMIENTO",
+            "TERMINO (DIAS)","N RADICADO SALIDA","URL RADICADO SALIDA",
+            "FECHA RADICADO DE SALIDA","TIPO DE RESPUESTA","OBSERVACIONES",
             "DÍAS TRANSCURRIDOS",
         ]
         for ci, h in enumerate(headers, 1):
@@ -521,7 +601,8 @@ async def backup_zip():
                 d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
                 d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
                 d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
-                d.get("radicados_salida"),
+                d.get("sinproc_personeria"), d.get("tipo_requerimiento"), d.get("termino_dias"),
+                d.get("radicados_salida"), d.get("radicados_urls"),
                 d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
                 d.get("tipo_respuesta"), d.get("tramite_salida"), d.get("dias_transcurridos"),
             ]
@@ -529,7 +610,7 @@ async def backup_zip():
                 cell = ws.cell(row=ri, column=ci, value=v)
                 cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
                 if rf: cell.fill = rf
-        col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 20, 20, 25, 25, 8]
+        col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 18, 40, 10, 20, 40, 20, 25, 25, 8]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"
@@ -607,6 +688,32 @@ async def backup_zip():
         buf = io.BytesIO(); wb.save(buf); buf.seek(0)
         return buf
 
+    def make_wb_control_autos() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Control Autos"
+        fill = PatternFill("solid", fgColor="2E7D32")
+        headers = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES"]
+        campos  = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones"]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 30
+        alt_autos = PatternFill("solid", fgColor="F1F8E9")
+        for ri, row in enumerate(ctrl_autos_z, 2):
+            d = dict(row)
+            rf = alt_autos if ri % 2 == 0 else None
+            for ci, campo in enumerate(campos, 1):
+                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell.alignment = Alignment(vertical="center")
+                if rf: cell.fill = rf
+        col_widths = [18, 16, 16, 48, 22, 30]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
     # ── Construir ZIP ─────────────────────────────────────────────────────────
     zip_buf = io.BytesIO()
     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -625,6 +732,10 @@ async def backup_zip():
         zf.writestr(
             f"OCDI/04_Sala_Audiencias/Sala_Audiencias_{hoy}.xlsx",
             make_wb_sala().read(),
+        )
+        zf.writestr(
+            f"OCDI/05_Control_Autos_Sustanciacion/SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx",
+            make_wb_control_autos().read(),
         )
     zip_buf.seek(0)
 

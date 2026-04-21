@@ -1,0 +1,100 @@
+{% extends "base_control_autos.html" %}
+{% block title %}Auto #{{ reg.id }} — {{ reg.expediente or 'Sin expediente' }}{% endblock %}
+{% block heading %}⚖️ Detalle del Auto #{{ reg.id }}{% endblock %}
+
+{% block header_actions %}
+<a href="/control-autos/{{ reg.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+<a href="/control-autos/" class="btn btn-secondary" style="margin-left:8px">← Volver</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Encabezado del formato oficial -->
+<div style="border:2px solid #2E7D32;border-radius:8px;overflow:hidden;margin-bottom:24px;max-width:900px">
+    <div style="background:#1B4F8A;color:#fff;padding:10px 16px;font-size:12px;font-weight:600;text-align:center">
+        CONTROL DISCIPLINARIO · OFICINA DE CONTROL DISCIPLINARIO INTERNO · SISTEMA DE GESTIÓN · CONTROL DOCUMENTAL
+    </div>
+    <div style="background:#2E7D32;color:#fff;padding:10px 16px;font-size:14px;font-weight:800;text-align:center">
+        CONTROL DE AUTOS DE SUSTANCIACIÓN Y/O TRÁMITES
+    </div>
+    <div style="background:#E8F5E9;display:flex;justify-content:space-between;padding:6px 16px;font-size:11px;color:#374151">
+        <span><strong>Código:</strong> SDS-CDO-FT-001</span>
+        <span><strong>Versión:</strong> 4</span>
+    </div>
+    <div style="background:#F9FBE7;padding:5px 16px;font-size:10px;color:#555;font-style:italic;border-top:1px solid #ddd">
+        Elaborado por: Maricela Aldana Caicedo &nbsp;/&nbsp;
+        Revisado por: Rodolfo Carrillo Quintero &nbsp;/&nbsp;
+        Aprobado por: Martha Patricia Añez Maestre
+    </div>
+</div>
+
+<div style="max-width:900px">
+
+    <!-- Tabla de datos al estilo del formato -->
+    <div style="border:1px solid #2E7D32;border-radius:8px;overflow:hidden;margin-bottom:24px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+                <tr style="background:#2E7D32;color:#fff">
+                    <th style="padding:10px 14px;text-align:left;width:160px">EXPEDIENTE</th>
+                    <th style="padding:10px 14px;text-align:center;width:140px">NÚMERO DEL AUTO</th>
+                    <th style="padding:10px 14px;text-align:center;width:130px">FECHA DEL AUTO</th>
+                    <th style="padding:10px 14px;text-align:left">ASUNTO AUTO</th>
+                    <th style="padding:10px 14px;text-align:left;width:180px">ABOGADO RESPONSABLE</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background:#F9FBE7">
+                    <td style="padding:14px;font-weight:700;color:#0d3060;font-size:15px">
+                        {{ reg.expediente or '—' }}
+                    </td>
+                    <td style="padding:14px;text-align:center">
+                        {% if reg.numero_auto == 'DIGITAL' %}
+                        <span style="background:#ede9fe;color:#5b21b6;padding:4px 12px;border-radius:10px;font-size:13px;font-weight:700">DIGITAL</span>
+                        {% elif reg.numero_auto %}
+                        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 12px;border-radius:10px;font-size:14px;font-weight:700">{{ reg.numero_auto }}</span>
+                        {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                    </td>
+                    <td style="padding:14px;text-align:center;font-weight:600">
+                        {{ reg.fecha_auto[:10] if reg.fecha_auto else '—' }}
+                    </td>
+                    <td style="padding:14px;line-height:1.5">
+                        {{ reg.asunto_auto or '—' }}
+                    </td>
+                    <td style="padding:14px;font-weight:500">
+                        {{ reg.abogado_responsable or '—' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Observaciones -->
+    {% if reg.observaciones %}
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:6px">Observaciones</div>
+        <div style="font-size:13px;line-height:1.6">{{ reg.observaciones }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Metadata -->
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:24px;font-size:11px;color:#9ca3af">
+        <span style="margin-right:20px">📅 Creado: {{ reg.created_at[:16] if reg.created_at else '—' }}</span>
+        <span style="margin-right:20px">🔄 Actualizado: {{ reg.updated_at[:16] if reg.updated_at else '—' }}</span>
+        {% if reg.created_by %}<span>👤 Por: {{ reg.created_by }}</span>{% endif %}
+    </div>
+
+    <!-- Acciones -->
+    <div style="display:flex;gap:12px;align-items:center">
+        <a href="/control-autos/{{ reg.id }}/editar" class="btn btn-primary">✏️ Editar este registro</a>
+        <form method="post" action="/control-autos/{{ reg.id }}/eliminar"
+              onsubmit="return confirm('¿Eliminar este auto? Esta acción no se puede deshacer.')">
+            <button type="submit" class="btn" style="background:#dc2626;color:#fff;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
+                🗑️ Eliminar
+            </button>
+        </form>
+        <a href="/control-autos/" class="btn btn-secondary">← Volver a la lista</a>
+    </div>
+
+</div>
+
+{% endblock %}

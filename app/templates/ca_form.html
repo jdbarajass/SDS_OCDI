@@ -1,0 +1,124 @@
+{% extends "base_control_autos.html" %}
+{% block title %}{% if reg %}Editar Auto{% else %}Nuevo Auto{% endif %}{% endblock %}
+{% block heading %}{% if reg %}✏️ Editar Auto #{{ reg.id }}{% else %}➕ Registrar Nuevo Auto{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="/control-autos/" class="btn btn-secondary">← Volver a la lista</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width:720px">
+
+    <!-- Encabezado del formato oficial -->
+    <div style="border:2px solid #2E7D32;border-radius:8px;overflow:hidden;margin-bottom:28px">
+        <div style="background:#1B4F8A;color:#fff;padding:10px 16px;font-size:12px;font-weight:600;text-align:center">
+            CONTROL DISCIPLINARIO · OFICINA DE CONTROL DISCIPLINARIO INTERNO · SISTEMA DE GESTIÓN · CONTROL DOCUMENTAL
+        </div>
+        <div style="background:#2E7D32;color:#fff;padding:10px 16px;font-size:14px;font-weight:800;text-align:center">
+            CONTROL DE AUTOS DE SUSTANCIACIÓN Y/O TRÁMITES
+        </div>
+        <div style="background:#E8F5E9;display:flex;justify-content:space-between;padding:6px 16px;font-size:11px;color:#374151">
+            <span><strong>Código:</strong> SDS-CDO-FT-001</span>
+            <span><strong>Versión:</strong> 4</span>
+        </div>
+        <div style="background:#F9FBE7;padding:5px 16px;font-size:10px;color:#555;font-style:italic;border-top:1px solid #ddd">
+            Elaborado por: Maricela Aldana Caicedo &nbsp;/&nbsp;
+            Revisado por: Rodolfo Carrillo Quintero &nbsp;/&nbsp;
+            Aprobado por: Martha Patricia Añez Maestre
+        </div>
+    </div>
+
+    <form method="post" action="{% if reg %}/control-autos/{{ reg.id }}/editar{% else %}/control-autos/nuevo{% endif %}">
+
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+            <!-- EXPEDIENTE -->
+            <div class="form-group">
+                <label class="form-label">EXPEDIENTE</label>
+                <input type="text" name="expediente" class="form-control"
+                       value="{{ reg.expediente if reg else '' }}"
+                       placeholder="Ej: 032-2025 · N/A · 001-2026">
+                <small style="color:#6c757d;font-size:11px">Número de expediente disciplinario (Ej: EXP 001-2024)</small>
+            </div>
+
+            <!-- NÚMERO DEL AUTO -->
+            <div class="form-group">
+                <label class="form-label">NÚMERO DEL AUTO</label>
+                <input type="text" name="numero_auto" class="form-control"
+                       value="{{ reg.numero_auto if reg else '' }}"
+                       placeholder="Ej: 001 · 002 · DIGITAL">
+                <small style="color:#6c757d;font-size:11px">Número consecutivo del auto o escriba DIGITAL</small>
+            </div>
+
+        </div>
+
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+            <!-- FECHA DEL AUTO -->
+            <div class="form-group">
+                <label class="form-label">FECHA DEL AUTO <span style="color:red">*</span></label>
+                <input type="date" name="fecha_auto" class="form-control"
+                       value="{{ reg.fecha_auto[:10] if reg and reg.fecha_auto else '' }}" required>
+                <small style="color:#6c757d;font-size:11px">Fecha de elaboración del auto de sustanciación</small>
+            </div>
+
+            <!-- ABOGADO RESPONSABLE -->
+            <div class="form-group">
+                <label class="form-label">ABOGADO RESPONSABLE</label>
+                <select name="abogado_responsable" class="form-control" style="font-size:12.5px">
+                    <option value="">— Seleccione el abogado —</option>
+                    {% for a in abogados %}
+                    <option value="{{ a }}" {% if reg and reg.abogado_responsable and reg.abogado_responsable.upper() == a.upper() %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                    {% if reg and reg.abogado_responsable and reg.abogado_responsable.upper() not in abogados|map('upper')|list %}
+                    <option value="{{ reg.abogado_responsable }}" selected>{{ reg.abogado_responsable }}</option>
+                    {% endif %}
+                </select>
+                <small style="color:#6c757d;font-size:11px">Profesional encargado de proyectar el auto</small>
+            </div>
+
+        </div>
+
+        <!-- ASUNTO AUTO -->
+        <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">ASUNTO AUTO</label>
+            <select name="asunto_auto" class="form-control" style="font-size:12.5px">
+                <option value="">— Seleccione el tipo de auto —</option>
+                {% for s in asuntos %}
+                <option value="{{ s }}" {% if reg and reg.asunto_auto == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+                {% if reg and reg.asunto_auto and reg.asunto_auto not in asuntos %}
+                <option value="{{ reg.asunto_auto }}" selected>{{ reg.asunto_auto }}</option>
+                {% endif %}
+            </select>
+            <small style="color:#6c757d;font-size:11px">Tipo o descripción del auto de sustanciación y/o trámite</small>
+        </div>
+
+        <!-- OBSERVACIONES -->
+        <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">OBSERVACIONES</label>
+            <textarea name="observaciones" class="form-control" rows="3"
+                      placeholder="Aspectos relevantes sobre el auto de sustanciación...">{{ reg.observaciones if reg else '' }}</textarea>
+        </div>
+
+        <!-- CREADO POR (solo en nuevo) -->
+        {% if not reg %}
+        <div class="form-group" style="margin-bottom:20px">
+            <label class="form-label">Registrado por</label>
+            <input type="text" name="created_by" class="form-control"
+                   placeholder="Nombre del usuario que registra (opcional)">
+        </div>
+        {% endif %}
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+            <a href="/control-autos/" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">
+                {% if reg %}💾 Guardar cambios{% else %}✅ Registrar Auto{% endif %}
+            </button>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}

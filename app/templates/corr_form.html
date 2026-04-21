@@ -77,7 +77,7 @@
     <div class="corr-section-title">2. Contenido del Oficio</div>
     <div class="form-grid-2">
       <div class="field-group field-full">
-        <label>Origen AGILSALUD</label>
+        <label>Entidad</label>
         <input type="text" name="origen" value="{{ reg.origen or '' }}" placeholder="Dependencia o entidad de origen">
       </div>
       <div class="field-group field-full">
@@ -103,9 +103,41 @@
     </div>
   </div>
 
-  <!-- Sección 3: Respuesta / Salida -->
+  <!-- Sección 3: Requerimiento -->
   <div class="corr-section">
-    <div class="corr-section-title">3. Respuesta / Salida</div>
+    <div class="corr-section-title">3. Datos del Requerimiento</div>
+    <div class="form-grid-3">
+      <div class="field-group">
+        <label>SINPROC Personería</label>
+        <input type="text" name="sinproc_personeria" value="{{ reg.sinproc_personeria or '' }}" placeholder="Ej: 2026-SP-001">
+      </div>
+      <div class="field-group">
+        <label>Tipo de Requerimiento</label>
+        <select name="tipo_requerimiento">
+          <option value="">-- Seleccione --</option>
+          {% for t in tipos_requerimiento %}
+          <option value="{{ t }}" {% if reg.tipo_requerimiento == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+          {% if reg.tipo_requerimiento and reg.tipo_requerimiento not in tipos_requerimiento %}
+          <option value="{{ reg.tipo_requerimiento }}" selected>{{ reg.tipo_requerimiento }}</option>
+          {% endif %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Término (Días)</label>
+        <select name="termino_dias">
+          <option value="">-- Sin término --</option>
+          {% for t in terminos_dias %}
+          <option value="{{ t }}" {% if reg.termino_dias|string == t|string %}selected{% endif %}>{{ t }} días</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sección 4: Respuesta / Salida -->
+  <div class="corr-section">
+    <div class="corr-section-title">4. Respuesta / Salida</div>
     <div class="form-grid-2">
       <div class="field-group">
         <label>Fecha Radicado de Salida</label>
@@ -122,8 +154,8 @@
         </datalist>
       </div>
       <div class="field-group field-full">
-        <label>Trámite de Salida</label>
-        <input type="text" name="tramite_salida" value="{{ reg.tramite_salida or '' }}" placeholder="Descripción del trámite realizado">
+        <label>Observaciones</label>
+        <input type="text" name="tramite_salida" value="{{ reg.tramite_salida or '' }}" placeholder="Observaciones del trámite realizado">
       </div>
     </div>
   </div>
@@ -144,19 +176,28 @@
 {% if modo == 'editar' %}
 <div class="corr-section">
   <div class="corr-section-title">N° Radicados de Salida
-    <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(pueden ser varios)</span>
+    <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(pueden ser varios, con URL opcional)</span>
   </div>
 
   {% if radicados_salida %}
   <table class="data-table" style="margin-bottom:14px">
     <thead>
-      <tr><th>#</th><th>Radicado</th><th>Fecha registro</th><th></th></tr>
+      <tr><th>#</th><th>Radicado</th><th>URL</th><th>Fecha registro</th><th></th></tr>
     </thead>
     <tbody>
       {% for rs in radicados_salida %}
       <tr>
         <td>{{ loop.index }}</td>
-        <td style="font-weight:600">{{ rs.radicado }}</td>
+        <td style="font-weight:600">
+          {% if rs.url %}
+          <a href="{{ rs.url }}" target="_blank" rel="noopener" style="color:var(--primary)">{{ rs.radicado }}</a>
+          {% else %}
+          {{ rs.radicado }}
+          {% endif %}
+        </td>
+        <td style="font-size:11px;color:var(--text-muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ rs.url or '—' }}
+        </td>
         <td style="font-size:11px;color:var(--text-muted)">{{ rs.created_at or '—' }}</td>
         <td>
           <form method="post" action="/correspondencia/radicado_salida/{{ rs.id }}/eliminar" style="display:inline">
@@ -172,12 +213,20 @@
   <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Sin radicados de salida registrados.</p>
   {% endif %}
 
-  <form method="post" action="/correspondencia/{{ reg.id }}/radicado_salida/nuevo" style="display:flex;gap:10px;align-items:flex-end">
-    <div class="field-group" style="flex:1">
-      <label>Agregar N° Radicado Salida</label>
-      <input type="text" name="radicado" placeholder="Ej: 2026-EE-09015" required>
+  <form method="post" action="/correspondencia/{{ reg.id }}/radicado_salida/nuevo">
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end">
+      <div class="field-group" style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">N° Radicado Salida</label>
+        <input type="text" name="radicado" placeholder="Ej: 2026-EE-09015" required
+               style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px">
+      </div>
+      <div class="field-group" style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">URL (opcional)</label>
+        <input type="url" name="url" placeholder="https://..."
+               style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px">
+      </div>
+      <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
     </div>
-    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
   </form>
 </div>
 

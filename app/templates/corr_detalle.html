@@ -22,13 +22,25 @@
 </style>
 
 <!-- Semáforo -->
-<div style="margin-bottom:16px">
+<div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
   {% if reg.semaforo == 'verde' %}
-  <span class="sem-badge sem-verde">🟢 Al día{% if reg.dias_transcurridos is not none %} — {{ reg.dias_transcurridos }} día(s) transcurrido(s){% endif %}</span>
+    {% if reg.fecha_termino_respuesta %}
+    <span class="sem-badge sem-verde">🟢 Al día — vence {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    {% else %}
+    <span class="sem-badge sem-verde">🟢 Al día{% if reg.dias_transcurridos is not none %} — {{ reg.dias_transcurridos }} día(s) transcurrido(s){% endif %}</span>
+    {% endif %}
   {% elif reg.semaforo == 'amarilla' %}
-  <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    {% if reg.fecha_termino_respuesta %}
+    <span class="sem-badge sem-amarilla">🟡 Por vencer — límite {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    {% else %}
+    <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    {% endif %}
   {% elif reg.semaforo == 'roja' %}
-  <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    {% if reg.fecha_termino_respuesta %}
+    <span class="sem-badge sem-roja">🔴 Vencido — límite fue {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s))</span>
+    {% else %}
+    <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    {% endif %}
   {% elif reg.semaforo == 'respondido' %}
   <span class="sem-badge sem-respondido">✅ Respondido en {{ reg.dias_transcurridos }} día(s)</span>
   {% endif %}
@@ -65,7 +77,7 @@
     <div class="det-card-value">{{ reg.caso_bmp or '—' }}</div>
   </div>
   <div class="det-card det-card-full">
-    <div class="det-card-label">Origen AGILSALUD</div>
+    <div class="det-card-label">Entidad</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.origen or '—' }}</div>
   </div>
   {% if reg.correo_remitente %}
@@ -80,6 +92,39 @@
   </div>
 </div>
 
+<!-- Requerimiento -->
+{% if reg.sinproc_personeria or reg.tipo_requerimiento or reg.termino_dias %}
+<h3 style="font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Datos del Requerimiento</h3>
+<div class="det-grid">
+  {% if reg.sinproc_personeria %}
+  <div class="det-card">
+    <div class="det-card-label">SINPROC Personería</div>
+    <div class="det-card-value">{{ reg.sinproc_personeria }}</div>
+  </div>
+  {% endif %}
+  {% if reg.tipo_requerimiento %}
+  <div class="det-card">
+    <div class="det-card-label">Tipo de Requerimiento</div>
+    <div class="det-card-value" style="font-size:13px">{{ reg.tipo_requerimiento }}</div>
+  </div>
+  {% endif %}
+  {% if reg.termino_dias %}
+  <div class="det-card">
+    <div class="det-card-label">Término (Días)</div>
+    <div class="det-card-value">{{ reg.termino_dias }} días</div>
+  </div>
+  {% if reg.fecha_termino_respuesta %}
+  <div class="det-card">
+    <div class="det-card-label">Fecha Límite Respuesta</div>
+    <div class="det-card-value" style="{% if reg.semaforo == 'roja' %}color:#dc2626{% elif reg.semaforo == 'amarilla' %}color:#d97706{% else %}color:#16a34a{% endif %}">
+      {{ reg.fecha_termino_respuesta }}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Respuesta -->
 <h3 style="font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Respuesta / Salida</h3>
 <div class="det-grid">
@@ -92,7 +137,7 @@
     <div class="det-card-value" style="font-size:13px">{{ reg.tipo_respuesta or '—' }}</div>
   </div>
   <div class="det-card det-card-full">
-    <div class="det-card-label">Trámite de Salida</div>
+    <div class="det-card-label">Observaciones</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.tramite_salida or '—' }}</div>
   </div>
 </div>
@@ -101,10 +146,22 @@
 {% if radicados %}
 <h3 style="font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">N° Radicados de Salida</h3>
 <table class="data-table">
-  <thead><tr><th>#</th><th>Radicado</th></tr></thead>
+  <thead><tr><th>#</th><th>Radicado</th><th>URL</th></tr></thead>
   <tbody>
     {% for rs in radicados %}
-    <tr><td>{{ loop.index }}</td><td style="font-weight:600">{{ rs.radicado }}</td></tr>
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td style="font-weight:600">
+        {% if rs.url %}
+        <a href="{{ rs.url }}" target="_blank" rel="noopener" style="color:var(--primary)">{{ rs.radicado }}</a>
+        {% else %}
+        {{ rs.radicado }}
+        {% endif %}
+      </td>
+      <td style="font-size:11px;color:var(--text-muted)">
+        {% if rs.url %}<a href="{{ rs.url }}" target="_blank" rel="noopener" style="color:var(--text-muted)">{{ rs.url }}</a>{% else %}—{% endif %}
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>

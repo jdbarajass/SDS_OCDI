@@ -1,0 +1,155 @@
+{% extends "base_control_autos.html" %}
+{% block title %}Importar Excel — Control de Autos{% endblock %}
+{% block heading %}📥 Importar desde Excel{% endblock %}
+
+{% block header_actions %}
+<a href="/control-autos/" class="btn btn-secondary">← Volver a la lista</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.imp-wrap { max-width: 680px; }
+.imp-card { background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:24px 28px;margin-bottom:20px; }
+.imp-title { font-size:15px;font-weight:800;color:#0d3060;margin-bottom:10px;display:flex;align-items:center;gap:8px; }
+.imp-desc  { font-size:13px;color:#6c757d;line-height:1.6;margin-bottom:16px; }
+.imp-warn  { background:#fff3cd;border:1px solid #ffc107;border-left:5px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#856404;line-height:1.6; }
+.imp-warn strong { display:block;font-size:13px;margin-bottom:4px;color:#7c2d12; }
+.upload-zone { border:2px dashed #cbd5e1;border-radius:10px;padding:24px;text-align:center;background:#f8fafc;transition:border-color .15s; }
+.upload-zone:hover { border-color:#2E7D32; }
+.file-input { display:none; }
+.file-label { display:inline-flex;align-items:center;gap:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;color:#374151;transition:background .15s; }
+.file-label:hover { background:#e2e8f0; }
+.file-name  { font-size:12px;color:#6c757d;margin-top:8px; }
+.btn-imp    { display:inline-flex;align-items:center;gap:8px;background:#2E7D32;color:#fff;padding:10px 22px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;margin-top:14px; }
+.btn-imp:hover { background:#1B5E20; }
+.btn-imp:disabled { background:#9ca3af;cursor:not-allowed; }
+.flash-ok  { background:#d1fae5;border:1px solid #6ee7b7;border-left:5px solid #059669;border-radius:8px;padding:14px 18px;margin-bottom:18px;color:#065f46;font-size:13px; }
+.flash-err { background:#fee2e2;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:8px;padding:14px 18px;margin-bottom:18px;color:#7f1d1d;font-size:13px; }
+.format-badge { display:inline-flex;align-items:center;gap:5px;background:#E8F5E9;color:#1B5E20;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:3px 0; }
+</style>
+
+<div class="imp-wrap">
+
+    <!-- Flash -->
+    {% if msg.startswith('ok_') %}
+    <div class="flash-ok">✅ <strong>Importación completada.</strong> Se cargaron <strong>{{ msg.replace('ok_','') }}</strong> registros en el sistema.</div>
+    {% elif 'error' in msg %}
+    <div class="flash-err">
+        {% if msg == 'error_openpyxl' %}⚠️ Librería openpyxl no instalada. Ejecute: pip install openpyxl
+        {% elif msg == 'error_archivo' %}⚠️ No se pudo leer el archivo. Verifique que sea un .xlsx válido.
+        {% elif msg == 'error_vacio' %}⚠️ El archivo está vacío.
+        {% elif msg == 'error_import' %}❌ Error durante la importación. Los datos no fueron modificados. Verifique el formato e intente nuevamente.
+        {% else %}⚠️ {{ msg }}{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Aviso -->
+    <div class="imp-warn">
+        <strong>⚠️ Atención antes de importar</strong>
+        La importación <strong>reemplazará todos los registros actuales</strong> del módulo Control de Autos con los del archivo cargado.
+        Se recomienda exportar el estado actual antes de proceder.
+    </div>
+
+    <!-- Formatos soportados -->
+    <div class="imp-card">
+        <div class="imp-title">📋 Formatos aceptados</div>
+        <div class="imp-desc">
+            El sistema detecta automáticamente el formato del archivo:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px">
+                <div style="font-weight:700;color:#15803d;margin-bottom:4px">
+                    <span class="format-badge">✅ Formato original SDS-CDO-FT-001</span>
+                </div>
+                <div style="color:#374151;font-size:12px;line-height:1.5">
+                    Hoja: <strong>NUEVO</strong> · Encabezados en fila 7 (columnas B–G) · Datos desde fila 8<br>
+                    Columnas: <em>EXPEDIENTE | NÚMERO AUTO | FECHA AUTO | ASUNTO AUTO | ABOGADO RESPONSABLE | OBSERVACIONES</em>
+                </div>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px">
+                <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px">
+                    <span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">📤 Formato exportado por este sistema</span>
+                </div>
+                <div style="color:#374151;font-size:12px;line-height:1.5">
+                    Hoja: <strong>CONTROL AUTOS</strong> · Encabezados en fila 6 (columnas B–G) · Datos desde fila 7<br>
+                    Generado por la opción "Exportar Excel" de este módulo.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="imp-card">
+        <div class="imp-title">📂 Seleccionar archivo</div>
+        <form id="form-imp" method="post" action="/control-autos/importar" enctype="multipart/form-data">
+            <div class="upload-zone" id="upload-zone">
+                <label class="file-label" for="archivo-inp">
+                    📁 Seleccionar Excel (.xlsx)
+                </label>
+                <input class="file-input" type="file" id="archivo-inp" name="archivo" accept=".xlsx">
+                <div class="file-name" id="file-name-disp">Ningún archivo seleccionado</div>
+            </div>
+            <div style="text-align:right">
+                <button type="submit" class="btn-imp" id="btn-imp" disabled>
+                    ⬆️ Importar y reemplazar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Ayuda de columnas -->
+    <div class="imp-card">
+        <div class="imp-title" style="margin-bottom:12px">📖 Descripción de columnas</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead>
+                <tr style="background:#E8F5E9">
+                    <th style="padding:7px 10px;text-align:left;border:1px solid #c8e6c9">Columna</th>
+                    <th style="padding:7px 10px;text-align:left;border:1px solid #c8e6c9">Descripción</th>
+                    <th style="padding:7px 10px;text-align:center;border:1px solid #c8e6c9">Ejemplo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">EXPEDIENTE</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Número del expediente disciplinario</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">032-2025 / N/A</td></tr>
+                <tr style="background:#f9fafb"><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">NÚMERO AUTO</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Número consecutivo del auto o "DIGITAL"</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">001 / DIGITAL</td></tr>
+                <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">FECHA AUTO</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Fecha de elaboración (DD/MM/YYYY o YYYY-MM-DD)</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">06/01/2025</td></tr>
+                <tr style="background:#f9fafb"><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">ASUNTO AUTO</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Tipo o descripción del auto</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">APERTURA INDAGACION PREVIA</td></tr>
+                <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">ABOGADO RESPONSABLE</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Profesional que proyecta el auto</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">CARLOS PARRA</td></tr>
+                <tr style="background:#f9fafb"><td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600">OBSERVACIONES</td><td style="padding:6px 10px;border:1px solid #e5e7eb">Aspectos relevantes del auto</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:center">(opcional)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+document.getElementById('archivo-inp').addEventListener('change', function () {
+    var btn = document.getElementById('btn-imp');
+    var disp = document.getElementById('file-name-disp');
+    if (this.files && this.files.length > 0) {
+        disp.textContent = '📄 ' + this.files[0].name;
+        btn.disabled = false;
+    } else {
+        disp.textContent = 'Ningún archivo seleccionado';
+        btn.disabled = true;
+    }
+});
+var zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.borderColor='#2E7D32'; });
+zone.addEventListener('dragleave', function(){ zone.style.borderColor=''; });
+zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.style.borderColor='';
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+        document.getElementById('archivo-inp').files = files;
+        document.getElementById('file-name-disp').textContent = '📄 ' + files[0].name;
+        document.getElementById('btn-imp').disabled = false;
+    }
+});
+document.getElementById('form-imp').addEventListener('submit', function(){
+    var btn = document.getElementById('btn-imp');
+    btn.disabled = true;
+    btn.textContent = '⏳ Importando...';
+});
+</script>
+
+{% endblock %}

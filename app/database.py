@@ -148,6 +148,20 @@ CREATE TABLE IF NOT EXISTS sala_agenda (
     created_at      TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
+-- ── CONTROL DE AUTOS DE SUSTANCIACIÓN Y/O TRÁMITES ──────────────────────────
+CREATE TABLE IF NOT EXISTS control_autos_sustanciacion (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    expediente          TEXT,
+    numero_auto         TEXT,
+    fecha_auto          TEXT,
+    asunto_auto         TEXT,
+    abogado_responsable TEXT,
+    observaciones       TEXT,
+    created_at          TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at          TEXT DEFAULT (datetime('now', 'localtime')),
+    created_by          TEXT
+);
+
 -- ── CORRESPONDENCIA / LISTA DE REPARTO DE ABOGADOS ───────────────────────────
 CREATE TABLE IF NOT EXISTS correspondencia (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,6 +178,9 @@ CREATE TABLE IF NOT EXISTS correspondencia (
     tipo_respuesta          TEXT,
     tramite_salida          TEXT,
     correo_remitente        TEXT,
+    sinproc_personeria      TEXT,
+    tipo_requerimiento      TEXT,
+    termino_dias            INTEGER,
     created_at              TEXT DEFAULT (datetime('now', 'localtime')),
     updated_at              TEXT DEFAULT (datetime('now', 'localtime'))
 );
@@ -172,6 +189,7 @@ CREATE TABLE IF NOT EXISTS correspondencia_radicados_salida (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     correspondencia_id  INTEGER NOT NULL REFERENCES correspondencia(id) ON DELETE CASCADE,
     radicado            TEXT NOT NULL,
+    url                 TEXT,
     created_at          TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -206,6 +224,22 @@ def init_db():
         pass
     try:
         conn.execute("ALTER TABLE correspondencia ADD COLUMN correo_remitente TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE correspondencia ADD COLUMN sinproc_personeria TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE correspondencia ADD COLUMN tipo_requerimiento TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE correspondencia ADD COLUMN termino_dias INTEGER")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE correspondencia_radicados_salida ADD COLUMN url TEXT")
     except Exception:
         pass
     # Poblar catálogos configurables de correspondencia con valores iniciales

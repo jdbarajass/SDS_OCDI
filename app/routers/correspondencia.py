@@ -34,31 +34,62 @@ TIPOS_RESPUESTA = [
 
 TERMINOS_DIAS = [3, 5, 10, 15, 30]
 
+ABOGADOS_RESPONSABLES = [
+    "ANDRES EDUARDO SANDOVAL MAYORGA",
+    "CARLOS ALFONSO PARRA MALAVER",
+    "CESAR IVAN RODRIGUEZ DAMIAN",
+    "DAVID FELIPE MORALES NOGUERA",
+    "JANIK HERNANDO DE LA HOZ RIOS",
+    "JOSE DE JESUS BARAJAS SOTELO",
+    "LUNA GICELL GUZMAN YATE",
+    "MABEL GICELLA HURTADO SANCHEZ",
+    "MAGDA XIMENA PAREDES LIEVANO",
+    "MARA LUCIA UCROS MERLANO",
+    "MARTHA PATRICIA AÑEZ MAESTRE",
+    "RODOLFO CARRILLO QUINTERO",
+]
+
 TIPOS_REQUERIMIENTO = [
     "DERECHO DE PETICION",
     "TUTELA",
     "PROPOSICION DEL CONSEJO",
     "REQUERIMIENTO ENTES DE CONTROL",
-    "PROCURADURIA",
-    "CONTRALORIA",
-    "PERSONERIA",
-    "ANONIMO",
-    "DIRECCION DE ASUNTOS DISCIPLINARIOS DE LA SECRETARIA JURIDICA GENERAL",
+    "COMUNICACION INTERNA",
+    "COMUNICACION EXTERNA",
 ]
 
 # Mapa de limpieza de nombres para importación histórica
 RESPONSABLE_MAP = {
-    "CESAR IVAN": "CESAR IVAN RODRIGUEZ",
-    "CESAR RODRIGUEZ": "CESAR IVAN RODRIGUEZ",
-    "DAVID FELIPE  MORALES": "DAVID FELIPE MORALES",
-    "LUZ ALBA": "LUZ ALBA FARFAN",
-    "MABEL HURTADO": "MABEL GICELLA HURTADO",
-    "GICELLA HURTADO": "MABEL GICELLA HURTADO",
-    "MARA UCROS": "MARA LUCIA UCROS",
-    "MARA LUCIA UCROS": "MARA LUCIA UCROS",
-    "DE LA HOZ": "JANIK DE LA HOZ",
+    "ANDRES SANDOVAL": "ANDRES EDUARDO SANDOVAL MAYORGA",
+    "ANDRES EDUARDO SANDOVAL": "ANDRES EDUARDO SANDOVAL MAYORGA",
+    "CARLOS PARRA": "CARLOS ALFONSO PARRA MALAVER",
+    "CARLOS ALFONSO PARRA": "CARLOS ALFONSO PARRA MALAVER",
+    "CESAR IVAN": "CESAR IVAN RODRIGUEZ DAMIAN",
+    "CESAR IVAN RODRIGUEZ": "CESAR IVAN RODRIGUEZ DAMIAN",
+    "CESAR RODRIGUEZ": "CESAR IVAN RODRIGUEZ DAMIAN",
+    "DAVID FELIPE  MORALES": "DAVID FELIPE MORALES NOGUERA",
+    "DAVID FELIPE MORALES": "DAVID FELIPE MORALES NOGUERA",
+    "DAVID MORALES": "DAVID FELIPE MORALES NOGUERA",
+    "DE LA HOZ": "JANIK HERNANDO DE LA HOZ RIOS",
+    "JANIK DE LA HOZ": "JANIK HERNANDO DE LA HOZ RIOS",
+    "JANIK HERNANDO DE LA HOZ": "JANIK HERNANDO DE LA HOZ RIOS",
+    "JOSE BARAJAS": "JOSE DE JESUS BARAJAS SOTELO",
+    "LUNA GUZMAN": "LUNA GICELL GUZMAN YATE",
+    "LUNA GICELL GUZMAN": "LUNA GICELL GUZMAN YATE",
+    "MABEL HURTADO": "MABEL GICELLA HURTADO SANCHEZ",
+    "MABEL GICELLA HURTADO": "MABEL GICELLA HURTADO SANCHEZ",
+    "GICELLA HURTADO": "MABEL GICELLA HURTADO SANCHEZ",
+    "MABEL GICELA HURTADO SANCHEZ": "MABEL GICELLA HURTADO SANCHEZ",
+    "MAGDA PAREDES": "MAGDA XIMENA PAREDES LIEVANO",
+    "MAGDA XIMENA PAREDES": "MAGDA XIMENA PAREDES LIEVANO",
+    "MARA UCROS": "MARA LUCIA UCROS MERLANO",
+    "MARA LUCIA UCROS": "MARA LUCIA UCROS MERLANO",
+    "MARTHA AÑEZ": "MARTHA PATRICIA AÑEZ MAESTRE",
+    "MARTHA PATRICIA AÑEZ": "MARTHA PATRICIA AÑEZ MAESTRE",
+    "RODOLFO CARRILLO": "RODOLFO CARRILLO QUINTERO",
     "PROFESIONALES": "TODOS LOS PROFESIONALES",
     "TODOS LO PROFESIONALES": "TODOS LOS PROFESIONALES",
+    "TODOS LOS PROFESIONALES": "TODOS LOS PROFESIONALES",
 }
 
 
@@ -83,13 +114,10 @@ def _anios_disponibles():
 
 
 def _get_catalogos(conn):
-    responsables = [r[0] for r in conn.execute(
-        "SELECT nombre FROM corr_responsables ORDER BY nombre"
-    ).fetchall()]
     tipos_doc = [r[0] for r in conn.execute(
         "SELECT nombre FROM corr_tipos_documento ORDER BY nombre"
     ).fetchall()]
-    return responsables, tipos_doc
+    return ABOGADOS_RESPONSABLES, tipos_doc
 
 
 # ── Días hábiles Colombia ──────────────────────────────────────────────────────
@@ -310,7 +338,8 @@ async def lista(
     # Fetch all qualifying rows — semaphore filter applied in Python
     rows_raw = conn.execute(f"""
         SELECT c.*,
-               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida
+               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         WHERE {where}
@@ -323,8 +352,14 @@ async def lista(
     ).fetchall()]
     conn.close()
 
-    # Compute semaphore for all rows in Python
-    all_rows = [_calcular_semaforo_row(dict(r)) for r in rows_raw]
+    # Compute semaphore and extract first radicado URL for list display
+    all_rows = []
+    for r in rows_raw:
+        d = _calcular_semaforo_row(dict(r))
+        urls_str = d.get("radicados_urls") or ""
+        urls = [u.strip() for u in urls_str.split(" | ")] if urls_str.strip() else []
+        d["primer_url_salida"] = next((u for u in urls if u), None)
+        all_rows.append(d)
 
     # Apply semaphore filter in Python
     if semaforo:
@@ -433,8 +468,7 @@ async def exportar():
     rows = conn.execute("""
         SELECT c.*,
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
-               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls,
-               CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) AS dias_transcurridos
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         GROUP BY c.id
@@ -450,14 +484,15 @@ async def exportar():
     h_font = Font(bold=True, color="FFFFFF", size=10)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     alt_fill = PatternFill("solid", fgColor="EBF1F8")
+    link_font = Font(color="0563C1", underline="single", size=10)
 
     headers = [
         "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
-        "ENTIDAD", "CORREO REMITENTE", "ASUNTO AGILSALUD", "TIPO DE DOCUMENTO",
-        "RESPONSABLE", "CASO BMP", "SINPROC PERSONERIA", "TIPO DE REQUERIMIENTO",
-        "TERMINO (DIAS)", "N RADICADO SALIDA", "URL RADICADO SALIDA",
+        "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
+        "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
+        "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
         "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
-        "DÍAS TRANSCURRIDOS",
+        "FECHA TERMINO DE RESPUESTA PETICION", "DÍAS TRANSCURRIDOS",
     ]
     for ci, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=ci, value=h)
@@ -467,8 +502,13 @@ async def exportar():
     ws.row_dimensions[1].height = 36
 
     for ri, row in enumerate(rows, 2):
-        d = dict(row)
+        d = _calcular_semaforo_row(dict(row))
         fill = alt_fill if ri % 2 == 0 else None
+
+        urls_str = d.get("radicados_urls") or ""
+        urls_list = [u.strip() for u in urls_str.split(" | ")] if urls_str.strip() else []
+        first_url = next((u for u in urls_list if u), None)
+
         vals = [
             d.get("anio"),
             d.get("mes"),
@@ -477,17 +517,17 @@ async def exportar():
             d.get("origen"),
             d.get("correo_remitente"),
             d.get("asunto"),
-            d.get("tipo_documento"),
-            d.get("responsable"),
-            d.get("caso_bmp"),
             d.get("sinproc_personeria"),
             d.get("tipo_requerimiento"),
             d.get("termino_dias"),
-            d.get("radicados_salida"),
-            d.get("radicados_urls"),
+            d.get("tipo_documento"),
+            d.get("responsable"),
+            d.get("caso_bmp"),
+            d.get("radicados_salida"),           # col 14 — N RADICADO SALIDA
             d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
             d.get("tipo_respuesta"),
             d.get("tramite_salida"),
+            d.get("fecha_termino_respuesta"),     # col 18 — FECHA TERMINO (calculated)
             d.get("dias_transcurridos"),
         ]
         for ci, v in enumerate(vals, 1):
@@ -496,7 +536,13 @@ async def exportar():
             if fill:
                 cell.fill = fill
 
-    col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 18, 40, 10, 20, 40, 20, 25, 25, 8]
+        # Add hyperlink on N RADICADO SALIDA (column 14) when URL exists
+        if first_url and d.get("radicados_salida"):
+            rad_cell = ws.cell(row=ri, column=14)
+            rad_cell.hyperlink = first_url
+            rad_cell.font = link_font
+
+    col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 28, 8]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -633,66 +679,79 @@ async def importar_post(archivo: UploadFile = File(...)):
             if ws is None:
                 ws = wb.active
 
-            # Detectar si es formato nuevo (19 cols) o antiguo (15 cols)
-            # Buscando header en fila 1
-            header_row = [str(c.value or "").strip().upper() for c in ws[1]]
-            es_nuevo_formato = len(header_row) >= 19 or any(
-                h in header_row for h in ("SINPROC PERSONERIA", "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)")
-            )
+            # Build header→column-index map (handles any column order, old or new format)
+            header_row_cells = list(ws.iter_rows(min_row=1, max_row=1))[0]
+            header_row = [str(c.value or "").strip().upper() for c in header_row_cells]
+            hmap = {h: i for i, h in enumerate(header_row)}
 
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if not any(v for v in row if v is not None):
+            def _hi(name, *alts):
+                idx = hmap.get(name)
+                if idx is None:
+                    for alt in alts:
+                        idx = hmap.get(alt)
+                        if idx is not None:
+                            break
+                return idx if idx is not None else -1
+
+            i_correo   = _hi("CORREO REMITENTE")
+            i_asunto   = _hi("ASUNTO", "ASUNTO AGILSALUD")
+            i_sinproc  = _hi("NUMERO SINPROC PERSONERIA", "SINPROC PERSONERIA")
+            i_tiporeq  = _hi("TIPO DE REQUERIMIENTO")
+            i_termino  = _hi("TERMINO (DIAS)")
+            i_tipodoc  = _hi("TIPO DE DOCUMENTO")
+            i_resp     = _hi("RESPONSABLE")
+            i_bmp      = _hi("CASO BMP")
+            i_radsal   = _hi("N RADICADO SALIDA")
+            i_urlsal   = _hi("URL RADICADO SALIDA")   # legacy v1 column (may be absent)
+            i_fechasal = _hi("FECHA RADICADO DE SALIDA")
+            i_tipor    = _hi("TIPO DE RESPUESTA")
+            i_observ   = _hi("OBSERVACIONES")
+
+            def _cv(cells, idx):
+                if idx < 0 or idx >= len(cells):
+                    return None
+                return _v(cells[idx].value)
+
+            for row_cells in ws.iter_rows(min_row=2):
+                if not any(c.value for c in row_cells):
                     continue
                 try:
-                    int(row[0])
+                    anio_val = int(row_cells[0].value)
                 except (ValueError, TypeError):
                     continue
 
-                anio_val   = _v(row[0])
-                mes_val    = _v(row[1])
-                fi_val     = _norm_fecha(_v(row[2]))
-                rad_val    = _v(row[3])
-                orig_val   = _v(row[4])
+                mes_val     = _cv(row_cells, 1)
+                fi_val      = _norm_fecha(_cv(row_cells, 2))
+                rad_val     = _cv(row_cells, 3)
+                orig_val    = _cv(row_cells, 4)
+                correo_val  = _cv(row_cells, i_correo)
+                asunto_val  = _cv(row_cells, i_asunto)
+                sinproc_val = _cv(row_cells, i_sinproc)
+                tiporeq_val = _cv(row_cells, i_tiporeq)
+                termino_str = _cv(row_cells, i_termino)
+                tipo_d_val  = _cv(row_cells, i_tipodoc)
+                resp_val    = _cv(row_cells, i_resp)
+                bmp_val     = _cv(row_cells, i_bmp)
+                rad_sal     = _cv(row_cells, i_radsal)
+                fsal_val    = _norm_fecha(_cv(row_cells, i_fechasal))
+                tipor_val   = _cv(row_cells, i_tipor)
+                tram_val    = _cv(row_cells, i_observ)
 
-                if es_nuevo_formato:
-                    # Cols: 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ENTIDAD 5:CORREO 6:ASUNTO
-                    # 7:TIPO_DOC 8:RESPONSABLE 9:CASO_BMP 10:SINPROC 11:TIPO_REQ 12:TERMINO
-                    # 13:N_RAD_SAL 14:URL_RAD_SAL 15:FECHA_SAL 16:TIPO_RESP 17:OBSERV 18:DÍAS
-                    correo_val = _v(row[5]) if len(row) > 5 else None
-                    asunto_val = _v(row[6]) if len(row) > 6 else None
-                    tipo_d_val = _v(row[7]) if len(row) > 7 else None
-                    resp_val   = _v(row[8]) if len(row) > 8 else None
-                    bmp_val    = _v(row[9]) if len(row) > 9 else None
-                    sinproc_val = _v(row[10]) if len(row) > 10 else None
-                    tiporeq_val = _v(row[11]) if len(row) > 11 else None
-                    termino_val_str = _v(row[12]) if len(row) > 12 else None
-                    rad_sal    = _v(row[13]) if len(row) > 13 else None
-                    url_sal    = _v(row[14]) if len(row) > 14 else None
-                    fsal_val   = _norm_fecha(_v(row[15]) if len(row) > 15 else None)
-                    tipor_val  = _v(row[16]) if len(row) > 16 else None
-                    tram_val   = _v(row[17]) if len(row) > 17 else None
-                    termino_val = None
-                    if termino_val_str:
-                        try:
-                            termino_val = int(float(termino_val_str))
-                        except Exception:
-                            pass
-                else:
-                    # Antiguo: 0:AÑO 1:MES 2:FECHA 3:N.RAD 4:ORIGEN 5:ASUNTO 6:TIPO_DOC
-                    # 7:RESPONSABLE 8:CASO_BMP 9:N_RAD_SAL 10:FECHA_SAL 11:TIPO_RESP 12:TRAMITE 13:DÍAS
-                    correo_val = None
-                    asunto_val = _v(row[5]) if len(row) > 5 else None
-                    tipo_d_val = _v(row[6]) if len(row) > 6 else None
-                    resp_val   = _v(row[7]) if len(row) > 7 else None
-                    bmp_val    = _v(row[8]) if len(row) > 8 else None
-                    sinproc_val = None
-                    tiporeq_val = None
-                    termino_val = None
-                    rad_sal    = _v(row[9]) if len(row) > 9 else None
-                    url_sal    = None
-                    fsal_val   = _norm_fecha(_v(row[10]) if len(row) > 10 else None)
-                    tipor_val  = _v(row[11]) if len(row) > 11 else None
-                    tram_val   = _v(row[12]) if len(row) > 12 else None
+                # Read hyperlink URL from N RADICADO SALIDA cell; fallback to legacy URL column
+                url_sal = None
+                if i_radsal >= 0 and i_radsal < len(row_cells):
+                    hl = row_cells[i_radsal].hyperlink
+                    if hl:
+                        url_sal = hl.target
+                if not url_sal and i_urlsal >= 0:
+                    url_sal = _cv(row_cells, i_urlsal)
+
+                termino_val = None
+                if termino_str:
+                    try:
+                        termino_val = int(float(termino_str))
+                    except Exception:
+                        pass
 
                 if mes_val:
                     mes_val = mes_val.strip().upper()
@@ -711,16 +770,13 @@ async def importar_post(archivo: UploadFile = File(...)):
                 insertados += 1
 
                 if rad_sal:
-                    # url_sal can be pipe-separated if there are multiple
-                    urls = [u.strip() for u in url_sal.split("|")] if url_sal else []
-                    for idx, r in enumerate(str(rad_sal).split("|")):
-                        r = r.strip()
-                        if r:
-                            u = urls[idx] if idx < len(urls) else None
-                            conn.execute(
-                                "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado, url) VALUES (?,?,?)",
-                                (cid, r, u or None),
-                            )
+                    radicados_list = [r.strip() for r in str(rad_sal).split("|") if r.strip()]
+                    for idx_r, r in enumerate(radicados_list):
+                        u = url_sal if idx_r == 0 else None
+                        conn.execute(
+                            "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado, url) VALUES (?,?,?)",
+                            (cid, r, u),
+                        )
 
         conn.commit()
     except Exception:

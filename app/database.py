@@ -242,17 +242,65 @@ def init_db():
         conn.execute("ALTER TABLE correspondencia_radicados_salida ADD COLUMN url TEXT")
     except Exception:
         pass
-    # Poblar catálogos configurables de correspondencia con valores iniciales
-    for nombre in [
-        "ANDRES SANDOVAL", "CARLOS PARRA", "CESAR IVAN RODRIGUEZ",
-        "CRISTINA MOICA", "DAVID FELIPE MORALES", "JANIK DE LA HOZ",
-        "LUZ ALBA FARFAN", "MABEL GICELLA HURTADO", "MAGDA PAREDES",
-        "MARA LUCIA UCROS", "RODOLFO CARRILLO", "TODOS LOS PROFESIONALES",
-    ]:
+    # Migrar corr_responsables a nombres completos oficiales
+    nombres_completos = [
+        "ANDRES EDUARDO SANDOVAL MAYORGA",
+        "CARLOS ALFONSO PARRA MALAVER",
+        "CESAR IVAN RODRIGUEZ DAMIAN",
+        "DAVID FELIPE MORALES NOGUERA",
+        "JANIK HERNANDO DE LA HOZ RIOS",
+        "JOSE DE JESUS BARAJAS SOTELO",
+        "LUNA GICELL GUZMAN YATE",
+        "MABEL GICELLA HURTADO SANCHEZ",
+        "MAGDA XIMENA PAREDES LIEVANO",
+        "MARA LUCIA UCROS MERLANO",
+        "MARTHA PATRICIA AÑEZ MAESTRE",
+        "RODOLFO CARRILLO QUINTERO",
+        "TODOS LOS PROFESIONALES",
+    ]
+    conn.execute("DELETE FROM corr_responsables")
+    for nombre in nombres_completos:
         try:
             conn.execute("INSERT INTO corr_responsables (nombre) VALUES (?)", (nombre,))
         except Exception:
             pass
+    # Normalizar responsables en registros existentes de correspondencia
+    responsables_map = [
+        ("ANDRES SANDOVAL",             "ANDRES EDUARDO SANDOVAL MAYORGA"),
+        ("ANDRES EDUARDO SANDOVAL",     "ANDRES EDUARDO SANDOVAL MAYORGA"),
+        ("CARLOS PARRA",                "CARLOS ALFONSO PARRA MALAVER"),
+        ("CARLOS ALFONSO PARRA",        "CARLOS ALFONSO PARRA MALAVER"),
+        ("CESAR IVAN",                  "CESAR IVAN RODRIGUEZ DAMIAN"),
+        ("CESAR IVAN RODRIGUEZ",        "CESAR IVAN RODRIGUEZ DAMIAN"),
+        ("CESAR RODRIGUEZ",             "CESAR IVAN RODRIGUEZ DAMIAN"),
+        ("DAVID FELIPE  MORALES",       "DAVID FELIPE MORALES NOGUERA"),
+        ("DAVID FELIPE MORALES",        "DAVID FELIPE MORALES NOGUERA"),
+        ("DAVID MORALES",               "DAVID FELIPE MORALES NOGUERA"),
+        ("DE LA HOZ",                   "JANIK HERNANDO DE LA HOZ RIOS"),
+        ("JANIK DE LA HOZ",             "JANIK HERNANDO DE LA HOZ RIOS"),
+        ("JANIK HERNANDO DE LA HOZ",    "JANIK HERNANDO DE LA HOZ RIOS"),
+        ("JOSE BARAJAS",                "JOSE DE JESUS BARAJAS SOTELO"),
+        ("LUNA GUZMAN",                 "LUNA GICELL GUZMAN YATE"),
+        ("LUNA GICELL GUZMAN",          "LUNA GICELL GUZMAN YATE"),
+        ("MABEL HURTADO",               "MABEL GICELLA HURTADO SANCHEZ"),
+        ("MABEL GICELLA HURTADO",       "MABEL GICELLA HURTADO SANCHEZ"),
+        ("GICELLA HURTADO",             "MABEL GICELLA HURTADO SANCHEZ"),
+        ("MABEL GICELA HURTADO SANCHEZ","MABEL GICELLA HURTADO SANCHEZ"),
+        ("MAGDA PAREDES",               "MAGDA XIMENA PAREDES LIEVANO"),
+        ("MAGDA XIMENA PAREDES",        "MAGDA XIMENA PAREDES LIEVANO"),
+        ("MARA UCROS",                  "MARA LUCIA UCROS MERLANO"),
+        ("MARA LUCIA UCROS",            "MARA LUCIA UCROS MERLANO"),
+        ("MARTHA AÑEZ",                 "MARTHA PATRICIA AÑEZ MAESTRE"),
+        ("MARTHA PATRICIA AÑEZ",        "MARTHA PATRICIA AÑEZ MAESTRE"),
+        ("RODOLFO CARRILLO",             "RODOLFO CARRILLO QUINTERO"),
+        ("TODOS LO PROFESIONALES",      "TODOS LOS PROFESIONALES"),
+    ]
+    for old, new in responsables_map:
+        conn.execute(
+            "UPDATE correspondencia SET responsable=? WHERE UPPER(TRIM(responsable))=?",
+            (new, old.upper()),
+        )
+
     for nombre in ["RADICADO", "CORREO ELECTRONICO", "SDQS"]:
         try:
             conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))

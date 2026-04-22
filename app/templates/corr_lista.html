@@ -81,7 +81,7 @@
 .corr-scroll-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
 .corr-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-#tabla-corr { min-width: 1700px; border-collapse: collapse; width: 100%; }
+#tabla-corr { min-width: 2000px; border-collapse: collapse; width: 100%; }
 #tabla-corr th { position: sticky; top: 0; background: var(--sidebar-bg, #1e3a5f); color:#fff;
   padding: 9px 10px; font-size: 11px; white-space: nowrap; text-align: left; }
 #tabla-corr td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
@@ -103,16 +103,18 @@
         <th>Fecha Ingreso</th>
         <th>N. Radicado</th>
         <th>Entidad</th>
+        <th>Correo Remitente</th>
         <th>Asunto</th>
+        <th>SINPROC</th>
+        <th>Tipo Req.</th>
+        <th style="text-align:center">Término</th>
         <th>Tipo Doc.</th>
         <th>Responsable</th>
         <th>Caso BMP</th>
-        <th>Tipo Req.</th>
-        <th style="text-align:center">Término</th>
-        <th>Tipo Respuesta</th>
-        <th>Observaciones</th>
         <th>N. Rad. Salida</th>
         <th>Fecha Salida</th>
+        <th>Tipo Respuesta</th>
+        <th>Observaciones</th>
         <th style="text-align:center">Días / Límite</th>
         <th style="width:110px"></th>
       </tr>
@@ -152,20 +154,30 @@
         <td style="white-space:nowrap">{{ r.fecha_ingreso[:10] if r.fecha_ingreso else '—' }}</td>
         <td style="font-weight:600;white-space:nowrap">{{ r.n_radicado or '—' }}</td>
         <td class="td-clip" title="{{ r.origen or '' }}">{{ r.origen or '—' }}</td>
+        <td class="td-clip" title="{{ r.correo_remitente or '' }}" style="font-size:11px">{{ r.correo_remitente or '—' }}</td>
         <td class="td-asunto" title="{{ r.asunto or '' }}">{{ r.asunto or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.tipo_documento or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.responsable or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.caso_bmp or '—' }}</td>
+        <td class="td-clip" title="{{ r.sinproc_personeria or '' }}" style="font-size:11px">{{ r.sinproc_personeria or '—' }}</td>
         <td class="td-clip" title="{{ r.tipo_requerimiento or '' }}" style="font-size:11px">{{ r.tipo_requerimiento or '—' }}</td>
         <td style="text-align:center;white-space:nowrap">
           {% if r.termino_dias %}
           <span style="background:#EBF3FD;color:#1B4F8A;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">{{ r.termino_dias }}d</span>
           {% else %}—{% endif %}
         </td>
-        <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.tramite_salida or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.radicados_salida or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.tipo_documento or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.responsable or '—' }}</td>
+        <td style="white-space:nowrap">{{ r.caso_bmp or '—' }}</td>
+        <td style="white-space:nowrap">
+          {% if r.primer_url_salida and r.radicados_salida %}
+          <a href="{{ r.primer_url_salida }}" target="_blank" rel="noopener"
+             style="color:var(--primary);font-weight:600;text-decoration:underline"
+             title="Abrir enlace: {{ r.primer_url_salida }}">{{ r.radicados_salida }}</a>
+          {% else %}
+          {{ r.radicados_salida or '—' }}
+          {% endif %}
+        </td>
         <td style="white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
+        <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
+        <td class="td-clip" title="{{ r.tramite_salida or '' }}" style="font-size:11px">{{ r.tramite_salida or '—' }}</td>
 
         <!-- Días / Fecha límite -->
         <td style="text-align:center;font-weight:700;font-size:12px;white-space:nowrap;
@@ -186,7 +198,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="17" style="text-align:center;padding:32px;color:var(--text-muted)">
+      <tr><td colspan="19" style="text-align:center;padding:32px;color:var(--text-muted)">
         Sin resultados. <a href="/correspondencia/nuevo">Registrar nuevo oficio</a> o <a href="/correspondencia/importar">importar desde Excel</a>.
       </td></tr>
       {% endfor %}

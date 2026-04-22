@@ -7,6 +7,7 @@ import io
 import zipfile
 
 from app.database import get_db
+from app.routers.correspondencia import _calcular_semaforo_row
 
 router = APIRouter(prefix="/backup")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -494,24 +495,16 @@ async def backup_zip():
     ctrl_autos_z = conn.execute(
         "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
     ).fetchall()
-    corr_rows = conn.execute("""
+    corr_rows_raw = conn.execute("""
         SELECT c.*,
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
-               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls,
-               CASE
-                   WHEN c.fecha_ingreso IS NULL THEN NULL
-                   WHEN UPPER(TRIM(c.tipo_respuesta)) IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE') THEN NULL
-                   WHEN c.fecha_radicado_salida IS NOT NULL AND c.fecha_radicado_salida != ''
-                       THEN CAST(julianday(substr(c.fecha_radicado_salida,1,10))
-                                 - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
-                   ELSE CAST(julianday('now','localtime')
-                             - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER)
-               END AS dias_transcurridos
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
         GROUP BY c.id
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
+    corr_rows = [_calcular_semaforo_row(dict(r)) for r in corr_rows_raw]
     conn.close()
 
     ultima_rev = {r["exp_digital_id"]: r["ultima_revision"] for r in dig_revs}
@@ -581,36 +574,45 @@ async def backup_zip():
         ws = wb.active
         ws.title = "CORRESPONDENCIA"
         fill = PatternFill("solid", fgColor="1B4F8A")
+        link_font = Font(color="0563C1", underline="single", size=10)
         headers = [
-            "AÑO","MES","FECHA INGRESO DE OFICIO","N. RADICADOS",
-            "ENTIDAD","CORREO REMITENTE","ASUNTO AGILSALUD","TIPO DE DOCUMENTO",
-            "RESPONSABLE","CASO BMP","SINPROC PERSONERIA","TIPO DE REQUERIMIENTO",
-            "TERMINO (DIAS)","N RADICADO SALIDA","URL RADICADO SALIDA",
-            "FECHA RADICADO DE SALIDA","TIPO DE RESPUESTA","OBSERVACIONES",
-            "DÍAS TRANSCURRIDOS",
+            "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
+            "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
+            "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
+            "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
+            "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
+            "FECHA TERMINO DE RESPUESTA PETICION", "DÍAS TRANSCURRIDOS",
         ]
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
             cell.fill = fill; cell.font = h_font; cell.alignment = center
         ws.row_dimensions[1].height = 36
-        for ri, row in enumerate(corr_rows, 2):
-            d = dict(row)
+        for ri, d in enumerate(corr_rows, 2):
             rf = alt_fill if ri % 2 == 0 else None
+            urls_str = d.get("radicados_urls") or ""
+            urls_list = [u.strip() for u in urls_str.split(" | ")] if urls_str.strip() else []
+            first_url = next((u for u in urls_list if u), None)
             vals = [
                 d.get("anio"), d.get("mes"),
                 d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
                 d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
-                d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
                 d.get("sinproc_personeria"), d.get("tipo_requerimiento"), d.get("termino_dias"),
-                d.get("radicados_salida"), d.get("radicados_urls"),
+                d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
+                d.get("radicados_salida"),           # col 14 — N RADICADO SALIDA
                 d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
-                d.get("tipo_respuesta"), d.get("tramite_salida"), d.get("dias_transcurridos"),
+                d.get("tipo_respuesta"), d.get("tramite_salida"),
+                d.get("fecha_termino_respuesta"),     # col 18 — FECHA TERMINO (calculated)
+                d.get("dias_transcurridos"),
             ]
             for ci, v in enumerate(vals, 1):
                 cell = ws.cell(row=ri, column=ci, value=v)
                 cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
                 if rf: cell.fill = rf
-        col_widths = [6, 12, 20, 18, 30, 30, 40, 18, 22, 10, 18, 40, 10, 20, 40, 20, 25, 25, 8]
+            if first_url and d.get("radicados_salida"):
+                rad_cell = ws.cell(row=ri, column=14)
+                rad_cell.hyperlink = first_url
+                rad_cell.font = link_font
+        col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 28, 8]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

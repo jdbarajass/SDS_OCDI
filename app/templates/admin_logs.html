@@ -1,0 +1,134 @@
+{% extends "base_admin.html" %}
+{% block title %}Registro de Actividad{% endblock %}
+{% block heading %}Registro de Actividad <span class="badge-count">{{ total }}</span>{% endblock %}
+
+{% block content %}
+<style>
+.log-filters { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; align-items:flex-end; }
+.log-filters select, .log-filters input { padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; }
+.log-filters button { padding:7px 16px; background:#1d4ed8; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }
+.log-table { width:100%; border-collapse:collapse; }
+.log-table th { background:#1e293b; color:#fff; padding:9px 12px; text-align:left; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.log-table td { padding:9px 12px; border-bottom:1px solid #e2e8f0; font-size:12.5px; vertical-align:middle; }
+.log-table tr:hover td { background:#f8fafc; }
+.badge-accion { display:inline-block; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:700; }
+.accion-login    { background:#d1fae5; color:#065f46; }
+.accion-logout   { background:#fef3c7; color:#92400e; }
+.accion-crear    { background:#dbeafe; color:#1e40af; }
+.accion-actualizar { background:#e0e7ff; color:#3730a3; }
+.accion-eliminar { background:#fee2e2; color:#991b1b; }
+.accion-importar { background:#fce7f3; color:#9d174d; }
+.accion-default  { background:#f1f5f9; color:#475569; }
+.pager { display:flex; gap:6px; margin-top:20px; align-items:center; flex-wrap:wrap; }
+.pager a, .pager span { padding:5px 12px; border:1px solid #e2e8f0; border-radius:5px; font-size:13px; text-decoration:none; color:#1d4ed8; }
+.pager span.current { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+.pager span.disabled { color:#94a3b8; cursor:default; }
+</style>
+
+<!-- Filtros -->
+<form method="get" action="/admin/logs" class="log-filters">
+    <div>
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px">Módulo</label>
+        <select name="modulo">
+            <option value="">— Todos —</option>
+            {% for m in modulos_list %}
+            <option value="{{ m }}" {% if m == modulo_filtro %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px">Acción</label>
+        <select name="accion">
+            <option value="">— Todas —</option>
+            {% for a in acciones_list %}
+            <option value="{{ a }}" {% if a == accion_filtro %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px">Usuario</label>
+        <input type="text" name="usuario" value="{{ usuario_filtro }}" placeholder="Nombre del usuario...">
+    </div>
+    <button type="submit">🔍 Filtrar</button>
+    {% if modulo_filtro or accion_filtro or usuario_filtro %}
+    <a href="/admin/logs" style="padding:7px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#475569;text-decoration:none">✖ Limpiar</a>
+    {% endif %}
+</form>
+
+<!-- Tabla -->
+{% if logs %}
+<table class="log-table">
+    <thead>
+        <tr>
+            <th>Fecha/Hora</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Acción</th>
+            <th>Módulo</th>
+            <th>Detalle</th>
+            <th>IP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td style="white-space:nowrap;color:#64748b">{{ log.created_at or '—' }}</td>
+            <td><strong>{{ log.nombre_usuario }}</strong></td>
+            <td>{{ log.rol or '—' }}</td>
+            <td>
+                {% set ac = log.accion|lower %}
+                <span class="badge-accion
+                    {% if 'login' in ac %}accion-login
+                    {% elif 'logout' in ac %}accion-logout
+                    {% elif 'crear' in ac or 'crear' in ac or 'nuevo' in ac %}accion-crear
+                    {% elif 'actualiz' in ac or 'editar' in ac or 'permiso' in ac or 'password' in ac %}accion-actualizar
+                    {% elif 'eliminar' in ac %}accion-eliminar
+                    {% elif 'import' in ac %}accion-importar
+                    {% else %}accion-default{% endif %}">
+                    {{ log.accion }}
+                </span>
+            </td>
+            <td>{{ log.modulo or '—' }}</td>
+            <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ log.detalle or '' }}">
+                {{ log.detalle or '—' }}
+            </td>
+            <td style="color:#94a3b8;font-size:11.5px">{{ log.ip or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div class="pager">
+    {% if page > 1 %}
+    <a href="?modulo={{ modulo_filtro }}&accion={{ accion_filtro }}&usuario={{ usuario_filtro }}&page={{ page - 1 }}">← Anterior</a>
+    {% else %}
+    <span class="disabled">← Anterior</span>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+    {% if p == page %}
+    <span class="current">{{ p }}</span>
+    {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 2 and p <= page + 2) %}
+    <a href="?modulo={{ modulo_filtro }}&accion={{ accion_filtro }}&usuario={{ usuario_filtro }}&page={{ p }}">{{ p }}</a>
+    {% elif p == 4 or p == total_pages - 3 %}
+    <span class="disabled">…</span>
+    {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="?modulo={{ modulo_filtro }}&accion={{ accion_filtro }}&usuario={{ usuario_filtro }}&page={{ page + 1 }}">Siguiente →</a>
+    {% else %}
+    <span class="disabled">Siguiente →</span>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div style="text-align:center;padding:60px;color:#94a3b8">
+    <div style="font-size:40px;margin-bottom:12px">📋</div>
+    <div style="font-size:15px">No hay registros de actividad con los filtros aplicados.</div>
+</div>
+{% endif %}
+{% endblock %}

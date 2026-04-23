@@ -7,6 +7,9 @@ import io
 
 from urllib.parse import quote_plus as _quote_plus
 from app.database import get_db
+from app.auth_utils import puede_escribir as _pw, registrar_log
+
+_MOD = "digitales"
 
 router = APIRouter(prefix="/digitales")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -288,6 +291,9 @@ async def nuevo_post(
     nombre_auto: str = Form(""),
     fecha_auto: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("""
         INSERT INTO exp_digitales (n_expediente, anio, abogado, etapa, queja_inicial,
@@ -318,6 +324,9 @@ async def importar_form(request: Request, msg: str = ""):
 
 @router.post("/importar", response_class=HTMLResponse)
 async def importar_post(request: Request, archivo: UploadFile = File(...)):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/importar?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:
@@ -614,6 +623,7 @@ async def comunicaciones_lista(
 
 @router.post("/comunicacion/{com_id}/editar")
 async def com_editar(
+    request: Request,
     com_id: int,
     radicado_comunicacion: str = Form(""),
     dependencia: str = Form(""),
@@ -624,6 +634,9 @@ async def com_editar(
     responsable: str = Form(""),
     observaciones: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
     if not row:
@@ -649,7 +662,10 @@ async def com_editar(
 
 
 @router.post("/comunicacion/{com_id}/eliminar")
-async def com_eliminar(com_id: int):
+async def com_eliminar(request: Request, com_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT exp_digital_id FROM exp_comunicaciones WHERE id = ?", (com_id,)).fetchone()
     if not row:
@@ -681,7 +697,10 @@ async def abogados_lista(request: Request, msg: str = ""):
 
 
 @router.post("/abogados/nuevo")
-async def abogado_crear(nombre: str = Form("")):
+async def abogado_crear(request: Request, nombre: str = Form("")):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/abogados?msg=sin_permiso", status_code=303)
     nombre = (nombre or "").strip()
     if nombre:
         conn = get_db()
@@ -699,7 +718,10 @@ async def abogado_crear(nombre: str = Form("")):
 
 
 @router.post("/abogados/{ab_id}/editar")
-async def abogado_editar(ab_id: int, nombre: str = Form("")):
+async def abogado_editar(request: Request, ab_id: int, nombre: str = Form("")):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/abogados?msg=sin_permiso", status_code=303)
     nombre = (nombre or "").strip()
     if nombre:
         conn = get_db()
@@ -736,7 +758,10 @@ async def abogado_editar(ab_id: int, nombre: str = Form("")):
 
 
 @router.post("/abogados/{ab_id}/eliminar")
-async def abogado_eliminar(ab_id: int):
+async def abogado_eliminar(request: Request, ab_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/abogados?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute(
         "SELECT nombre FROM abogados_digitales WHERE id=?", (ab_id,)
@@ -782,7 +807,10 @@ async def detalle(request: Request, exp_id: int, msg: str = "", back: str = ""):
 
 
 @router.post("/{exp_id}/revisar")
-async def marcar_revisado(exp_id: int):
+async def marcar_revisado(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/digitales/{exp_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute(
         "INSERT INTO exp_revisiones (exp_digital_id) VALUES (?)", (exp_id,)
@@ -836,6 +864,9 @@ async def editar_post(
     fecha_auto: str = Form(""),
     observaciones: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/digitales/{exp_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("""
         UPDATE exp_digitales SET n_expediente=?, anio=?, abogado=?, etapa=?, queja_inicial=?,
@@ -854,7 +885,10 @@ async def editar_post(
 
 
 @router.post("/{exp_id}/eliminar")
-async def eliminar(exp_id: int):
+async def eliminar(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/digitales/?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT n_expediente FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
     if row:
@@ -869,6 +903,7 @@ async def eliminar(exp_id: int):
 
 @router.post("/{exp_id}/comunicacion/nueva")
 async def com_nueva(
+    request: Request,
     exp_id: int,
     radicado_comunicacion: str = Form(""),
     dependencia: str = Form(""),
@@ -879,6 +914,9 @@ async def com_nueva(
     responsable: str = Form(""),
     observaciones: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/digitales/{exp_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("""
         INSERT INTO exp_comunicaciones

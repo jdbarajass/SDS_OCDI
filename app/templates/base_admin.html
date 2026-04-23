@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}OCDI{% endblock %} — SDS</title>
+    <title>{% block title %}Administración{% endblock %} — SDS</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 <div class="layout">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-icon">📁</div>
+            <div class="brand-icon">🛡️</div>
             <div class="brand-text">
-                <span class="brand-title">BASE EXPEDIENTES</span>
-                <span class="brand-sub">2023U · OCDI</span>
+                <span class="brand-title">ADMINISTRACIÓN</span>
+                <span class="brand-sub">Usuarios y Permisos · OCDI</span>
             </div>
         </div>
 
@@ -25,50 +24,44 @@
                 <span>Portal Principal</span>
             </a>
 
-            <div class="nav-section-label">📁 BASE EXPEDIENTES</div>
-            <a href="/dashboard" class="nav-link {% if active == 'dashboard' %}active{% endif %}">
-                <span class="nav-ico">📊</span>
-                <span>Dashboard</span>
+            <div class="nav-section-label">🛡️ ADMINISTRACIÓN</div>
+            <a href="/admin/usuarios" class="nav-link {% if active == 'admin_usuarios' %}active{% endif %}">
+                <span class="nav-ico">👥</span>
+                <span>Usuarios y Permisos</span>
             </a>
-            <a href="/expedientes" class="nav-link {% if active == 'lista' %}active{% endif %}">
-                <span class="nav-ico">📋</span>
-                <span>Expedientes</span>
+            <a href="/admin/logs" class="nav-link {% if active == 'admin_logs' %}active{% endif %}">
+                <span class="nav-ico">📝</span>
+                <span>Registro de Actividad</span>
             </a>
-            <a href="/expediente/nuevo" class="nav-link {% if active == 'nuevo' %}active{% endif %}">
-                <span class="nav-ico">➕</span>
-                <span>Nuevo Expediente</span>
+
+            <div class="nav-section-label">📦 MÓDULOS</div>
+            <a href="/expedientes" class="nav-link">
+                <span class="nav-ico">📁</span>
+                <span>Base Expedientes</span>
             </a>
-            <a href="/seguimiento" class="nav-link {% if active == 'seguimiento' %}active{% endif %}">
-                <span class="nav-ico">🗓</span>
-                <span>Seguimiento Mensual</span>
-            </a>
-            <a href="/autos" class="nav-link {% if active == 'autos' %}active{% endif %}">
+            <a href="/control-autos/" class="nav-link">
                 <span class="nav-ico">⚖️</span>
                 <span>Control de Autos</span>
             </a>
-            <a href="/importar" class="nav-link {% if active == 'importar' %}active{% endif %}">
-                <span class="nav-ico">📥</span>
-                <span>Importar Excel</span>
+            <a href="/correspondencia/" class="nav-link">
+                <span class="nav-ico">📋</span>
+                <span>Correspondencia</span>
             </a>
-            <a href="/exportar-filtrado" class="nav-link {% if active == 'exportar' %}active{% endif %}">
-                <span class="nav-ico">📤</span>
-                <span>Exportar Personalizado</span>
+            <a href="/digitales/" class="nav-link">
+                <span class="nav-ico">💻</span>
+                <span>Exp. Digitales</span>
+            </a>
+            <a href="/sala/" class="nav-link">
+                <span class="nav-ico">🗓️</span>
+                <span>Sala de Audiencias</span>
+            </a>
+            <a href="/backup/" class="nav-link">
+                <span class="nav-ico">📦</span>
+                <span>Backup</span>
             </a>
         </nav>
 
         {% set current_user = request.state.user %}
-        {% if current_user and current_user.rol in ('admin','jefe') %}
-        <div class="nav-section-label">🛡️ ADMINISTRACIÓN</div>
-        <a href="/admin/usuarios" class="nav-link {% if active == 'admin_usuarios' %}active{% endif %}">
-            <span class="nav-ico">👥</span>
-            <span>Usuarios y Permisos</span>
-        </a>
-        <a href="/admin/logs" class="nav-link {% if active == 'admin_logs' %}active{% endif %}">
-            <span class="nav-ico">📝</span>
-            <span>Registro de Actividad</span>
-        </a>
-        {% endif %}
-
         <div class="sidebar-footer">
             {% if current_user %}
             <div style="margin-bottom:8px;padding:8px 10px;background:rgba(255,255,255,.08);border-radius:7px">
@@ -86,7 +79,6 @@
         </div>
     </aside>
 
-    <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
         <div class="page-header">
             <h1 class="page-title">{% block heading %}{% endblock %}</h1>
@@ -94,15 +86,22 @@
         </div>
 
         {% if msg %}
-        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
-            {% if msg == 'creado' %}✅ Expediente creado correctamente.
-            {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
-            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
-            {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
+        <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'sin_permiso' in msg or 'corta' in msg %}danger{% else %}success{% endif %}">
+            {% if msg == 'actualizado' %}✅ Cambio guardado correctamente.
+            {% elif msg == 'permisos_actualizados' %}✅ Permisos actualizados correctamente.
+            {% elif msg == 'password_actualizada' %}✅ Contraseña actualizada correctamente.
+            {% elif msg == 'password_corta' %}⚠️ La contraseña debe tener al menos 8 caracteres.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'no_encontrado' %}⚠️ Usuario no encontrado.
             {% else %}{{ msg }}
             {% endif %}
         </div>
+        <script>
+            setTimeout(function(){
+                var el = document.getElementById('flash-msg');
+                if(el){ el.style.transition='opacity .5s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); },500); }
+            }, 5000);
+        </script>
         {% endif %}
 
         <div class="page-body">
@@ -111,7 +110,6 @@
     </main>
 
 </div>
-
 <script src="/static/js/app.js"></script>
 {% block scripts %}{% endblock %}
 </body>

@@ -8,6 +8,9 @@ import zipfile
 
 from app.database import get_db
 from app.routers.correspondencia import _calcular_semaforo_row
+from app.auth_utils import puede_escribir as _pw, registrar_log
+
+_MOD = "backup"
 
 router = APIRouter(prefix="/backup")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -266,7 +269,10 @@ async def backup_exportar():
 # ── Importar Excel completo (reemplaza todo) ───────────────────────────────────
 
 @router.post("/importar")
-async def backup_importar(archivo: UploadFile = File(...)):
+async def backup_importar(request: Request, archivo: UploadFile = File(...)):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/backup/?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresar — OCDI SDS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d3060 0%, #1B4F8A 60%, #2e6da4 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-wrap {
+            width: 100%;
+            max-width: 860px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+        .login-header {
+            text-align: center;
+        }
+        .login-logo { font-size: 54px; margin-bottom: 8px; }
+        .login-title { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: .5px; }
+        .login-sub { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+        .login-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            width: 100%;
+        }
+        @media (max-width: 620px) { .login-panels { grid-template-columns: 1fr; } }
+
+        .login-panel {
+            background: #fff;
+            border-radius: 14px;
+            padding: 32px 28px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.22);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .panel-icon { font-size: 36px; }
+        .panel-title { font-size: 17px; font-weight: 800; color: #0d3060; }
+        .panel-desc { font-size: 12.5px; color: #6c757d; line-height: 1.5; margin-top: -8px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: .4px; }
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            padding: 10px 14px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 7px;
+            font-size: 13.5px;
+            color: #111827;
+            outline: none;
+            transition: border-color .15s;
+            background: #f9fafb;
+        }
+        .form-group select:focus,
+        .form-group input:focus { border-color: #1B4F8A; background: #fff; }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #1B4F8A;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .15s;
+            letter-spacing: .3px;
+        }
+        .btn-login:hover { background: #0d3060; }
+
+        .divider {
+            width: 1px;
+            background: rgba(255,255,255,.2);
+            align-self: stretch;
+        }
+        @media (max-width: 620px) { .divider { display: none; } }
+
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .badge-rol {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            letter-spacing: .3px;
+        }
+        .badge-abogado { background: #ede9fe; color: #5b21b6; }
+        .badge-admin   { background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+<div class="login-wrap">
+
+    <div class="login-header">
+        <div class="login-logo">⚖️</div>
+        <div class="login-title">OCDI — Control Disciplinario Interno</div>
+        <div class="login-sub">Secretaría Distrital de Salud · Seleccione cómo desea ingresar</div>
+    </div>
+
+    {% if error %}
+    <div class="error-msg" style="width:100%;max-width:520px">
+        {% if error == 'credenciales_invalidas' %}🔒 Usuario o contraseña incorrectos. Intente de nuevo.
+        {% elif error == 'usuario_invalido' %}⚠️ Usuario no encontrado o inactivo.
+        {% elif error == 'sin_sesion' %}⚠️ Su sesión expiró. Por favor ingrese de nuevo.
+        {% else %}⚠️ {{ error }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="login-panels">
+
+        <!-- PANEL ABOGADOS -->
+        <div class="login-panel">
+            <div>
+                <div class="panel-icon">👤</div>
+                <div class="panel-title">Soy abogado(a)</div>
+                <div class="panel-desc">
+                    Seleccione su nombre para ingresar con acceso de <strong>solo lectura</strong>.
+                    No se requiere contraseña.
+                </div>
+            </div>
+
+            <form method="post" action="/login/abogado">
+                <input type="hidden" name="next" value="{{ next }}">
+                <div class="form-group">
+                    <label>Su nombre</label>
+                    <select name="user_id" required>
+                        <option value="">— Seleccione su nombre —</option>
+                        {% for ab in abogados %}
+                        <option value="{{ ab.id }}">{{ ab.nombre_completo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="margin-top:12px">
+                    <button type="submit" class="btn-login">Ingresar como abogado(a) →</button>
+                </div>
+            </form>
+
+            <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:-6px">
+                <span class="badge-rol badge-abogado">Solo lectura</span>
+                &nbsp;Puede ver toda la plataforma pero no modificar datos
+            </div>
+        </div>
+
+        <!-- PANEL CREDENCIAL -->
+        <div class="login-panel">
+            <div>
+                <div class="panel-icon">🔐</div>
+                <div class="panel-title">Acceso con contraseña</div>
+                <div class="panel-desc">
+                    Para secretarios, jefe de oficina y administrador del sistema.
+                    Ingrese sus credenciales asignadas.
+                </div>
+            </div>
+
+            <form method="post" action="/login/credencial">
+                <input type="hidden" name="next" value="{{ next }}">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" name="username" placeholder="Ej: Secretario1" autocomplete="username" required>
+                </div>
+                <div class="form-group" style="margin-top:10px">
+                    <label>Contraseña</label>
+                    <input type="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+                </div>
+                <div style="margin-top:14px">
+                    <button type="submit" class="btn-login">Ingresar →</button>
+                </div>
+            </form>
+
+            <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:-6px">
+                <span class="badge-rol badge-admin">Acceso completo</span>
+                &nbsp;Secretarios · Jefe · Administrador
+            </div>
+        </div>
+
+    </div>
+
+    <div style="font-size:11px;color:rgba(255,255,255,.4);text-align:center">
+        SDS · OCDI v3.0 — Sistema local de gestión disciplinaria
+    </div>
+
+</div>
+</body>
+</html>

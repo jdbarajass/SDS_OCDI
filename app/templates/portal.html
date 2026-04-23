@@ -54,10 +54,27 @@
         <div class="portal-logo">⚖️</div>
         <div class="portal-title">OCDI — Control Disciplinario Interno</div>
         <div class="portal-sub">Secretaría Distrital de Salud · Seleccione el módulo con el que desea trabajar</div>
-        <div style="margin-top:18px">
-            <a href="/backup/zip" class="btn-backup-zip">
-                📦 Descargar Backup Completo (.zip)
-            </a>
+
+        {% if current_user %}
+        <div style="margin-top:16px;display:inline-flex;align-items:center;gap:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:10px 18px;backdrop-filter:blur(4px)">
+            <div style="text-align:left">
+                <div style="font-size:10px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.4px">Sesión activa</div>
+                <div style="font-size:14px;font-weight:700;color:#fff">{{ current_user.nombre_completo }}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:capitalize">{{ current_user.rol }}</div>
+            </div>
+            <form method="post" action="/logout" style="margin:0">
+                <button type="submit" style="padding:8px 14px;background:rgba(220,38,38,.7);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+                    🚪 Salir
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a href="/backup/zip" class="btn-backup-zip">📦 Descargar Backup Completo (.zip)</a>
+            {% if current_user and current_user.rol in ('admin','jefe') %}
+            <a href="/admin/usuarios" class="btn-backup-zip">👥 Usuarios y Permisos</a>
+            {% endif %}
         </div>
     </div>
 
@@ -154,7 +171,7 @@
 
     </div>
 
-    <div class="portal-footer">SDS · OCDI v2.2 — Sistema local de gestión disciplinaria</div>
+    <div class="portal-footer">SDS · OCDI v3.0 — Sistema local de gestión disciplinaria</div>
 
 </div>
 </body>

@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import date
 
 from app.database import get_db
+from app.auth_utils import tpl
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -36,12 +37,9 @@ async def hub(request: Request):
 
     conn.close()
 
-    return templates.TemplateResponse("portal.html", {
-        "request": request,
-        "total_base": total_base,
-        "total_digitales": total_digitales,
-        "prox_sala": dict(prox_sala) if prox_sala else None,
-        "total_corr": total_corr,
-        "corr_rojos": corr_rojos,
-        "total_control_autos": total_control_autos,
-    })
+    return templates.TemplateResponse("portal.html", tpl(request, None,
+        total_base=total_base, total_digitales=total_digitales,
+        prox_sala=dict(prox_sala) if prox_sala else None,
+        total_corr=total_corr, corr_rojos=corr_rojos,
+        total_control_autos=total_control_autos,
+    ))

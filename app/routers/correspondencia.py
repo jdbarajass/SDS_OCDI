@@ -8,6 +8,9 @@ import io
 from urllib.parse import quote_plus as _quote_plus
 
 from app.database import get_db
+from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+
+_MOD = "correspondencia"
 
 router = APIRouter(prefix="/correspondencia")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -177,6 +180,7 @@ def _calcular_semaforo_row(r: dict) -> dict:
     _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
     r["dias_restantes"] = None
     r["fecha_termino_respuesta"] = None
+    r["pendiente"] = not bool(r.get("fecha_radicado_salida"))
 
     if r.get("tipo_respuesta") and r["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
         r["semaforo"] = "verde"
@@ -362,7 +366,9 @@ async def lista(
         all_rows.append(d)
 
     # Apply semaphore filter in Python
-    if semaforo:
+    if semaforo == "pendiente":
+        all_rows = [r for r in all_rows if r.get("pendiente")]
+    elif semaforo:
         all_rows = [r for r in all_rows if r.get("semaforo") == semaforo]
 
     total = len(all_rows)
@@ -370,48 +376,33 @@ async def lista(
     offset = (page - 1) * por_pagina
     rows = all_rows[offset:offset + por_pagina]
 
-    return templates.TemplateResponse("corr_lista.html", {
-        "request": request,
-        "active": "corr_lista",
-        "rows": rows,
-        "total": total,
-        "page": page,
-        "total_pages": total_pages,
-        "por_pagina": por_pagina,
-        "q": q,
-        "semaforo": semaforo,
-        "responsable": responsable,
-        "mes": mes,
-        "anio": anio,
-        "responsables": responsables,
-        "meses": MESES,
-        "anios": anios_bd,
-        "msg": msg,
-        "back_url": request.url.path + ("?" + str(request.url.query) if request.url.query else ""),
-    })
+    return templates.TemplateResponse("corr_lista.html", tpl(request, _MOD,
+        active="corr_lista",
+        rows=rows, total=total, page=page, total_pages=total_pages,
+        por_pagina=por_pagina, q=q, semaforo=semaforo, responsable=responsable,
+        mes=mes, anio=anio, responsables=responsables, meses=MESES,
+        anios=anios_bd, msg=msg,
+        back_url=request.url.path + ("?" + str(request.url.query) if request.url.query else ""),
+    ))
 
 
 # ── NUEVO ──────────────────────────────────────────────────────────────────────
 
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nuevo_form(request: Request):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
     responsables, tipos_doc = _get_catalogos(conn)
     conn.close()
-    return templates.TemplateResponse("corr_form.html", {
-        "request": request,
-        "active": "corr_nuevo",
-        "modo": "nuevo",
-        "reg": {},
-        "radicados_salida": [],
-        "responsables": responsables,
-        "tipos_doc": tipos_doc,
-        "tipos_respuesta": TIPOS_RESPUESTA,
-        "terminos_dias": TERMINOS_DIAS,
-        "tipos_requerimiento": TIPOS_REQUERIMIENTO,
-        "meses": MESES,
-        "anios": _anios_disponibles(),
-    })
+    return templates.TemplateResponse("corr_form.html", tpl(request, _MOD,
+        active="corr_nuevo", modo="nuevo", reg={}, radicados_salida=[],
+        responsables=responsables, tipos_doc=tipos_doc,
+        tipos_respuesta=TIPOS_RESPUESTA, terminos_dias=TERMINOS_DIAS,
+        tipos_requerimiento=TIPOS_REQUERIMIENTO, meses=MESES,
+        anios=_anios_disponibles(),
+    ))
 
 
 @router.post("/nuevo")
@@ -434,6 +425,9 @@ async def nuevo_post(
     tipo_requerimiento: str = Form(""),
     termino_dias: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
     termino_val = int(termino_dias) if termino_dias.strip() else None
     cur = conn.execute("""
@@ -451,6 +445,8 @@ async def nuevo_post(
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
+    registrar_log(user, "crear", _MOD, f"Oficio #{new_id} — {_v(n_radicado)}",
+                  request.client.host if request.client else None)
     return RedirectResponse(f"/correspondencia/{new_id}/editar?msg=creado", status_code=303)
 
 
@@ -575,7 +571,10 @@ async def importar_form(request: Request, msg: str = ""):
 
 
 @router.post("/importar")
-async def importar_post(archivo: UploadFile = File(...)):
+async def importar_post(request: Request, archivo: UploadFile = File(...)):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/importar?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:
@@ -785,6 +784,8 @@ async def importar_post(archivo: UploadFile = File(...)):
         return RedirectResponse(f"/correspondencia/importar?msg=error_import", status_code=303)
 
     conn.close()
+    registrar_log(user, "importar", _MOD, f"{insertados} registros importados",
+                  request.client.host if request.client else None)
     return RedirectResponse(f"/correspondencia/importar?msg=ok_{insertados}", status_code=303)
 
 
@@ -1040,17 +1041,18 @@ async def ver(request: Request, reg_id: int, back: str = ""):
     ).fetchall()
     conn.close()
     reg = _calcular_semaforo_row(dict(row))
-    return templates.TemplateResponse("corr_detalle.html", {
-        "request": request,
-        "active": "corr_lista",
-        "reg": reg,
-        "radicados": [dict(r) for r in radicados],
-        "back": back or "/correspondencia/",
-    })
+    return templates.TemplateResponse("corr_detalle.html", tpl(request, _MOD,
+        active="corr_lista", reg=reg,
+        radicados=[dict(r) for r in radicados],
+        back=back or "/correspondencia/",
+    ))
 
 
 @router.get("/{reg_id}/editar", response_class=HTMLResponse)
 async def editar_form(request: Request, reg_id: int, msg: str = "", back: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/correspondencia/{reg_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT * FROM correspondencia WHERE id=?", (reg_id,)).fetchone()
     if not row:
@@ -1062,26 +1064,20 @@ async def editar_form(request: Request, reg_id: int, msg: str = "", back: str = 
     ).fetchall()
     responsables, tipos_doc = _get_catalogos(conn)
     conn.close()
-    return templates.TemplateResponse("corr_form.html", {
-        "request": request,
-        "active": "corr_lista",
-        "modo": "editar",
-        "reg": dict(row),
-        "radicados_salida": [dict(r) for r in radicados],
-        "responsables": responsables,
-        "tipos_doc": tipos_doc,
-        "tipos_respuesta": TIPOS_RESPUESTA,
-        "terminos_dias": TERMINOS_DIAS,
-        "tipos_requerimiento": TIPOS_REQUERIMIENTO,
-        "meses": MESES,
-        "anios": _anios_disponibles(),
-        "msg": msg,
-        "back": back or "/correspondencia/",
-    })
+    return templates.TemplateResponse("corr_form.html", tpl(request, _MOD,
+        active="corr_lista", modo="editar", reg=dict(row),
+        radicados_salida=[dict(r) for r in radicados],
+        responsables=responsables, tipos_doc=tipos_doc,
+        tipos_respuesta=TIPOS_RESPUESTA, terminos_dias=TERMINOS_DIAS,
+        tipos_requerimiento=TIPOS_REQUERIMIENTO, meses=MESES,
+        anios=_anios_disponibles(), msg=msg,
+        back=back or "/correspondencia/",
+    ))
 
 
 @router.post("/{reg_id}/editar")
 async def editar_post(
+    request: Request,
     reg_id: int,
     anio: int = Form(None),
     mes: str = Form(""),
@@ -1100,6 +1096,9 @@ async def editar_post(
     tipo_requerimiento: str = Form(""),
     termino_dias: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/correspondencia/{reg_id}?msg=sin_permiso", status_code=303)
     termino_val = int(termino_dias) if termino_dias.strip() else None
     conn = get_db()
     conn.execute("""
@@ -1119,15 +1118,22 @@ async def editar_post(
     ])
     conn.commit()
     conn.close()
+    registrar_log(user, "editar", _MOD, f"Oficio #{reg_id} — {_v(n_radicado)}",
+                  request.client.host if request.client else None)
     return RedirectResponse(f"/correspondencia/{reg_id}/editar?msg=actualizado", status_code=303)
 
 
 @router.post("/{reg_id}/eliminar")
-async def eliminar(reg_id: int):
+async def eliminar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM correspondencia WHERE id=?", (reg_id,))
     conn.commit()
     conn.close()
+    registrar_log(user, "eliminar", _MOD, f"Oficio #{reg_id}",
+                  request.client.host if request.client else None)
     return RedirectResponse("/correspondencia/?msg=eliminado", status_code=303)
 
 

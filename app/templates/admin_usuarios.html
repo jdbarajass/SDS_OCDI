@@ -1,0 +1,140 @@
+{% extends "base_admin.html" %}
+{% block title %}Usuarios y Permisos{% endblock %}
+{% block heading %}Usuarios y Permisos{% endblock %}
+
+{% block header_actions %}
+<span style="font-size:13px;color:#64748b">{{ usuarios|length }} usuarios registrados</span>
+{% endblock %}
+
+{% block content %}
+<style>
+.users-table { width:100%; border-collapse:collapse; margin-bottom:32px; }
+.users-table th { background:#1e40af; color:#fff; padding:10px 12px; text-align:left; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+.users-table td { padding:10px 12px; border-bottom:1px solid #e2e8f0; font-size:13px; vertical-align:middle; }
+.users-table tr:hover td { background:#f8fafc; }
+.badge-rol { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.badge-admin { background:#7c3aed; color:#fff; }
+.badge-jefe { background:#0f766e; color:#fff; }
+.badge-secretario { background:#1d4ed8; color:#fff; }
+.badge-auxiliar { background:#0369a1; color:#fff; }
+.badge-abogado { background:#475569; color:#fff; }
+.badge-activo { background:#d1fae5; color:#065f46; }
+.badge-inactivo { background:#fee2e2; color:#991b1b; }
+.btn-sm { padding:4px 10px; border:none; border-radius:5px; font-size:12px; font-weight:600; cursor:pointer; }
+.btn-danger { background:#dc2626; color:#fff; }
+.btn-success { background:#16a34a; color:#fff; }
+.btn-primary { background:#1d4ed8; color:#fff; }
+.btn-secondary { background:#64748b; color:#fff; }
+.pass-form { display:none; margin-top:8px; background:#f1f5f9; border-radius:6px; padding:10px; }
+.pass-form input { padding:5px 9px; border:1px solid #cbd5e1; border-radius:5px; font-size:13px; width:200px; }
+.perm-section { margin-top:8px; }
+.perm-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.perm-card-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.perm-grid { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.perm-check { display:flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; transition:background .15s; }
+.perm-check:hover { background:#eff6ff; border-color:#93c5fd; }
+.perm-check input { cursor:pointer; width:15px; height:15px; }
+.perm-check.checked { background:#eff6ff; border-color:#3b82f6; }
+.section-title { font-size:16px; font-weight:700; color:#1e293b; margin:28px 0 14px; border-bottom:2px solid #e2e8f0; padding-bottom:8px; }
+</style>
+
+<!-- ── Tabla de usuarios ─────────────────────────────────────────────── -->
+<div class="section-title">👥 Lista de Usuarios</div>
+<table class="users-table">
+    <thead>
+        <tr>
+            <th>Nombre Completo</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            {% if current_user.rol == 'admin' %}<th>Acciones</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in usuarios %}
+        <tr>
+            <td><strong>{{ u.nombre_completo }}</strong></td>
+            <td>{{ u.username or '—' }}</td>
+            <td><span class="badge-rol badge-{{ u.rol }}">{{ u.rol }}</span></td>
+            <td>
+                <span class="badge-rol {% if u.activo %}badge-activo{% else %}badge-inactivo{% endif %}">
+                    {% if u.activo %}Activo{% else %}Inactivo{% endif %}
+                </span>
+            </td>
+            {% if current_user.rol == 'admin' %}
+            <td>
+                {% if u.id != current_user.id %}
+                <form method="post" action="/admin/usuarios/{{ u.id }}/toggle-activo" style="display:inline">
+                    <button type="submit" class="btn-sm {% if u.activo %}btn-danger{% else %}btn-success{% endif %}">
+                        {% if u.activo %}🔴 Desactivar{% else %}🟢 Activar{% endif %}
+                    </button>
+                </form>
+                {% endif %}
+                {% if u.username %}
+                <button type="button" class="btn-sm btn-secondary" style="margin-left:4px"
+                        onclick="togglePass({{ u.id }})">🔑 Clave</button>
+                <div class="pass-form" id="pass-{{ u.id }}">
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/cambiar-password">
+                        <input type="password" name="nueva_password" placeholder="Nueva contraseña (mín. 8 chars)" autocomplete="new-password">
+                        <button type="submit" class="btn-sm btn-primary" style="margin-left:6px">Guardar</button>
+                        <button type="button" class="btn-sm btn-secondary" style="margin-left:4px"
+                                onclick="togglePass({{ u.id }})">Cancelar</button>
+                    </form>
+                </div>
+                {% endif %}
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- ── Permisos por módulo ──────────────────────────────────────────────── -->
+<div class="section-title">🔐 Permisos por Módulo</div>
+<p style="font-size:13px;color:#64748b;margin-bottom:16px">
+    Admin y Jefe tienen acceso total permanente. Los permisos aplican al resto de usuarios.
+    Marcado = puede escribir/editar/eliminar. Sin marcar = solo lectura.
+</p>
+<div class="perm-section">
+    {% for u in usuarios %}
+    {% if u.rol not in ('admin', 'jefe') %}
+    <div class="perm-card">
+        <div class="perm-card-header">
+            <span class="badge-rol badge-{{ u.rol }}">{{ u.rol }}</span>
+            <strong style="font-size:14px">{{ u.nombre_completo }}</strong>
+            {% if not u.activo %}<span style="font-size:11px;color:#dc2626">(Inactivo)</span>{% endif %}
+        </div>
+        <form method="post" action="/admin/usuarios/{{ u.id }}/permisos">
+            <div class="perm-grid">
+                {% for mod_id, mod_label in modulos %}
+                {% set tiene_permiso = permisos.get(u.id, {}).get(mod_id, False) %}
+                <label class="perm-check {% if tiene_permiso %}checked{% endif %}" id="label-{{ u.id }}-{{ mod_id }}">
+                    <input type="checkbox"
+                           name="perm_{{ u.id }}_{{ mod_id }}"
+                           {% if tiene_permiso %}checked{% endif %}
+                           onchange="updateLabel('{{ u.id }}', '{{ mod_id }}', this.checked)">
+                    {{ mod_label }}
+                </label>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn-sm btn-primary">💾 Guardar permisos</button>
+        </form>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePass(uid) {
+    var el = document.getElementById('pass-' + uid);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function updateLabel(uid, mod, checked) {
+    var lbl = document.getElementById('label-' + uid + '-' + mod);
+    if (checked) lbl.classList.add('checked');
+    else lbl.classList.remove('checked');
+}
+</script>
+{% endblock %}

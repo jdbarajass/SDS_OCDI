@@ -38,6 +38,7 @@
 
   <select name="semaforo" class="filter-select">
     <option value="">Todos los estados</option>
+    <option value="pendiente"  {% if semaforo == 'pendiente' %}selected{% endif %}>⏳ Pendiente</option>
     <option value="verde"      {% if semaforo == 'verde' %}selected{% endif %}>🟢 Verde</option>
     <option value="amarilla"   {% if semaforo == 'amarilla' %}selected{% endif %}>🟡 Amarillo</option>
     <option value="roja"       {% if semaforo == 'roja' %}selected{% endif %}>🔴 Rojo</option>
@@ -54,7 +55,7 @@
   {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
   {% if semaforo %}
   <span style="background:#dbeafe;color:#1d4ed8;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">
-    {% if semaforo == 'verde' %}🟢 Verde{% elif semaforo == 'amarilla' %}🟡 Amarillo{% elif semaforo == 'roja' %}🔴 Rojo{% else %}✅ Respondido{% endif %}
+    {% if semaforo == 'pendiente' %}⏳ Pendiente{% elif semaforo == 'verde' %}🟢 Verde{% elif semaforo == 'amarilla' %}🟡 Amarillo{% elif semaforo == 'roja' %}🔴 Rojo{% else %}✅ Respondido{% endif %}
   </span>
   {% endif %}
   {% if responsable %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">👤 {{ responsable }}</span>{% endif %}
@@ -147,6 +148,9 @@
           <span title="✅ Respondido" style="font-size:14px">✅</span>
           {% else %}
           <span style="color:var(--text-muted)">—</span>
+          {% endif %}
+          {% if r.pendiente %}
+          <br><span title="Sin fecha de salida — pendiente de respuesta" style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-weight:700;letter-spacing:.3px">PEND</span>
           {% endif %}
         </td>
 

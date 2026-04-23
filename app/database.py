@@ -162,6 +162,45 @@ CREATE TABLE IF NOT EXISTS control_autos_sustanciacion (
     created_by          TEXT
 );
 
+-- ── AUTENTICACIÓN Y AUDITORÍA ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS usuarios (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    username        TEXT UNIQUE,
+    password_hash   TEXT,
+    nombre_completo TEXT NOT NULL,
+    rol             TEXT NOT NULL CHECK(rol IN ('admin','jefe','secretario','auxiliar','abogado')),
+    activo          INTEGER DEFAULT 1,
+    created_at      TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS sesiones (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    token       TEXT UNIQUE NOT NULL,
+    user_id     INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    created_at  TEXT DEFAULT (datetime('now', 'localtime')),
+    last_seen   TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS permisos_modulo (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo          TEXT NOT NULL,
+    puede_escribir  INTEGER DEFAULT 0,
+    UNIQUE(user_id, modulo)
+);
+
+CREATE TABLE IF NOT EXISTS logs_actividad (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER,
+    nombre_usuario  TEXT NOT NULL,
+    rol             TEXT,
+    accion          TEXT NOT NULL,
+    modulo          TEXT,
+    detalle         TEXT,
+    ip              TEXT,
+    created_at      TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
 -- ── CORRESPONDENCIA / LISTA DE REPARTO DE ABOGADOS ───────────────────────────
 CREATE TABLE IF NOT EXISTS correspondencia (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -306,8 +345,65 @@ def init_db():
             conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))
         except Exception:
             pass
+
+    # Seed inicial de usuarios (solo si la tabla está vacía)
+    if conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:
+        _seed_usuarios(conn)
+
     conn.commit()
     conn.close()
+
+
+def _seed_usuarios(conn):
+    """Crea los usuarios iniciales del sistema con contraseñas hasheadas."""
+    from app.auth_utils import hash_password, MODULOS_SISTEMA
+
+    # (username, password_plaintext, nombre_completo, rol)
+    usuarios_credencial = [
+        ("Admin",           "Admin@OCDI#Ing",   "JOSE DE JESUS BARAJAS SOTELO",    "admin"),
+        ("JefeOficinaOcdi", "OCDI@Jefe#Martha", "MARTHA PATRICIA AÑEZ MAESTRE",    "jefe"),
+        ("Secretario1",     "SDS@2026#.And",    "ANDRES EDUARDO SANDOVAL MAYORGA", "secretario"),
+        ("Secretario2",     "SDS@2026#*Mag",    "MAGDA XIMENA PAREDES LIEVANO",    "secretario"),
+        ("AuxSecretario",   "SDS@2026#_Lun",    "LUNA GICELL GUZMAN YATE",         "auxiliar"),
+    ]
+    # Abogados (sin contraseña, solo seleccionan su nombre)
+    abogados = [
+        "CARLOS ALFONSO PARRA MALAVER",
+        "CESAR IVAN RODRIGUEZ DAMIAN",
+        "DAVID FELIPE MORALES NOGUERA",
+        "JANIK HERNANDO DE LA HOZ RIOS",
+        "MABEL GICELLA HURTADO SANCHEZ",
+        "MARA LUCIA UCROS MERLANO",
+        "RODOLFO CARRILLO QUINTERO",
+    ]
+
+    modulos = [m for m, _ in MODULOS_SISTEMA]
+
+    for username, pwd, nombre, rol in usuarios_credencial:
+        cur = conn.execute(
+            "INSERT INTO usuarios (username, password_hash, nombre_completo, rol) VALUES (?,?,?,?)",
+            (username, hash_password(pwd), nombre, rol),
+        )
+        uid = cur.lastrowid
+        # admin y jefe no necesitan filas de permisos (bypasean la verificación)
+        if rol not in ("admin", "jefe"):
+            for modulo in modulos:
+                conn.execute(
+                    "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir) VALUES (?,?,1)",
+                    (uid, modulo),
+                )
+
+    for nombre in abogados:
+        cur = conn.execute(
+            "INSERT INTO usuarios (username, password_hash, nombre_completo, rol) VALUES (?,?,?,?)",
+            (None, None, nombre, "abogado"),
+        )
+        uid = cur.lastrowid
+        for modulo in modulos:
+            conn.execute(
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir) VALUES (?,?,0)",
+                (uid, modulo),
+            )
 
 
 def calcular_alerta(fecha_vencimiento: str | None) -> dict:

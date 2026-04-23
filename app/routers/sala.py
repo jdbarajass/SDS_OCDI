@@ -6,6 +6,9 @@ from datetime import date, timedelta
 import calendar
 
 from app.database import get_db
+from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+
+_MOD = "sala"
 
 router = APIRouter(prefix="/sala")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -96,21 +99,12 @@ async def calendario(
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
     ][month]
 
-    return templates.TemplateResponse("sala.html", {
-        "request": request,
-        "active": "sala",
-        "year": year,
-        "month": month,
-        "nombre_mes": nombre_mes,
-        "semanas": semanas,
-        "franjas": FRANJAS,
-        "estados": ESTADOS,
-        "prev_year": prev_year,
-        "prev_month": prev_month,
-        "next_year": next_year,
-        "next_month": next_month,
-        "msg": msg,
-    })
+    return templates.TemplateResponse("sala.html", tpl(request, _MOD,
+        active="sala", year=year, month=month, nombre_mes=nombre_mes,
+        semanas=semanas, franjas=FRANJAS, estados=ESTADOS,
+        prev_year=prev_year, prev_month=prev_month,
+        next_year=next_year, next_month=next_month, msg=msg,
+    ))
 
 
 # ── Nuevo evento ───────────────────────────────────────────────────────────────
@@ -121,16 +115,15 @@ async def evento_nuevo_form(
     fecha: str = "",
     franja: str = "",
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     if not fecha:
         fecha = date.today().isoformat()
-    return templates.TemplateResponse("sala_form.html", {
-        "request": request,
-        "active": "sala",
-        "ev": {"fecha": fecha, "franja": franja},
-        "franjas": FRANJAS,
-        "estados": ESTADOS,
-        "modo": "nuevo",
-    })
+    return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
+        active="sala", ev={"fecha": fecha, "franja": franja},
+        franjas=FRANJAS, estados=ESTADOS, modo="nuevo",
+    ))
 
 
 @router.post("/evento/nuevo")
@@ -143,6 +136,9 @@ async def evento_nuevo_post(
     estado: str = Form("Ocupado"),
     responsable: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("""
         INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable)
@@ -159,19 +155,17 @@ async def evento_nuevo_post(
 
 @router.get("/evento/{ev_id}/editar", response_class=HTMLResponse)
 async def evento_editar_form(request: Request, ev_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     conn = get_db()
     ev = conn.execute("SELECT * FROM sala_agenda WHERE id = ?", (ev_id,)).fetchone()
     conn.close()
     if not ev:
         return RedirectResponse("/sala/?msg=no_encontrado")
-    return templates.TemplateResponse("sala_form.html", {
-        "request": request,
-        "active": "sala",
-        "ev": dict(ev),
-        "franjas": FRANJAS,
-        "estados": ESTADOS,
-        "modo": "editar",
-    })
+    return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
+        active="sala", ev=dict(ev), franjas=FRANJAS, estados=ESTADOS, modo="editar",
+    ))
 
 
 @router.post("/evento/{ev_id}/editar")
@@ -185,6 +179,9 @@ async def evento_editar_post(
     estado: str = Form("Ocupado"),
     responsable: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("""
         UPDATE sala_agenda SET fecha=?, franja=?, titulo=?, descripcion=?, estado=?, responsable=?
@@ -200,7 +197,10 @@ async def evento_editar_post(
 # ── Eliminar evento ────────────────────────────────────────────────────────────
 
 @router.post("/evento/{ev_id}/eliminar")
-async def evento_eliminar(ev_id: int):
+async def evento_eliminar(request: Request, ev_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     conn = get_db()
     ev = conn.execute("SELECT fecha FROM sala_agenda WHERE id = ?", (ev_id,)).fetchone()
     if ev:

@@ -6,6 +6,9 @@ from datetime import date, datetime
 import io
 
 from app.database import get_db
+from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+
+_MOD = "control_autos"
 
 router = APIRouter(prefix="/control-autos")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -121,34 +124,25 @@ async def ca_lista(
     conn.close()
 
     total_pages = max(1, (total + POR_PAGINA - 1) // POR_PAGINA)
-    return templates.TemplateResponse("ca_lista.html", {
-        "request": request,
-        "rows": [dict(r) for r in rows],
-        "total": total,
-        "page": page,
-        "total_pages": total_pages,
-        "q": q,
-        "abogado": abogado,
-        "anio": anio,
-        "mes": mes,
-        "abogados": ABOGADOS_RESPONSABLES,
-        "anios": [r[0] for r in anios if r[0]],
-        "msg": msg,
-        "active": "ca_lista",
-    })
+    return templates.TemplateResponse("ca_lista.html", tpl(request, _MOD,
+        rows=[dict(r) for r in rows], total=total, page=page,
+        total_pages=total_pages, q=q, abogado=abogado, anio=anio, mes=mes,
+        abogados=ABOGADOS_RESPONSABLES, anios=[r[0] for r in anios if r[0]],
+        msg=msg, active="ca_lista",
+    ))
 
 
 # ── Nuevo ──────────────────────────────────────────────────────────────────────
 
 @router.get("/nuevo", response_class=HTMLResponse)
 async def ca_nuevo_form(request: Request):
-    return templates.TemplateResponse("ca_form.html", {
-        "request": request,
-        "reg": None,
-        "abogados": ABOGADOS_RESPONSABLES,
-        "asuntos": ASUNTOS_COMUNES,
-        "active": "ca_nuevo",
-    })
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
+    return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
+        reg=None, abogados=ABOGADOS_RESPONSABLES,
+        asuntos=ASUNTOS_COMUNES, active="ca_nuevo",
+    ))
 
 
 @router.post("/nuevo")
@@ -162,6 +156,9 @@ async def ca_nuevo_post(
     observaciones: str = Form(""),
     created_by: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute(
         """INSERT INTO control_autos_sustanciacion
@@ -179,6 +176,8 @@ async def ca_nuevo_post(
     )
     conn.commit()
     conn.close()
+    registrar_log(user, "crear", _MOD, f"Auto #{numero_auto} — {expediente}",
+                  request.client.host if request.client else None)
     return RedirectResponse("/control-autos/?msg=creado", status_code=303)
 
 
@@ -314,7 +313,10 @@ async def ca_importar_form(request: Request, msg: str = ""):
 
 
 @router.post("/importar")
-async def ca_importar_post(archivo: UploadFile = File(...)):
+async def ca_importar_post(request: Request, archivo: UploadFile = File(...)):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/importar?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:
@@ -389,6 +391,8 @@ async def ca_importar_post(archivo: UploadFile = File(...)):
         return RedirectResponse("/control-autos/importar?msg=error_import", status_code=303)
 
     conn.close()
+    registrar_log(user, "importar", _MOD, f"{count} registros importados",
+                  request.client.host if request.client else None)
     return RedirectResponse(f"/control-autos/importar?msg=ok_{count}", status_code=303)
 
 
@@ -403,18 +407,18 @@ async def ca_detalle(request: Request, reg_id: int, msg: str = ""):
     conn.close()
     if not reg:
         return RedirectResponse("/control-autos/?msg=no_encontrado")
-    return templates.TemplateResponse("ca_detalle.html", {
-        "request": request,
-        "reg": dict(reg),
-        "msg": msg,
-        "active": "ca_lista",
-    })
+    return templates.TemplateResponse("ca_detalle.html", tpl(request, _MOD,
+        reg=dict(reg), msg=msg, active="ca_lista",
+    ))
 
 
 # ── Editar ─────────────────────────────────────────────────────────────────────
 
 @router.get("/{reg_id}/editar", response_class=HTMLResponse)
 async def ca_editar_form(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/control-autos/{reg_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     reg = conn.execute(
         "SELECT * FROM control_autos_sustanciacion WHERE id = ?", (reg_id,)
@@ -422,17 +426,15 @@ async def ca_editar_form(request: Request, reg_id: int):
     conn.close()
     if not reg:
         return RedirectResponse("/control-autos/?msg=no_encontrado")
-    return templates.TemplateResponse("ca_form.html", {
-        "request": request,
-        "reg": dict(reg),
-        "abogados": ABOGADOS_RESPONSABLES,
-        "asuntos": ASUNTOS_COMUNES,
-        "active": "ca_lista",
-    })
+    return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
+        reg=dict(reg), abogados=ABOGADOS_RESPONSABLES,
+        asuntos=ASUNTOS_COMUNES, active="ca_lista",
+    ))
 
 
 @router.post("/{reg_id}/editar")
 async def ca_editar_post(
+    request: Request,
     reg_id: int,
     expediente: str = Form(""),
     numero_auto: str = Form(""),
@@ -442,6 +444,9 @@ async def ca_editar_post(
     observaciones: str = Form(""),
     created_by: str = Form(""),
 ):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/control-autos/{reg_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute(
         """UPDATE control_autos_sustanciacion
@@ -467,9 +472,14 @@ async def ca_editar_post(
 # ── Eliminar ───────────────────────────────────────────────────────────────────
 
 @router.post("/{reg_id}/eliminar")
-async def ca_eliminar(reg_id: int):
+async def ca_eliminar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM control_autos_sustanciacion WHERE id = ?", (reg_id,))
     conn.commit()
     conn.close()
+    registrar_log(user, "eliminar", _MOD, f"Auto #{reg_id}",
+                  request.client.host if request.client else None)
     return RedirectResponse("/control-autos/?msg=eliminado", status_code=303)

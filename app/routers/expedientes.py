@@ -7,6 +7,9 @@ from typing import List, Optional
 import io
 
 from app.database import get_db, calcular_alerta, row_to_dict
+from app.auth_utils import puede_escribir as _pw, registrar_log
+
+_MOD = "expedientes"
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -180,6 +183,9 @@ async def nuevo_form(request: Request):
 
 @router.post("/expediente/nuevo")
 async def crear_expediente(request: Request):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     form = await request.form()
     data = {k: _limpiar(v) for k, v in form.items()}
     errores = []
@@ -377,6 +383,9 @@ async def editar_form(request: Request, exp_id: int):
 
 @router.post("/expediente/{exp_id}/editar")
 async def actualizar_expediente(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/expediente/{exp_id}?msg=sin_permiso", status_code=303)
     form = await request.form()
     data = {k: _limpiar(v) for k, v in form.items()}
     errores = []
@@ -518,13 +527,17 @@ async def actualizar_expediente(request: Request, exp_id: int):
 # ── Eliminar expediente ────────────────────────────────────────────────────────
 
 @router.post("/expediente/{exp_id}/eliminar")
-async def eliminar_expediente(exp_id: int):
+async def eliminar_expediente(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/expediente/{exp_id}?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT n_expediente FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
     n = row["n_expediente"] if row else exp_id
     conn.execute("DELETE FROM expedientes WHERE id = ?", (exp_id,))
     conn.commit()
     conn.close()
+    registrar_log(user, "eliminar", _MOD, f"Expediente #{n}", None)
     return RedirectResponse(f"/expedientes?msg=eliminado_{n}", status_code=303)
 
 

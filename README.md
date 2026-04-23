@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v2.5** — Última actualización: 2026-04-21
+> **Versión actual: v3.2** — Última actualización: 2026-04-23
 
 ---
 
@@ -267,6 +267,52 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 | 1 | **Exportar Excel consolidado** — Un único `.xlsx` con **4 hojas**: Base Expedientes, Exp. Digitales, Sala de Audiencias, **Control Autos** (verde oscuro). La hoja Correspondencia se exporta desde su propio módulo | ✅ v2.5 |
 | 2 | **Importar Excel consolidado** — Carga el mismo archivo de vuelta reemplazando todo; modal de confirmación doble | ✅ v2.5 |
 
+### Módulo 6 — AUTENTICACIÓN Y AUTORIZACIÓN
+
+Sistema completo de control de acceso implementado en v3.1.
+
+**Dos flujos de login** (`/login`):
+- **Abogados:** eligen nombre en dropdown (sin contraseña) → acceso de solo lectura.
+- **Secretarios / Jefe / Admin:** usuario + contraseña (PBKDF2-HMAC-SHA256, 260.000 iteraciones).
+
+**Sesiones:** cookie `ocdi_session` (httponly, samesite=lax). Persisten hasta logout explícito (`POST /logout`). El middleware verifica la sesión en cada request; redirige a `/login` si no hay sesión activa.
+
+**Credenciales iniciales:**
+
+| Usuario | Rol | Persona |
+|---------|-----|---------|
+| `Secretario1` | secretario | ANDRES EDUARDO SANDOVAL MAYORGA |
+| `Secretario2` | secretario | MAGDA XIMENA PAREDES LIEVANO |
+| `AuxSecretario` | auxiliar | LUNA GICELL GUZMAN YATE |
+| `JefeOficinaOcdi` | jefe | MARTHA PATRICIA AÑEZ MAESTRE |
+| `Admin` | admin | JOSE DE JESUS BARAJAS SOTELO |
+
+Los 7 abogados inician sesión por dropdown (sin contraseña).
+
+**Modelo de permisos:**
+- `admin` y `jefe`: acceso total a todos los módulos (bypass directo, no configurable).
+- `secretario` y `auxiliar`: escritura habilitada por defecto (configurable por módulo).
+- `abogado`: solo lectura por defecto (configurable por módulo).
+- Guards `_pw(user, módulo)` en todos los `POST` endpoints de todos los routers.
+
+**Panel de administración** (`/admin/usuarios` — solo admin/jefe):
+- Ver todos los usuarios con rol y estado.
+- Admin: activar/desactivar usuarios, cambiar contraseñas.
+- Admin/Jefe: toggle de permisos de escritura por módulo y usuario.
+
+**Logs de actividad** (`/admin/logs`):
+- Registra: login, logout, crear, editar, eliminar, importar, cambiar_password, toggle_activo, actualizar_permisos.
+- Filtros por módulo, acción y usuario. Paginación.
+
+**Archivos clave:**
+- `app/auth_utils.py` — hashing, verificación, `puede_escribir()`, `tpl()`, `registrar_log()`.
+- `app/routers/auth.py` — endpoints de login/logout.
+- `app/routers/admin_usuarios.py` — panel admin y logs.
+- `app/templates/login.html` — pantalla dual.
+- `app/templates/base_admin.html`, `admin_usuarios.html`, `admin_logs.html`.
+
+---
+
 ### Portal Hub (`/`)
 
 | # | Funcionalidad | Estado |
@@ -291,12 +337,45 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 | 6 | v2.3 — Módulo Correspondencia + mejoras Digitales + Backup ZIP + Exportar/Importar General | ✅ | 2026-04-14 |
 | 7 | v2.4 — ANEXO AL EXPEDIENTE + Importador AgilSalud + campo correo_remitente + fix orden rutas | ✅ | 2026-04-15 |
 | 8 | v2.5 — Módulo Control de Autos SDS-CDO-FT-001 + mejoras Correspondencia (3 campos, semáforo dual, URLs) | ✅ | 2026-04-21 |
-| 9 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
-| 10 | Fase 4 — Gestión de usuarios/login + despliegue en red local SDS | ⏳ Pendiente | — |
+| 9 | v3.1 — Sistema completo de autenticación y autorización (login dual, sesiones, permisos por módulo, panel admin, logs) | ✅ | 2026-04-23 |
+| 10 | v3.2 — Formato de fechas DD/MM/YYYY en toda la interfaz | ✅ | 2026-04-23 |
+| 11 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
 
 ---
 
 ### Changelog detallado
+
+#### v3.2 — 2026-04-23
+
+**Formato de fechas DD/MM/YYYY en toda la interfaz**
+
+- Todas las fechas visibles en pantalla ahora se muestran en formato **DD/MM/YYYY** (o **DD/MM/YYYY HH:MM:SS** para timestamps).
+- Nuevo archivo `app/template_utils.py` con función `_fmt_fecha()` y factory `make_templates()`.
+- `_fmt_fecha` convierte cualquier string `YYYY-MM-DD` o `YYYY-MM-DD HH:MM:SS` al formato local; retorna vacío para valores nulos (compatible con `{{ valor or '—' }}`).
+- `make_templates(directory)` reemplaza `Jinja2Templates(directory)` en todos los routers; registra `fmt_fecha` como filtro Jinja2 automáticamente.
+- **Todos los 13 routers** actualizados para usar `make_templates()` (admin_usuarios, auth, autos, backup, control_autos, correspondencia, dashboard, digitales, expedientes, importar, portal, sala, seguimiento).
+- **Plantillas actualizadas** con filtro `| fmt_fecha`: detalle.html, lista.html, corr_lista.html, corr_detalle.html, corr_dashboard.html, digitales_lista.html, digitales_detalle.html, ca_lista.html, ca_detalle.html, admin_logs.html.
+- **No se modificaron** los atributos `value=` de inputs `type="date"` (siguen en ISO, que es lo que el navegador y SQLite requieren internamente).
+- **No se modificaron** la lógica Python, consultas SQL ni almacenamiento en BD (todo sigue en ISO internamente).
+
+---
+
+#### v3.1 — 2026-04-23
+
+**Sistema completo de autenticación y autorización**
+
+- **Dos flujos de login** en una sola pantalla (`/login`): dropdown de abogados (sin contraseña) y formulario usuario/contraseña para secretarios/jefe/admin.
+- **Contraseñas PBKDF2-HMAC-SHA256** (260.000 iteraciones) almacenadas como `salt$hash` en la BD. Sin texto plano en ningún punto.
+- **Sesiones por cookie** `ocdi_session` (httponly, samesite=lax). Middleware HTTP verifica cada request; no expiran hasta logout explícito.
+- **Modelo de permisos por módulo:** 6 módulos del sistema registrados en `MODULOS_SISTEMA`. Roles `admin`/`jefe` tienen acceso total (bypass). Roles `secretario`/`auxiliar` escritura por defecto. Rol `abogado` solo lectura por defecto. Todo configurable en `/admin/usuarios`.
+- **Guards** `_pw(user, módulo)` aplicados en **todos los POST endpoints** de todos los routers. Respuesta: `RedirectResponse(...?msg=sin_permiso, 303)`.
+- **4 tablas nuevas en BD:** `usuarios`, `sesiones`, `permisos_modulo`, `logs_actividad`. Seed automático de 12 usuarios al primer arranque.
+- **Panel admin** (`/admin/usuarios`): toggle activo/inactivo, cambio de contraseñas, matriz de permisos por módulo.
+- **Log de actividad** (`/admin/logs`): cada escritura queda registrada con usuario, rol, módulo, detalle e IP. Filtros y paginación.
+- **Flash message `sin_permiso`** agregado a todos los base templates.
+- Commit: `8273187`
+
+---
 
 #### v2.5 — 2026-04-21
 
@@ -443,6 +522,10 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 | 2026-04-21 | **Semáforo Correspondencia movido a Python** | La nueva lógica de fecha límite requiere calcular días hábiles (Pascua, Ley Emiliani), imposible en SQLite. Se recuperan todas las filas que cumplen los filtros no-semáforo y se filtra el semáforo en Python. Con ~300 filas el overhead es nulo. |
 | 2026-04-21 | **`fecha_termino = fecha_ingreso + N días hábiles − 2`** | Los 2 días de "colchón" sirven como alerta temprana (amarillo) antes del vencimiento real, permitiendo actuar a tiempo. |
 | 2026-04-21 | **`url TEXT` en `correspondencia_radicados_salida`** | Los radicados de salida tienen un hipervínculo en el sistema AgilSalud. Almacenar la URL en la BD permite mostrar el enlace directo sin salir de la aplicación. |
+| 2026-04-23 | **PBKDF2-HMAC-SHA256 para contraseñas** | Estándar recomendado para entornos sin dependencias externas. 260.000 iteraciones con salt aleatorio. No requiere `bcrypt` ni librerías adicionales — está en la stdlib de Python. |
+| 2026-04-23 | **Login dual en una sola pantalla** | Abogados: dropdown rápido (sin contraseña — solo lectura). Resto del personal: formulario usuario/contraseña. Un solo HTML con dos paneles simplifica la experiencia y la navegación. |
+| 2026-04-23 | **`ROLES_SUPERUSUARIO` bypass permisos** | Admin y jefe tienen acceso total sin verificar la tabla `permisos_modulo`. Si un admin accidentalmente desactiva todos sus permisos, no queda bloqueado del sistema. |
+| 2026-04-23 | **Filtro Jinja2 `fmt_fecha` + `make_templates()`** | Las fechas se almacenan en ISO (`YYYY-MM-DD`) en SQLite para que las comparaciones SQL funcionen correctamente. La conversión a `DD/MM/YYYY` ocurre únicamente en la capa de presentación, centralizada en un filtro Jinja2 registrado en todos los templates automáticamente. Cero cambios en lógica Python o SQL. |
 
 ---
 
@@ -452,10 +535,14 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 SDS_OCDI/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                             # FastAPI app — registra todos los routers
-│   ├── database.py                         # Esquema SQLite (12 tablas), get_db(), init_db()
+│   ├── main.py                             # FastAPI app — middleware de sesión + registra routers
+│   ├── database.py                         # Esquema SQLite (16 tablas), get_db(), init_db(), seed_usuarios()
+│   ├── auth_utils.py                       # hash_password, verify_password, puede_escribir, tpl, registrar_log
+│   ├── template_utils.py                   # make_templates() + filtro fmt_fecha (DD/MM/YYYY)
 │   ├── routers/
 │   │   ├── __init__.py
+│   │   ├── auth.py                         # /login, /login/abogado, /login/credencial, /logout
+│   │   ├── admin_usuarios.py               # /admin/usuarios — gestión usuarios y permisos
 │   │   ├── portal.py                       # GET /  → hub portal con tiles y stats
 │   │   ├── expedientes.py                  # /expedientes — Lista, CRUD, exportar Excel
 │   │   ├── dashboard.py                    # /dashboard — métricas BASE 2023U
@@ -471,11 +558,15 @@ SDS_OCDI/
 │   │   ├── css/style.css                   # Estilos completos (sin dependencias externas)
 │   │   └── js/app.js                       # Lógica de formulario, tabs, escaneos dinámicos
 │   └── templates/
-│       ├── base.html                       # Sidebar BASE EXPEDIENTES
+│       ├── login.html                      # Pantalla de login dual (dropdown abogados + form credenciales)
+│       ├── base.html                       # Sidebar BASE EXPEDIENTES (con widget usuario/logout)
 │       ├── base_digitales.html             # Sidebar EXP. DIGITALES
 │       ├── base_sala.html                  # Sidebar SALA AUDIENCIAS
 │       ├── base_correspondencia.html       # Sidebar LISTA DE REPARTO
 │       ├── base_control_autos.html         # Sidebar CONTROL DE AUTOS
+│       ├── base_admin.html                 # Sidebar ADMINISTRACIÓN (con atajos a todos los módulos)
+│       ├── admin_usuarios.html             # /admin/usuarios — tabla usuarios + matriz permisos
+│       ├── admin_logs.html                 # /admin/logs — historial de actividad paginado
 │       ├── portal.html                     # Hub sin sidebar — 6 tiles + botón backup ZIP
 │       ├── lista.html                      # /expedientes lista
 │       ├── form.html                       # Crear/editar expediente BASE (7 bloques)

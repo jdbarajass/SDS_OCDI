@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from app.template_utils import make_templates
 from pathlib import Path
 
 from app.database import init_db
@@ -22,7 +22,7 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = make_templates(str(BASE_DIR / "templates"))
 
 # ── Middleware de autenticación ───────────────────────────────────────────────
 

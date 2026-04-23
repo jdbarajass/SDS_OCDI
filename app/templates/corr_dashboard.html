@@ -129,7 +129,7 @@
           <span style="font-size:10px;display:block;font-weight:400;color:var(--text-muted)">días</span>
         </td>
         <td style="font-weight:600;font-size:12px">{{ c.n_radicado or '—' }}</td>
-        <td style="font-size:12px">{{ c.fecha_ingreso[:10] if c.fecha_ingreso else '—' }}</td>
+        <td style="font-size:12px">{{ c.fecha_ingreso | fmt_fecha or '—' }}</td>
         <td style="font-size:12px">{{ c.mes or '—' }}</td>
         <td style="font-size:12px">{{ c.responsable or '—' }}</td>
         <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ c.asunto or '' }}">{{ c.asunto or '—' }}</td>

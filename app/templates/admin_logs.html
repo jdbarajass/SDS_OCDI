@@ -72,7 +72,7 @@
     <tbody>
         {% for log in logs %}
         <tr>
-            <td style="white-space:nowrap;color:#64748b">{{ log.created_at or '—' }}</td>
+            <td style="white-space:nowrap;color:#64748b">{{ log.created_at | fmt_fecha or '—' }}</td>
             <td><strong>{{ log.nombre_usuario }}</strong></td>
             <td>{{ log.rol or '—' }}</td>
             <td>

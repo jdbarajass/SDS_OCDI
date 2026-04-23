@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from app.template_utils import make_templates
 from datetime import date, timedelta
 import calendar
 
@@ -11,7 +11,7 @@ from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
 _MOD = "sala"
 
 router = APIRouter(prefix="/sala")
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 FRANJAS = ["08:00-10:00", "10:00-12:00", "14:00-16:00", "16:00-18:00"]
 ESTADOS = ["Ocupado"]

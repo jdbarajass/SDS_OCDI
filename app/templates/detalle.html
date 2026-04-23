@@ -23,14 +23,14 @@
         {% if exp.fecha_vencimiento_ind %}
         <div class="alerta-card alerta-{{ exp.alerta_ind.clase }}">
             <span class="alerta-label">Vencimiento Indagación</span>
-            <span class="alerta-fecha">{{ exp.fecha_vencimiento_ind }}</span>
+            <span class="alerta-fecha">{{ exp.fecha_vencimiento_ind | fmt_fecha }}</span>
             <span class="alerta-texto">{{ exp.alerta_ind.texto }}</span>
         </div>
         {% endif %}
         {% if exp.fecha_vencimiento_inv %}
         <div class="alerta-card alerta-{{ exp.alerta_inv.clase }}">
             <span class="alerta-label">Vencimiento Investigación</span>
-            <span class="alerta-fecha">{{ exp.fecha_vencimiento_inv }}</span>
+            <span class="alerta-fecha">{{ exp.fecha_vencimiento_inv | fmt_fecha }}</span>
             <span class="alerta-texto">{{ exp.alerta_inv.texto }}</span>
         </div>
         {% endif %}
@@ -55,11 +55,11 @@
             {{ campo('Mes', exp.mes) }}
             {{ campo('Origen del Proceso', exp.origen_proceso) }}
             {{ campo('N° Radicado', exp.n_radicado) }}
-            {{ campo('Fecha Radicado', exp.fecha_radicado) }}
-            {{ campo('Fecha SIIAS', exp.fecha_siias) }}
+            {{ campo('Fecha Radicado', exp.fecha_radicado | fmt_fecha) }}
+            {{ campo('Fecha SIIAS', exp.fecha_siias | fmt_fecha) }}
             {{ campo('Ingreso SIIAS', exp.ingreso_siias) }}
             {{ campo('Ingreso SIAD', exp.ingreso_siad) }}
-            {{ campo('Fecha Ingreso SIAD', exp.fecha_ingreso_siad) }}
+            {{ campo('Fecha Ingreso SIAD', exp.fecha_ingreso_siad | fmt_fecha) }}
             {{ campo('Ingreso SID4', exp.ingreso_sid4) }}
         </div>
     </div>
@@ -104,15 +104,15 @@
     <div class="detail-card">
         <h3 class="detail-card-title">4. Indagación Previa</h3>
         <div class="detail-grid">
-            {{ campo('Fecha Apertura', exp.fecha_apertura_indagacion) }}
+            {{ campo('Fecha Apertura', exp.fecha_apertura_indagacion | fmt_fecha) }}
             {{ campo('N° Auto Apertura', exp.numero_auto_apertura_ind) }}
-            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_ind) }}
+            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_ind | fmt_fecha) }}
             {{ campo('Plazo (días)', exp.plazo_ind) }}
-            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_ind) }}
+            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_ind | fmt_fecha) }}
             {{ campo('N° Auto Traslado', exp.numero_auto_traslado_ind) }}
-            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_ind) }}
+            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_ind | fmt_fecha) }}
             {{ campo('N° Auto Archivo', exp.numero_auto_archivo_ind) }}
-            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_ind) }}
+            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_ind | fmt_fecha) }}
         </div>
     </div>
 
@@ -121,15 +121,15 @@
     <div class="detail-card">
         <h3 class="detail-card-title">5. Investigación Disciplinaria</h3>
         <div class="detail-grid">
-            {{ campo('Fecha Apertura', exp.fecha_apertura_investigacion) }}
+            {{ campo('Fecha Apertura', exp.fecha_apertura_investigacion | fmt_fecha) }}
             {{ campo('N° Auto Apertura', exp.numero_auto_apertura_inv) }}
-            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_inv) }}
+            {{ campo('Fecha Auto Apertura', exp.fecha_auto_apertura_inv | fmt_fecha) }}
             {{ campo('Plazo (días)', exp.plazo_inv) }}
-            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_inv) }}
+            {{ campo('Fecha Vencimiento', exp.fecha_vencimiento_inv | fmt_fecha) }}
             {{ campo('N° Auto Traslado', exp.numero_auto_traslado_inv) }}
-            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_inv) }}
+            {{ campo('Fecha Auto Traslado', exp.fecha_auto_traslado_inv | fmt_fecha) }}
             {{ campo('N° Auto Archivo', exp.numero_auto_archivo_inv) }}
-            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_inv) }}
+            {{ campo('Fecha Auto Archivo', exp.fecha_auto_archivo_inv | fmt_fecha) }}
         </div>
     </div>
     {% endif %}
@@ -141,8 +141,8 @@
             {{ campo('Etapa', exp.etapa) }}
             {{ campo('Estado del Proceso', exp.estado_proceso) }}
             {{ campo('Registrado por', exp.created_by) }}
-            {{ campo('Fecha creación', exp.created_at) }}
-            {{ campo('Última actualización', exp.updated_at) }}
+            {{ campo('Fecha creación', exp.created_at | fmt_fecha) }}
+            {{ campo('Última actualización', exp.updated_at | fmt_fecha) }}
             <div class="detail-field detail-field-full">
                 <span class="detail-label">Observaciones Finales</span>
                 <span class="detail-value detail-textarea">{{ exp.observaciones_finales or '—' }}</span>
@@ -162,7 +162,7 @@
                 {% for esc in escaneos %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td>{{ esc.fecha_escaner or '—' }}</td>
+                    <td>{{ esc.fecha_escaner | fmt_fecha or '—' }}</td>
                     <td>{{ esc.folio or '—' }}</td>
                     <td>{{ esc.responsable or '—' }}</td>
                 </tr>

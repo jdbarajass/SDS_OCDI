@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from app.template_utils import make_templates
 from datetime import date
 import io
 import zipfile
@@ -13,7 +13,7 @@ from app.auth_utils import puede_escribir as _pw, registrar_log
 _MOD = "backup"
 
 router = APIRouter(prefix="/backup")
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 
 def _v(val):

@@ -56,7 +56,7 @@
     </div>
     <div>
       <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Fecha Auto</div>
-      <div>{{ exp.fecha_auto or '—' }}</div>
+      <div>{{ exp.fecha_auto | fmt_fecha or '—' }}</div>
     </div>
 
     {% if exp.observaciones %}
@@ -97,12 +97,12 @@
           <td style="color:var(--text-muted);font-size:11px">{{ loop.index }}</td>
           <td><strong>{{ c.radicado_comunicacion or '—' }}</strong></td>
           <td class="td-texto">{{ c.dependencia or '—' }}</td>
-          <td style="font-size:11px">{{ c.fecha_envio or '—' }}</td>
-          <td style="font-size:11px">{{ c.fecha_seguimiento or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_envio | fmt_fecha or '—' }}</td>
+          <td style="font-size:11px">{{ c.fecha_seguimiento | fmt_fecha or '—' }}</td>
           <td>{{ c.radicado_respuesta or '—' }}</td>
           <td style="font-size:11px">
             {% if c.fecha_respuesta %}
-            <span style="color:#16a34a;font-weight:600">{{ c.fecha_respuesta }}</span>
+            <span style="color:#16a34a;font-weight:600">{{ c.fecha_respuesta | fmt_fecha }}</span>
             {% else %}
             <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px">Sin respuesta</span>
             {% endif %}
@@ -125,12 +125,12 @@
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
     <div>
       <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Última modificación</div>
-      <div style="font-weight:600">{{ exp.updated_at or exp.created_at or '—' }}</div>
+      <div style="font-weight:600">{{ (exp.updated_at or exp.created_at) | fmt_fecha or '—' }}</div>
     </div>
     <div>
       <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Última revisión</div>
       {% if revisiones %}
-      <div style="font-weight:600;color:#15803d">{{ revisiones[0].fecha_revision }}</div>
+      <div style="font-weight:600;color:#15803d">{{ revisiones[0].fecha_revision | fmt_fecha }}</div>
       {% else %}
       <div style="color:var(--text-muted)">Sin revisiones registradas</div>
       {% endif %}
@@ -146,7 +146,7 @@
       {% for r in revisiones %}
       <div style="font-size:12px;padding:4px 8px;background:#f0fdf4;border-radius:4px;border-left:3px solid #86efac">
         <span style="color:#15803d;font-weight:600">✅</span>
-        <span style="color:var(--text-muted);margin-left:6px">{{ r.fecha_revision }}</span>
+        <span style="color:var(--text-muted);margin-left:6px">{{ r.fecha_revision | fmt_fecha }}</span>
       </div>
       {% endfor %}
     </div>

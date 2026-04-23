@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from app.template_utils import make_templates
 from datetime import date, timedelta
 from typing import List, Optional
 import io
@@ -12,7 +12,7 @@ from app.auth_utils import puede_escribir as _pw, registrar_log
 _MOD = "expedientes"
 
 router = APIRouter()
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 MESES = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
          "JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"]

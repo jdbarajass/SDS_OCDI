@@ -25,19 +25,19 @@
 <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
   {% if reg.semaforo == 'verde' %}
     {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-verde">🟢 Al día — vence {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    <span class="sem-badge sem-verde">🟢 Al día — vence {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s) restantes)</span>
     {% else %}
     <span class="sem-badge sem-verde">🟢 Al día{% if reg.dias_transcurridos is not none %} — {{ reg.dias_transcurridos }} día(s) transcurrido(s){% endif %}</span>
     {% endif %}
   {% elif reg.semaforo == 'amarilla' %}
     {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-amarilla">🟡 Por vencer — límite {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    <span class="sem-badge sem-amarilla">🟡 Por vencer — límite {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s) restantes)</span>
     {% else %}
     <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
     {% endif %}
   {% elif reg.semaforo == 'roja' %}
     {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-roja">🔴 Vencido — límite fue {{ reg.fecha_termino_respuesta }} ({{ reg.dias_restantes }} día(s))</span>
+    <span class="sem-badge sem-roja">🔴 Vencido — límite fue {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
     {% else %}
     <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
     {% endif %}
@@ -58,7 +58,7 @@
   </div>
   <div class="det-card">
     <div class="det-card-label">Fecha Ingreso</div>
-    <div class="det-card-value">{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '—' }}</div>
+    <div class="det-card-value">{{ reg.fecha_ingreso | fmt_fecha or '—' }}</div>
   </div>
   <div class="det-card">
     <div class="det-card-label">N. Radicado</div>
@@ -117,7 +117,7 @@
   <div class="det-card">
     <div class="det-card-label">Fecha Límite Respuesta</div>
     <div class="det-card-value" style="{% if reg.semaforo == 'roja' %}color:#dc2626{% elif reg.semaforo == 'amarilla' %}color:#d97706{% else %}color:#16a34a{% endif %}">
-      {{ reg.fecha_termino_respuesta }}
+      {{ reg.fecha_termino_respuesta | fmt_fecha }}
     </div>
   </div>
   {% endif %}
@@ -130,7 +130,7 @@
 <div class="det-grid">
   <div class="det-card">
     <div class="det-card-label">Fecha Radicado Salida</div>
-    <div class="det-card-value">{{ reg.fecha_radicado_salida[:10] if reg.fecha_radicado_salida else '—' }}</div>
+    <div class="det-card-value">{{ reg.fecha_radicado_salida | fmt_fecha or '—' }}</div>
   </div>
   <div class="det-card">
     <div class="det-card-label">Tipo de Respuesta</div>
@@ -169,6 +169,6 @@
 
 <!-- Metadata -->
 <div style="margin-top:20px;font-size:11px;color:var(--text-muted)">
-  Registrado: {{ reg.created_at or '—' }} &nbsp;·&nbsp; Actualizado: {{ reg.updated_at or '—' }}
+  Registrado: {{ reg.created_at | fmt_fecha or '—' }} &nbsp;·&nbsp; Actualizado: {{ reg.updated_at | fmt_fecha or '—' }}
 </div>
 {% endblock %}

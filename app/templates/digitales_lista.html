@@ -130,7 +130,7 @@
           {% endif %}
         </td>
         <td class="td-texto" data-val="{{ r.nombre_auto or '' }}">{{ r.nombre_auto or '—' }}</td>
-        <td style="font-size:12px" data-val="{{ r.fecha_auto or '' }}">{{ r.fecha_auto or '—' }}</td>
+        <td style="font-size:12px" data-val="{{ r.fecha_auto or '' }}">{{ r.fecha_auto | fmt_fecha or '—' }}</td>
         <td style="text-align:center" data-val="{{ r.num_coms or '0' }}">
           {% if r.num_coms %}
           <a href="/digitales/{{ r.id }}?back={{ back_url | quote_plus }}"
@@ -155,7 +155,7 @@
         </td>
         <td style="font-size:11px;white-space:nowrap;color:var(--text-muted)" data-val="{{ r.ultima_revision[:10] if r.ultima_revision else '' }}">
           {% if r.ultima_revision %}
-          <span title="{{ r.ultima_revision }}" style="color:#16a34a;font-weight:600">✅ {{ r.ultima_revision[:10] }}</span><br>
+          <span title="{{ r.ultima_revision }}" style="color:#16a34a;font-weight:600">✅ {{ r.ultima_revision[:10] | fmt_fecha }}</span><br>
           <span style="font-size:10px">{{ r.ultima_revision[11:19] if r.ultima_revision|length > 10 else '' }}</span>
           {% else %}
           <span style="color:var(--text-muted)">—</span>

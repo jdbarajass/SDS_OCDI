@@ -135,7 +135,7 @@
                 <td>
                     {% if exp.fecha_vencimiento_ind %}
                     <span class="alerta-badge alerta-{{ exp.alerta_ind.clase }}">
-                        {{ exp.fecha_vencimiento_ind }}<br>
+                        {{ exp.fecha_vencimiento_ind | fmt_fecha }}<br>
                         <small>{{ exp.alerta_ind.texto }}</small>
                     </span>
                     {% else %}—{% endif %}
@@ -143,7 +143,7 @@
                 <td>
                     {% if exp.fecha_vencimiento_inv %}
                     <span class="alerta-badge alerta-{{ exp.alerta_inv.clase }}">
-                        {{ exp.fecha_vencimiento_inv }}<br>
+                        {{ exp.fecha_vencimiento_inv | fmt_fecha }}<br>
                         <small>{{ exp.alerta_inv.texto }}</small>
                     </span>
                     {% else %}—{% endif %}

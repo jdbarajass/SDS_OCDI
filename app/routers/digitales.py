@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from app.template_utils import make_templates
 from datetime import date
 import io
 
@@ -12,7 +12,7 @@ from app.auth_utils import puede_escribir as _pw, registrar_log
 _MOD = "digitales"
 
 router = APIRouter(prefix="/digitales")
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 templates.env.filters["quote_plus"] = _quote_plus
 
 

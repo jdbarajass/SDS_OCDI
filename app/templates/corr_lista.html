@@ -128,19 +128,19 @@
         <td style="text-align:center;padding:4px">
           {% if r.semaforo == 'verde' %}
             {% if r.fecha_termino_respuesta %}
-            <span title="🟢 Al día — vence {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟢</span>
+            <span title="🟢 Al día — vence {{ r.fecha_termino_respuesta | fmt_fecha }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟢</span>
             {% else %}
             <span title="🟢 Al día ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟢</span>
             {% endif %}
           {% elif r.semaforo == 'amarilla' %}
             {% if r.fecha_termino_respuesta %}
-            <span title="🟡 Por vencer — límite {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟡</span>
+            <span title="🟡 Por vencer — límite {{ r.fecha_termino_respuesta | fmt_fecha }} ({{ r.dias_restantes }}d restantes)" style="font-size:16px">🟡</span>
             {% else %}
             <span title="🟡 Atención ({{ r.dias_transcurridos }}d)" style="font-size:16px">🟡</span>
             {% endif %}
           {% elif r.semaforo == 'roja' %}
             {% if r.fecha_termino_respuesta %}
-            <span title="🔴 Vencido — límite {{ r.fecha_termino_respuesta }} ({{ r.dias_restantes }}d)" style="font-size:16px">🔴</span>
+            <span title="🔴 Vencido — límite {{ r.fecha_termino_respuesta | fmt_fecha }} ({{ r.dias_restantes }}d)" style="font-size:16px">🔴</span>
             {% else %}
             <span title="🔴 Vencido ({{ r.dias_transcurridos }}d)" style="font-size:16px">🔴</span>
             {% endif %}
@@ -155,7 +155,7 @@
         </td>
 
         <td style="white-space:nowrap">{{ r.mes or '—' }}</td>
-        <td style="white-space:nowrap">{{ r.fecha_ingreso[:10] if r.fecha_ingreso else '—' }}</td>
+        <td style="white-space:nowrap">{{ r.fecha_ingreso | fmt_fecha or '—' }}</td>
         <td style="font-weight:600;white-space:nowrap">{{ r.n_radicado or '—' }}</td>
         <td class="td-clip" title="{{ r.origen or '' }}">{{ r.origen or '—' }}</td>
         <td class="td-clip" title="{{ r.correo_remitente or '' }}" style="font-size:11px">{{ r.correo_remitente or '—' }}</td>
@@ -179,7 +179,7 @@
           {{ r.radicados_salida or '—' }}
           {% endif %}
         </td>
-        <td style="white-space:nowrap">{{ r.fecha_radicado_salida[:10] if r.fecha_radicado_salida else '—' }}</td>
+        <td style="white-space:nowrap">{{ r.fecha_radicado_salida | fmt_fecha or '—' }}</td>
         <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
         <td class="td-clip" title="{{ r.tramite_salida or '' }}" style="font-size:11px">{{ r.tramite_salida or '—' }}</td>
 
@@ -187,7 +187,7 @@
         <td style="text-align:center;font-weight:700;font-size:12px;white-space:nowrap;
           {% if r.semaforo == 'roja' %}color:#dc2626{% elif r.semaforo == 'amarilla' %}color:#d97706{% elif r.semaforo == 'verde' %}color:#16a34a{% else %}color:var(--text-muted){% endif %}">
           {% if r.fecha_termino_respuesta %}
-            {{ r.fecha_termino_respuesta }}
+            {{ r.fecha_termino_respuesta | fmt_fecha }}
           {% elif r.dias_transcurridos is not none %}
             {{ r.dias_transcurridos }}d
           {% else %}

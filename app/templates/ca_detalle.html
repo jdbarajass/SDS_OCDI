@@ -55,7 +55,7 @@
                         {% else %}<span style="color:#9ca3af">—</span>{% endif %}
                     </td>
                     <td style="padding:14px;text-align:center;font-weight:600">
-                        {{ reg.fecha_auto[:10] if reg.fecha_auto else '—' }}
+                        {{ reg.fecha_auto | fmt_fecha or '—' }}
                     </td>
                     <td style="padding:14px;line-height:1.5">
                         {{ reg.asunto_auto or '—' }}
@@ -78,8 +78,8 @@
 
     <!-- Metadata -->
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:24px;font-size:11px;color:#9ca3af">
-        <span style="margin-right:20px">📅 Creado: {{ reg.created_at[:16] if reg.created_at else '—' }}</span>
-        <span style="margin-right:20px">🔄 Actualizado: {{ reg.updated_at[:16] if reg.updated_at else '—' }}</span>
+        <span style="margin-right:20px">📅 Creado: {{ reg.created_at | fmt_fecha or '—' }}</span>
+        <span style="margin-right:20px">🔄 Actualizado: {{ reg.updated_at | fmt_fecha or '—' }}</span>
         {% if reg.created_by %}<span>👤 Por: {{ reg.created_by }}</span>{% endif %}
     </div>
 

@@ -101,7 +101,7 @@
             {% else %}—{% endif %}
         </td>
         <td style="text-align:center;white-space:nowrap">
-            {% if r.fecha_auto %}{{ r.fecha_auto[:10] }}{% else %}—{% endif %}
+            {{ r.fecha_auto | fmt_fecha or '—' }}
         </td>
         <td style="font-size:12px">{{ r.asunto_auto or '—' }}</td>
         <td style="font-size:12px;font-weight:500">{{ r.abogado_responsable or '—' }}</td>

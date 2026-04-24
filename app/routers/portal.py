@@ -12,7 +12,7 @@ templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
-async def hub(request: Request):
+async def hub(request: Request, msg: str = ""):
     conn = get_db()
 
     total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
@@ -42,4 +42,5 @@ async def hub(request: Request):
         prox_sala=dict(prox_sala) if prox_sala else None,
         total_corr=total_corr, corr_rojos=corr_rojos,
         total_control_autos=total_control_autos,
+        msg=msg,
     ))

@@ -28,6 +28,20 @@ templates = make_templates(str(BASE_DIR / "templates"))
 
 _RUTAS_PUBLICAS = {"/login", "/login/abogado", "/login/credencial", "/logout"}
 
+# Mapa de prefijos de URL a módulo para verificar visibilidad
+_URL_MODULO_MAP = [
+    ("/dashboard",       "expedientes"),
+    ("/expedientes",     "expedientes"),
+    ("/seguimiento",     "expedientes"),
+    ("/importar",        "expedientes"),
+    ("/autos",           "expedientes"),
+    ("/correspondencia", "correspondencia"),
+    ("/control-autos",   "control_autos"),
+    ("/digitales",       "digitales"),
+    ("/sala",            "sala"),
+    ("/backup",          "backup"),
+]
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -36,10 +50,12 @@ async def auth_middleware(request: Request, call_next):
     if path.startswith("/static") or path in _RUTAS_PUBLICAS:
         return await call_next(request)
 
-    # Verificar sesión activa
+    # Verificar sesión activa y cargar permisos en el mismo query
     from app.database import get_db
+    from app.auth_utils import MODULOS_SISTEMA, ROLES_SUPERUSUARIO
     token = request.cookies.get("ocdi_session")
     user = None
+    permisos: dict = {}
 
     if token:
         conn = get_db()
@@ -54,8 +70,22 @@ async def auth_middleware(request: Request, call_next):
                 "UPDATE sesiones SET last_seen = datetime('now','localtime') WHERE token = ?",
                 (token,)
             )
-            conn.commit()
             user = dict(row)
+            modulos = [m for m, _ in MODULOS_SISTEMA]
+            if user["rol"] in ROLES_SUPERUSUARIO:
+                permisos = {m: {"puede_ver": True, "puede_escribir": True} for m in modulos}
+            else:
+                perm_rows = conn.execute(
+                    "SELECT modulo, puede_ver, puede_escribir FROM permisos_modulo WHERE user_id = ?",
+                    (user["id"],)
+                ).fetchall()
+                permisos = {m: {"puede_ver": True, "puede_escribir": False} for m in modulos}
+                for pr in perm_rows:
+                    permisos[pr["modulo"]] = {
+                        "puede_ver": pr["puede_ver"] != 0,
+                        "puede_escribir": bool(pr["puede_escribir"]),
+                    }
+        conn.commit()
         conn.close()
 
     if user is None:
@@ -67,6 +97,16 @@ async def auth_middleware(request: Request, call_next):
         return response
 
     request.state.user = user
+    request.state.permisos = permisos
+
+    # Bloquear acceso a módulos sin visibilidad (no aplica a superusuarios)
+    if user["rol"] not in ROLES_SUPERUSUARIO:
+        for prefix, modulo in _URL_MODULO_MAP:
+            if path.startswith(prefix):
+                if not permisos.get(modulo, {}).get("puede_ver", True):
+                    return RedirectResponse("/?msg=sin_acceso", status_code=303)
+                break
+
     return await call_next(request)
 
 

@@ -70,6 +70,12 @@
         </div>
         {% endif %}
 
+        {% if msg == 'sin_acceso' %}
+        <div style="margin-top:14px;background:rgba(220,38,38,.85);color:#fff;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:600;display:inline-block;backdrop-filter:blur(4px)">
+            ⛔ No tienes permiso para acceder a ese módulo.
+        </div>
+        {% endif %}
+
         <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
             <a href="/backup/zip" class="btn-backup-zip">📦 Descargar Backup Completo (.zip)</a>
             {% if current_user and current_user.rol in ('admin','jefe') %}
@@ -90,6 +96,7 @@
         </div>
 
         <!-- MÓDULO 1: Base Expedientes -->
+        {% if not permisos or permisos.get('expedientes', {}).get('puede_ver', True) %}
         <a href="/dashboard" class="portal-tile">
             <div class="tile-ico">📁</div>
             <div class="tile-title">Base Expedientes<br>2023U – Original</div>
@@ -101,8 +108,10 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
         <!-- MÓDULO 1B: Lista de Reparto de Abogados -->
+        {% if not permisos or permisos.get('correspondencia', {}).get('puede_ver', True) %}
         <a href="/correspondencia/" class="portal-tile">
             <div class="tile-ico">📋</div>
             <div class="tile-title">Lista de Reparto<br>de Abogados</div>
@@ -117,8 +126,10 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
         <!-- MÓDULO 1C: Control de Autos de Sustanciación -->
+        {% if not permisos or permisos.get('control_autos', {}).get('puede_ver', True) %}
         <a href="/control-autos/" class="portal-tile">
             <div class="tile-ico">⚖️</div>
             <div class="tile-title">Control de Autos de<br>Sustanciación y/o Trámites</div>
@@ -130,11 +141,13 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
         <!-- ══ SEPARADOR ══ -->
         <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,0.15);margin:4px 0"></div>
 
         <!-- MÓDULO 2: Seguimiento Digitales -->
+        {% if not permisos or permisos.get('digitales', {}).get('puede_ver', True) %}
         <a href="/digitales/" class="portal-tile">
             <div class="tile-ico">💻</div>
             <div class="tile-title">Seguimiento Expedientes<br>Digitales 2025–2026</div>
@@ -146,8 +159,10 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
         <!-- MÓDULO 3: Sala de Audiencias -->
+        {% if not permisos or permisos.get('sala', {}).get('puede_ver', True) %}
         <a href="/sala/" class="portal-tile">
             <div class="tile-ico">🗓️</div>
             <div class="tile-title">Disponibilidad Horaria<br>Sala de Audiencias</div>
@@ -159,8 +174,10 @@
             {% endif %}
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
         <!-- MÓDULO 4: Exportar / Importar General -->
+        {% if not permisos or permisos.get('backup', {}).get('puede_ver', True) %}
         <a href="/backup/" class="portal-tile">
             <div class="tile-ico">📦</div>
             <div class="tile-title">Exportar / Importar<br>Respaldo General</div>
@@ -168,6 +185,7 @@
             <span class="tile-stat">📥 Exportar · 📤 Importar</span>
             <span class="tile-cta">Abrir módulo →</span>
         </a>
+        {% endif %}
 
     </div>
 

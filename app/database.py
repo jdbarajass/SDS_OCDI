@@ -281,6 +281,10 @@ def init_db():
         conn.execute("ALTER TABLE correspondencia_radicados_salida ADD COLUMN url TEXT")
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE permisos_modulo ADD COLUMN puede_ver INTEGER DEFAULT 1")
+    except Exception:
+        pass
     # Migrar corr_responsables a nombres completos oficiales
     nombres_completos = [
         "ANDRES EDUARDO SANDOVAL MAYORGA",
@@ -389,7 +393,7 @@ def _seed_usuarios(conn):
         if rol not in ("admin", "jefe"):
             for modulo in modulos:
                 conn.execute(
-                    "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir) VALUES (?,?,1)",
+                    "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,1,1)",
                     (uid, modulo),
                 )
 
@@ -401,7 +405,7 @@ def _seed_usuarios(conn):
         uid = cur.lastrowid
         for modulo in modulos:
             conn.execute(
-                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir) VALUES (?,?,0)",
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,0,1)",
                 (uid, modulo),
             )
 

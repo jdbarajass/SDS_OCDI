@@ -454,7 +454,9 @@ async def nuevo_post(
          correo_remitente, sinproc_personeria, tipo_requerimiento, termino_dias)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, [
-        anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
+        anio, _v(mes), _v(fecha_ingreso), _v(n_radicado),
+        _v(origen).upper() if _v(origen) else None,
+        _v(asunto).upper() if _v(asunto) else None,
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
         _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento), termino_val,
@@ -1130,7 +1132,9 @@ async def editar_post(
         updated_at=datetime('now','localtime')
         WHERE id=?
     """, [
-        anio, _v(mes), _v(fecha_ingreso), _v(n_radicado), _v(origen), _v(asunto),
+        anio, _v(mes), _v(fecha_ingreso), _v(n_radicado),
+        _v(origen).upper() if _v(origen) else None,
+        _v(asunto).upper() if _v(asunto) else None,
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
         _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento),

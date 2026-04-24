@@ -53,8 +53,8 @@
         <input type="date" name="fecha_ingreso" value="{{ reg.fecha_ingreso[:10] if reg.fecha_ingreso else '' }}" required>
       </div>
       <div class="field-group">
-        <label>N. Radicados</label>
-        <input type="text" name="n_radicado" value="{{ reg.n_radicado or '' }}" placeholder="Ej: 2026-IE-00245">
+        <label>N. Radicados *</label>
+        <input type="text" name="n_radicado" value="{{ reg.n_radicado or '' }}" placeholder="Ej: 2026-IE-00245" required>
       </div>
       <div class="field-group">
         <label>Tipo de Documento</label>
@@ -78,7 +78,8 @@
     <div class="form-grid-2">
       <div class="field-group field-full">
         <label>Entidad</label>
-        <input type="text" name="origen" value="{{ reg.origen or '' }}" placeholder="Dependencia o entidad de origen">
+        <input type="text" name="origen" value="{{ reg.origen or '' }}" placeholder="Dependencia o entidad de origen"
+               style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="field-group field-full">
         <label>Correo Remitente</label>
@@ -86,7 +87,8 @@
       </div>
       <div class="field-group field-full">
         <label>Asunto</label>
-        <textarea name="asunto" rows="3" placeholder="Descripción del asunto">{{ reg.asunto or '' }}</textarea>
+        <textarea name="asunto" rows="3" placeholder="Descripción del asunto"
+                  style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">{{ reg.asunto or '' }}</textarea>
       </div>
       <div class="field-group">
         <label>Responsable</label>

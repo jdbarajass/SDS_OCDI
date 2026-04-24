@@ -24,20 +24,20 @@
 <!-- Semáforo -->
 <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
   {% if reg.semaforo == 'verde' %}
-    {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-verde">🟢 Al día — vence {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    {% if reg.fecha_vencimiento %}
+    <span class="sem-badge sem-verde">🟢 Al día — vence el {{ reg.fecha_vencimiento | fmt_fecha }} ({{ reg.dias_restantes }} día(s) para revisar)</span>
     {% else %}
     <span class="sem-badge sem-verde">🟢 Al día{% if reg.dias_transcurridos is not none %} — {{ reg.dias_transcurridos }} día(s) transcurrido(s){% endif %}</span>
     {% endif %}
   {% elif reg.semaforo == 'amarilla' %}
-    {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-amarilla">🟡 Por vencer — límite {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s) restantes)</span>
+    {% if reg.fecha_vencimiento %}
+    <span class="sem-badge sem-amarilla">🟡 Por vencer — vence el {{ reg.fecha_vencimiento | fmt_fecha }} · revisar antes del {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
     {% else %}
     <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
     {% endif %}
   {% elif reg.semaforo == 'roja' %}
-    {% if reg.fecha_termino_respuesta %}
-    <span class="sem-badge sem-roja">🔴 Vencido — límite fue {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
+    {% if reg.fecha_vencimiento %}
+    <span class="sem-badge sem-roja">🔴 Vencido — plazo legal {{ reg.fecha_vencimiento | fmt_fecha }} · revisión fue {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
     {% else %}
     <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
     {% endif %}
@@ -111,13 +111,22 @@
   {% if reg.termino_dias %}
   <div class="det-card">
     <div class="det-card-label">Término (Días)</div>
-    <div class="det-card-value">{{ reg.termino_dias }} días</div>
+    <div class="det-card-value">{{ reg.termino_dias }} días hábiles</div>
   </div>
+  {% if reg.fecha_vencimiento %}
+  <div class="det-card">
+    <div class="det-card-label">Fecha de Vencimiento Legal</div>
+    <div class="det-card-value" style="{% if reg.semaforo == 'roja' %}color:#dc2626{% elif reg.semaforo == 'amarilla' %}color:#d97706{% else %}color:#16a34a{% endif %}">
+      {{ reg.fecha_vencimiento | fmt_fecha }}
+    </div>
+  </div>
+  {% endif %}
   {% if reg.fecha_termino_respuesta %}
   <div class="det-card">
-    <div class="det-card-label">Fecha Límite Respuesta</div>
-    <div class="det-card-value" style="{% if reg.semaforo == 'roja' %}color:#dc2626{% elif reg.semaforo == 'amarilla' %}color:#d97706{% else %}color:#16a34a{% endif %}">
-      {{ reg.fecha_termino_respuesta | fmt_fecha }}
+    <div class="det-card-label">Fecha de Revisión Sugerida</div>
+    <div class="det-card-value" style="font-size:13px;color:#64748b">
+      📋 {{ reg.fecha_termino_respuesta | fmt_fecha }}
+      <div style="font-size:11px;color:#94a3b8;font-weight:400;margin-top:2px">2 días hábiles antes del vencimiento</div>
     </div>
   </div>
   {% endif %}

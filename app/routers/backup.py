@@ -587,7 +587,9 @@ async def backup_zip():
             "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
             "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
             "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
-            "FECHA TERMINO DE RESPUESTA PETICION", "DÍAS TRANSCURRIDOS",
+            "FECHA DE VENCIMIENTO LEGAL",
+            "FECHA REVISIÓN SUGERIDA (−2 días hábiles)",
+            "DÍAS TRANSCURRIDOS",
         ]
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
@@ -607,7 +609,8 @@ async def backup_zip():
                 d.get("radicados_salida"),           # col 14 — N RADICADO SALIDA
                 d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
                 d.get("tipo_respuesta"), d.get("tramite_salida"),
-                d.get("fecha_termino_respuesta"),     # col 18 — FECHA TERMINO (calculated)
+                d.get("fecha_vencimiento"),           # col 18 — plazo legal real
+                d.get("fecha_termino_respuesta"),     # col 19 — fecha revisión sugerida
                 d.get("dias_transcurridos"),
             ]
             for ci, v in enumerate(vals, 1):
@@ -618,7 +621,7 @@ async def backup_zip():
                 rad_cell = ws.cell(row=ri, column=14)
                 rad_cell.hyperlink = first_url
                 rad_cell.font = link_font
-        col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 28, 8]
+        col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 20, 28, 8]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

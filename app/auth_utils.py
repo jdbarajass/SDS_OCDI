@@ -90,31 +90,63 @@ def puede_escribir(user: dict | None, modulo: str) -> bool:
     return bool(row and row["puede_escribir"])
 
 
+def puede_ver(user: dict | None, modulo: str) -> bool:
+    """True si el usuario tiene visibilidad del módulo dado (puede ver el tile/acceder)."""
+    if not user:
+        return False
+    if user["rol"] in ROLES_SUPERUSUARIO:
+        return True
+    from app.database import get_db
+    conn = get_db()
+    row = conn.execute(
+        "SELECT puede_ver FROM permisos_modulo WHERE user_id = ? AND modulo = ?",
+        (user["id"], modulo)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return True  # sin fila → visible por defecto
+    return row["puede_ver"] != 0  # NULL o 1 → True; 0 → False
+
+
 def get_permisos_usuario(user_id: int) -> dict:
-    """Retorna dict {modulo: puede_escribir} para el usuario dado."""
+    """Retorna dict {modulo: {puede_ver, puede_escribir}} para el usuario dado."""
     from app.database import get_db
     conn = get_db()
     rows = conn.execute(
-        "SELECT modulo, puede_escribir FROM permisos_modulo WHERE user_id = ?",
+        "SELECT modulo, puede_ver, puede_escribir FROM permisos_modulo WHERE user_id = ?",
         (user_id,)
     ).fetchall()
     conn.close()
-    return {r["modulo"]: bool(r["puede_escribir"]) for r in rows}
+    return {
+        r["modulo"]: {
+            "puede_ver": r["puede_ver"] != 0,
+            "puede_escribir": bool(r["puede_escribir"]),
+        }
+        for r in rows
+    }
 
 
 # ── Contexto de template ─────────────────────────────────────────────────────
 
 def tpl(request: Request, modulo: str | None = None, **kwargs) -> dict:
     """
-    Construye el contexto de template inyectando current_user y puede_escribir.
+    Construye el contexto de template inyectando current_user, puede_escribir y permisos.
     Usar en todos los endpoints que renderizan templates.
     """
     user = getattr(request.state, "user", None)
-    pw = puede_escribir(user, modulo) if modulo else False
+    permisos = getattr(request.state, "permisos", {})
+    if modulo:
+        if user and user["rol"] in ROLES_SUPERUSUARIO:
+            pw = True
+        else:
+            pw = permisos.get(modulo, {}).get("puede_escribir", False)
+    else:
+        pw = False
     return {
         "request": request,
         "current_user": user,
         "puede_escribir": pw,
+        "permisos": permisos,
         **kwargs,
     }
 

@@ -32,7 +32,7 @@ async def admin_usuarios(request: Request, msg: str = ""):
         "SELECT id, username, nombre_completo, rol, activo FROM usuarios ORDER BY rol, nombre_completo"
     ).fetchall()
     permisos_rows = conn.execute(
-        "SELECT user_id, modulo, puede_escribir FROM permisos_modulo"
+        "SELECT user_id, modulo, puede_ver, puede_escribir FROM permisos_modulo"
     ).fetchall()
     conn.close()
 
@@ -41,7 +41,10 @@ async def admin_usuarios(request: Request, msg: str = ""):
         uid = row["user_id"]
         if uid not in permisos:
             permisos[uid] = {}
-        permisos[uid][row["modulo"]] = bool(row["puede_escribir"])
+        permisos[uid][row["modulo"]] = {
+            "puede_ver": row["puede_ver"] != 0,
+            "puede_escribir": bool(row["puede_escribir"]),
+        }
 
     return templates.TemplateResponse("admin_usuarios.html", {
         "request": request,
@@ -123,12 +126,15 @@ async def actualizar_permisos(request: Request, user_id: int):
         return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
 
     for modulo, _ in MODULOS_SISTEMA:
-        puede = 1 if form.get(f"perm_{user_id}_{modulo}") else 0
+        puede_e = 1 if form.get(f"pw_{user_id}_{modulo}") else 0
+        puede_v = 1 if form.get(f"pv_{user_id}_{modulo}") else 0
         conn.execute("""
-            INSERT INTO permisos_modulo (user_id, modulo, puede_escribir)
-            VALUES (?, ?, ?)
-            ON CONFLICT(user_id, modulo) DO UPDATE SET puede_escribir = excluded.puede_escribir
-        """, (user_id, modulo, puede))
+            INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, modulo) DO UPDATE SET
+                puede_escribir = excluded.puede_escribir,
+                puede_ver = excluded.puede_ver
+        """, (user_id, modulo, puede_e, puede_v))
 
     conn.commit()
     registrar_log(user, "actualizar_permisos", "usuarios",

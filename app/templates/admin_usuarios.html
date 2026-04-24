@@ -30,11 +30,14 @@
 .perm-section { margin-top:8px; }
 .perm-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
 .perm-card-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.perm-row-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:4px 0; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
 .perm-grid { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 .perm-check { display:flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; transition:background .15s; }
 .perm-check:hover { background:#eff6ff; border-color:#93c5fd; }
 .perm-check input { cursor:pointer; width:15px; height:15px; }
-.perm-check.checked { background:#eff6ff; border-color:#3b82f6; }
+.perm-row-e .perm-check.checked { background:#eff6ff; border-color:#3b82f6; }
+.perm-row-v .perm-check.checked { background:#f0fdf4; border-color:#22c55e; }
+.perm-divider { height:1px; background:#f1f5f9; margin:10px 0; }
 .section-title { font-size:16px; font-weight:700; color:#1e293b; margin:28px 0 14px; border-bottom:2px solid #e2e8f0; padding-bottom:8px; }
 </style>
 
@@ -92,8 +95,9 @@
 <!-- ── Permisos por módulo ──────────────────────────────────────────────── -->
 <div class="section-title">🔐 Permisos por Módulo</div>
 <p style="font-size:13px;color:#64748b;margin-bottom:16px">
-    Admin y Jefe tienen acceso total permanente. Los permisos aplican al resto de usuarios.
-    Marcado = puede escribir/editar/eliminar. Sin marcar = solo lectura.
+    Admin y Jefe tienen acceso total permanente. Los permisos aplican al resto de usuarios.<br>
+    <strong style="color:#065f46">👁️ VISIBILIDAD</strong> — el usuario puede ver el módulo en el portal y acceder a él.<br>
+    <strong style="color:#1d4ed8">✏️ ESCRITURA</strong> — el usuario puede crear, editar y eliminar registros (requiere visibilidad activa).
 </p>
 <div class="perm-section">
     {% for u in usuarios %}
@@ -105,19 +109,40 @@
             {% if not u.activo %}<span style="font-size:11px;color:#dc2626">(Inactivo)</span>{% endif %}
         </div>
         <form method="post" action="/admin/usuarios/{{ u.id }}/permisos">
-            <div class="perm-grid">
+
+            <!-- Fila VISIBILIDAD -->
+            <div class="perm-row-label" style="color:#065f46">👁️ VISIBILIDAD — ¿Puede ver este módulo?</div>
+            <div class="perm-grid perm-row-v" style="margin-bottom:12px">
                 {% for mod_id, mod_label in modulos %}
-                {% set tiene_permiso = permisos.get(u.id, {}).get(mod_id, False) %}
-                <label class="perm-check {% if tiene_permiso %}checked{% endif %}" id="label-{{ u.id }}-{{ mod_id }}">
+                {% set pv = permisos.get(u.id, {}).get(mod_id, {}).get('puede_ver', True) %}
+                <label class="perm-check {% if pv %}checked{% endif %}" id="label-v-{{ u.id }}-{{ mod_id }}">
                     <input type="checkbox"
-                           name="perm_{{ u.id }}_{{ mod_id }}"
-                           {% if tiene_permiso %}checked{% endif %}
-                           onchange="updateLabel('{{ u.id }}', '{{ mod_id }}', this.checked)">
+                           name="pv_{{ u.id }}_{{ mod_id }}"
+                           {% if pv %}checked{% endif %}
+                           onchange="updateLabel('v', '{{ u.id }}', '{{ mod_id }}', this.checked)">
                     {{ mod_label }}
                 </label>
                 {% endfor %}
             </div>
-            <button type="submit" class="btn-sm btn-primary">💾 Guardar permisos</button>
+
+            <div class="perm-divider"></div>
+
+            <!-- Fila ESCRITURA -->
+            <div class="perm-row-label" style="color:#1d4ed8">✏️ ESCRITURA — ¿Puede crear/editar/eliminar?</div>
+            <div class="perm-grid perm-row-e">
+                {% for mod_id, mod_label in modulos %}
+                {% set pe = permisos.get(u.id, {}).get(mod_id, {}).get('puede_escribir', False) %}
+                <label class="perm-check {% if pe %}checked{% endif %}" id="label-e-{{ u.id }}-{{ mod_id }}">
+                    <input type="checkbox"
+                           name="pw_{{ u.id }}_{{ mod_id }}"
+                           {% if pe %}checked{% endif %}
+                           onchange="updateLabel('e', '{{ u.id }}', '{{ mod_id }}', this.checked)">
+                    {{ mod_label }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="btn-sm btn-primary" style="margin-top:10px">💾 Guardar permisos</button>
         </form>
     </div>
     {% endif %}
@@ -131,8 +156,8 @@ function togglePass(uid) {
     var el = document.getElementById('pass-' + uid);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
-function updateLabel(uid, mod, checked) {
-    var lbl = document.getElementById('label-' + uid + '-' + mod);
+function updateLabel(tipo, uid, mod, checked) {
+    var lbl = document.getElementById('label-' + tipo + '-' + uid + '-' + mod);
     if (checked) lbl.classList.add('checked');
     else lbl.classList.remove('checked');
 }

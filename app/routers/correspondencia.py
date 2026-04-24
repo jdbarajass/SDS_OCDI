@@ -176,10 +176,23 @@ def _add_dias_habiles(inicio: date, dias: int) -> date:
     return current
 
 
+def _subtract_dias_habiles(fin: date, dias: int) -> date:
+    """Resta `dias` días hábiles hacia atrás desde `fin`."""
+    festivos = _festivos_colombia(fin.year) | _festivos_colombia(fin.year - 1)
+    current = fin
+    count = 0
+    while count < dias:
+        current -= timedelta(days=1)
+        if current.weekday() < 5 and current not in festivos:
+            count += 1
+    return current
+
+
 def _calcular_semaforo_row(r: dict) -> dict:
     _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
     r["dias_restantes"] = None
-    r["fecha_termino_respuesta"] = None
+    r["fecha_vencimiento"] = None        # fecha legal real: fecha_ingreso + termino días hábiles
+    r["fecha_termino_respuesta"] = None  # fecha de revisión: 2 días hábiles antes del vencimiento
     r["pendiente"] = not bool(r.get("fecha_radicado_salida"))
 
     if r.get("tipo_respuesta") and r["tipo_respuesta"].strip().upper() in _ANEXO_VALS:
@@ -207,9 +220,13 @@ def _calcular_semaforo_row(r: dict) -> dict:
         try:
             fi = date.fromisoformat(r["fecha_ingreso"][:10])
             termino = int(r["termino_dias"])
-            fecha_limite = _add_dias_habiles(fi, termino) - timedelta(days=2)
-            r["fecha_termino_respuesta"] = fecha_limite.isoformat()
-            dias_restantes = (fecha_limite - date.today()).days
+            # Fecha legal de vencimiento: fecha_ingreso + N días hábiles
+            fecha_venc = _add_dias_habiles(fi, termino)
+            # Fecha de revisión: 2 días hábiles antes del vencimiento (nunca cae en finde/festivo)
+            fecha_rev = _subtract_dias_habiles(fecha_venc, 2)
+            r["fecha_vencimiento"] = fecha_venc.isoformat()
+            r["fecha_termino_respuesta"] = fecha_rev.isoformat()
+            dias_restantes = (fecha_rev - date.today()).days
             r["dias_restantes"] = dias_restantes
             r["dias_transcurridos"] = None
             if dias_restantes >= 2:
@@ -222,7 +239,7 @@ def _calcular_semaforo_row(r: dict) -> dict:
             r["semaforo"] = None
         return r
 
-    # Lógica antigua: días transcurridos
+    # Sin término definido: usar días transcurridos desde ingreso
     try:
         fi = date.fromisoformat(r["fecha_ingreso"][:10])
         dias = (date.today() - fi).days

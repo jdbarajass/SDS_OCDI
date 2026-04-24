@@ -344,6 +344,10 @@ def init_db():
             (new, old.upper()),
         )
 
+    # Normalizar origen y asunto a mayúsculas en todos los registros históricos
+    conn.execute("UPDATE correspondencia SET origen = UPPER(origen) WHERE origen IS NOT NULL AND origen != UPPER(origen)")
+    conn.execute("UPDATE correspondencia SET asunto = UPPER(asunto) WHERE asunto IS NOT NULL AND asunto != UPPER(asunto)")
+
     for nombre in ["RADICADO", "CORREO ELECTRONICO", "SDQS"]:
         try:
             conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))

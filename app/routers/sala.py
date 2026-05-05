@@ -13,19 +13,23 @@ _MOD = "sala"
 router = APIRouter(prefix="/sala")
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
-FRANJAS = ["08:00-10:00", "10:00-12:00", "14:00-16:00", "16:00-18:00"]
 ESTADOS = ["Ocupado"]
+
+
+def _parse_franja(franja: str) -> tuple[str, str]:
+    """Extrae hora_inicio y hora_fin de una cadena 'HH:MM-HH:MM'."""
+    if franja and len(franja) >= 11 and franja[5] == "-":
+        return franja[:5], franja[6:]
+    return "", ""
 
 
 def _build_calendar(year: int, month: int, eventos: list[dict]) -> list[list[dict | None]]:
     """Devuelve semanas (lista de listas de 7 celdas).
-    Cada celda es None (fuera del mes) o dict con day, fecha, franjas_estado."""
+    Cada celda es None (fuera del mes) o dict con day, fecha, eventos (lista)."""
 
-    # Mapear eventos por fecha → franja → evento
-    por_fecha: dict[str, dict[str, dict]] = {}
+    por_fecha: dict[str, list[dict]] = {}
     for ev in eventos:
-        f = ev["fecha"]
-        por_fecha.setdefault(f, {})[ev["franja"]] = ev
+        por_fecha.setdefault(ev["fecha"], []).append(ev)
 
     cal = calendar.Calendar(firstweekday=0)  # Lunes primero
     semanas: list[list[dict | None]] = []
@@ -36,19 +40,11 @@ def _build_calendar(year: int, month: int, eventos: list[dict]) -> list[list[dic
                 fila.append(None)
             else:
                 fecha_str = d.isoformat()
-                franjas_info = []
-                for franja in FRANJAS:
-                    ev = por_fecha.get(fecha_str, {}).get(franja)
-                    franjas_info.append({
-                        "franja": franja,
-                        "evento": ev,
-                        "estado": ev["estado"] if ev else None,
-                    })
                 fila.append({
                     "day": d.day,
                     "fecha": fecha_str,
                     "es_hoy": d == date.today(),
-                    "franjas": franjas_info,
+                    "eventos": por_fecha.get(fecha_str, []),
                 })
         semanas.append(fila)
     return semanas
@@ -101,7 +97,7 @@ async def calendario(
 
     return templates.TemplateResponse("sala.html", tpl(request, _MOD,
         active="sala", year=year, month=month, nombre_mes=nombre_mes,
-        semanas=semanas, franjas=FRANJAS, estados=ESTADOS,
+        semanas=semanas, estados=ESTADOS,
         prev_year=prev_year, prev_month=prev_month,
         next_year=next_year, next_month=next_month, msg=msg,
     ))
@@ -120,9 +116,11 @@ async def evento_nuevo_form(
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     if not fecha:
         fecha = date.today().isoformat()
+    hora_inicio, hora_fin = _parse_franja(franja)
     return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
-        active="sala", ev={"fecha": fecha, "franja": franja},
-        franjas=FRANJAS, estados=ESTADOS, modo="nuevo",
+        active="sala",
+        ev={"fecha": fecha, "franja": franja, "hora_inicio": hora_inicio, "hora_fin": hora_fin},
+        estados=ESTADOS, modo="nuevo",
     ))
 
 
@@ -130,7 +128,8 @@ async def evento_nuevo_form(
 async def evento_nuevo_post(
     request: Request,
     fecha: str = Form(...),
-    franja: str = Form(...),
+    hora_inicio: str = Form(...),
+    hora_fin: str = Form(...),
     titulo: str = Form(""),
     descripcion: str = Form(""),
     estado: str = Form("Ocupado"),
@@ -139,6 +138,7 @@ async def evento_nuevo_post(
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
+    franja = f"{hora_inicio}-{hora_fin}"
     conn = get_db()
     conn.execute("""
         INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable)
@@ -163,8 +163,10 @@ async def evento_editar_form(request: Request, ev_id: int):
     conn.close()
     if not ev:
         return RedirectResponse("/sala/?msg=no_encontrado")
+    ev_dict = dict(ev)
+    ev_dict["hora_inicio"], ev_dict["hora_fin"] = _parse_franja(ev_dict.get("franja", ""))
     return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
-        active="sala", ev=dict(ev), franjas=FRANJAS, estados=ESTADOS, modo="editar",
+        active="sala", ev=ev_dict, estados=ESTADOS, modo="editar",
     ))
 
 
@@ -173,7 +175,8 @@ async def evento_editar_post(
     request: Request,
     ev_id: int,
     fecha: str = Form(...),
-    franja: str = Form(...),
+    hora_inicio: str = Form(...),
+    hora_fin: str = Form(...),
     titulo: str = Form(""),
     descripcion: str = Form(""),
     estado: str = Form("Ocupado"),
@@ -182,6 +185,7 @@ async def evento_editar_post(
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
+    franja = f"{hora_inicio}-{hora_fin}"
     conn = get_db()
     conn.execute("""
         UPDATE sala_agenda SET fecha=?, franja=?, titulo=?, descripcion=?, estado=?, responsable=?

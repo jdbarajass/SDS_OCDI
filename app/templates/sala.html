@@ -17,15 +17,12 @@
 </div>
 
 <!-- Leyenda -->
-<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-  <div style="display:flex;align-items:center;gap:4px">
-    <span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px"></span>
-    <span style="font-size:12px">Disponible</span>
-  </div>
+<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
   <div style="display:flex;align-items:center;gap:4px">
     <span style="display:inline-block;width:12px;height:12px;background:#dc2626;border-radius:3px"></span>
     <span style="font-size:12px">Ocupado</span>
   </div>
+  <span style="font-size:12px;color:var(--text-muted)">— Haz clic en <strong>+</strong> para agregar un evento en cualquier horario</span>
 </div>
 
 <!-- Calendario -->
@@ -35,16 +32,6 @@
       <tr style="background:var(--primary)">
         {% for dia in ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'] %}
         <th style="color:white;font-size:12px;font-weight:600;padding:10px 8px;text-align:center">{{ dia }}</th>
-        {% endfor %}
-      </tr>
-      <!-- Cabecera franjas horarias -->
-      <tr style="background:#f8fafc;border-bottom:1px solid var(--border)">
-        {% for _ in range(7) %}
-        <td style="padding:4px 8px">
-          {% for fr in franjas %}
-          <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:1px">{{ fr }}</div>
-          {% endfor %}
-        </td>
         {% endfor %}
       </tr>
     </thead>
@@ -67,24 +54,15 @@
                title="Agregar evento en {{ celda.fecha }}">+</a>
           </div>
 
-          <!-- Franjas del día -->
-          {% for fi in celda.franjas %}
-          {% if fi.evento %}
-          <div class="sala-franja sala-{{ fi.evento.estado | lower | replace(' ', '-') }}"
-               data-evento="{{ fi.evento | tojson | forceescape }}"
+          <!-- Eventos del día -->
+          {% for ev in celda.eventos %}
+          <div class="sala-franja sala-{{ ev.estado | lower | replace(' ', '-') }}"
+               data-evento="{{ ev | tojson | forceescape }}"
                onclick="abrirDetalle(this)"
-               title="{{ fi.franja }}: {{ fi.evento.titulo or fi.evento.estado }}">
-            <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
-            <span class="sala-franja-label">{{ fi.evento.titulo or fi.evento.estado }}</span>
+               title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}">
+            <span class="sala-franja-hora">{{ ev.franja[:5] }}</span>
+            <span class="sala-franja-label">{{ ev.titulo or ev.estado }}</span>
           </div>
-          {% else %}
-          <a href="/sala/evento/nuevo?fecha={{ celda.fecha }}&franja={{ fi.franja }}"
-             class="sala-franja sala-disponible"
-             title="Disponible — clic para ocupar: {{ fi.franja }}">
-            <span class="sala-franja-hora">{{ fi.franja[:5] }}</span>
-            <span class="sala-franja-label">Disponible</span>
-          </a>
-          {% endif %}
           {% endfor %}
         </td>
         {% endif %}

@@ -17,12 +17,15 @@
 </div>
 
 <!-- Leyenda -->
-<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px"></span>
+    <span style="font-size:12px">Disponible</span>
+  </div>
   <div style="display:flex;align-items:center;gap:4px">
     <span style="display:inline-block;width:12px;height:12px;background:#dc2626;border-radius:3px"></span>
     <span style="font-size:12px">Ocupado</span>
   </div>
-  <span style="font-size:12px;color:var(--text-muted)">— Haz clic en <strong>+</strong> para agregar un evento en cualquier horario</span>
 </div>
 
 <!-- Calendario -->
@@ -55,15 +58,23 @@
           </div>
 
           <!-- Eventos del día -->
-          {% for ev in celda.eventos %}
-          <div class="sala-franja sala-{{ ev.estado | lower | replace(' ', '-') }}"
-               data-evento="{{ ev | tojson | forceescape }}"
-               onclick="abrirDetalle(this)"
-               title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}">
-            <span class="sala-franja-hora">{{ ev.franja[:5] }}</span>
-            <span class="sala-franja-label">{{ ev.titulo or ev.estado }}</span>
-          </div>
-          {% endfor %}
+          {% if celda.eventos %}
+            {% for ev in celda.eventos %}
+            <div class="sala-franja sala-{{ ev.estado | lower | replace(' ', '-') }}"
+                 data-evento="{{ ev | tojson | forceescape }}"
+                 onclick="abrirDetalle(this)"
+                 title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}">
+              <span class="sala-franja-hora">{{ ev.franja[:5] }}</span>
+              <span class="sala-franja-label">{{ ev.titulo or ev.estado }}</span>
+            </div>
+            {% endfor %}
+          {% else %}
+          <a href="/sala/evento/nuevo?fecha={{ celda.fecha }}"
+             class="sala-franja sala-disponible"
+             title="Disponible — clic para agregar evento">
+            <span class="sala-franja-label">Disponible</span>
+          </a>
+          {% endif %}
         </td>
         {% endif %}
         {% endfor %}

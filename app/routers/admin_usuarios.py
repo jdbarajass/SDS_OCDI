@@ -29,7 +29,7 @@ async def admin_usuarios(request: Request, msg: str = ""):
 
     conn = get_db()
     usuarios = conn.execute(
-        "SELECT id, username, nombre_completo, rol, activo FROM usuarios ORDER BY rol, nombre_completo"
+        "SELECT id, username, nombre_completo, rol, activo, tipo_contrato FROM usuarios ORDER BY rol, nombre_completo"
     ).fetchall()
     permisos_rows = conn.execute(
         "SELECT user_id, modulo, puede_ver, puede_escribir FROM permisos_modulo"
@@ -142,6 +142,32 @@ async def actualizar_permisos(request: Request, user_id: int):
                   request.client.host if request.client else None)
     conn.close()
     return RedirectResponse("/admin/usuarios?msg=permisos_actualizados", status_code=303)
+
+
+@router.post("/usuarios/{user_id}/tipo-contrato")
+async def cambiar_tipo_contrato(
+    request: Request,
+    user_id: int,
+    tipo_contrato: str = Form(""),
+):
+    user = _require_superuser(request)
+    if not user or user["rol"] != "admin":
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+
+    valor = tipo_contrato.strip() or None
+    if valor and valor not in ("planta", "contratista"):
+        return RedirectResponse("/admin/usuarios?msg=error", status_code=303)
+
+    conn = get_db()
+    row = conn.execute("SELECT nombre_completo FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+    conn.execute("UPDATE usuarios SET tipo_contrato = ? WHERE id = ?", (valor, user_id))
+    conn.commit()
+    if row:
+        registrar_log(user, "cambiar_tipo_contrato", "usuarios",
+                      f"'{row['nombre_completo']}' tipo_contrato → {valor or 'ninguno'}",
+                      request.client.host if request.client else None)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=actualizado", status_code=303)
 
 
 # ── Registro de actividad ─────────────────────────────────────────────────────

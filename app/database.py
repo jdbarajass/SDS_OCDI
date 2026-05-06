@@ -348,6 +348,33 @@ def init_db():
     conn.execute("UPDATE correspondencia SET origen = UPPER(origen) WHERE origen IS NOT NULL AND origen != UPPER(origen)")
     conn.execute("UPDATE correspondencia SET asunto = UPPER(asunto) WHERE asunto IS NOT NULL AND asunto != UPPER(asunto)")
 
+    # Migración: tipo de contrato por abogado
+    try:
+        conn.execute("ALTER TABLE usuarios ADD COLUMN tipo_contrato TEXT")
+    except Exception:
+        pass
+    _abogados_planta = [
+        "DAVID FELIPE MORALES NOGUERA",
+        "JANIK HERNANDO DE LA HOZ RIOS",
+        "MABEL GICELLA HURTADO SANCHEZ",
+        "RODOLFO CARRILLO QUINTERO",
+    ]
+    _abogados_contratista = [
+        "CARLOS ALFONSO PARRA MALAVER",
+        "CESAR IVAN RODRIGUEZ DAMIAN",
+        "MARA LUCIA UCROS MERLANO",
+    ]
+    for nombre in _abogados_planta:
+        conn.execute(
+            "UPDATE usuarios SET tipo_contrato='planta' WHERE nombre_completo=? AND tipo_contrato IS NULL",
+            (nombre,),
+        )
+    for nombre in _abogados_contratista:
+        conn.execute(
+            "UPDATE usuarios SET tipo_contrato='contratista' WHERE nombre_completo=? AND tipo_contrato IS NULL",
+            (nombre,),
+        )
+
     for nombre in ["RADICADO", "CORREO ELECTRONICO", "SDQS"]:
         try:
             conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))

@@ -92,9 +92,14 @@
 
 #tabla-corr { min-width: 2000px; border-collapse: collapse; width: 100%; }
 #tabla-corr th { position: sticky; top: 0; background: var(--sidebar-bg, #1e3a5f); color:#fff;
-  padding: 9px 10px; font-size: 11px; white-space: nowrap; text-align: left; }
-#tabla-corr td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
-#tabla-corr tbody tr:hover td { background: #f8fafc !important; }
+  padding: 9px 10px; font-size: 11px; white-space: nowrap; text-align: left;
+  border-right: 1px solid rgba(255,255,255,.15); }
+#tabla-corr th:last-child { border-right: none; }
+#tabla-corr td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #e9ecef;
+  border-right: 1px solid #e9ecef; vertical-align: middle; }
+#tabla-corr td:last-child { border-right: none; }
+#tabla-corr tbody tr:nth-child(even) td { background: #f8fafc; }
+#tabla-corr tbody tr:hover td { background: #f0f7ff !important; }
 .td-clip { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-asunto { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

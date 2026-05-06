@@ -331,6 +331,7 @@ async def lista(
     responsable: str = "",
     mes: str = "",
     anio: str = "",
+    tipo_contrato: str = "",
     page: int = 1,
     por_pagina: int = 25,
     msg: str = "",
@@ -353,6 +354,11 @@ async def lista(
     if anio.strip():
         filtros.append("c.anio = ?")
         params.append(int(anio.strip()))
+    if tipo_contrato.strip():
+        filtros.append(
+            "c.responsable IN (SELECT nombre_completo FROM usuarios WHERE tipo_contrato = ?)"
+        )
+        params.append(tipo_contrato.strip())
 
     where = " AND ".join(filtros)
 
@@ -397,7 +403,8 @@ async def lista(
         active="corr_lista",
         rows=rows, total=total, page=page, total_pages=total_pages,
         por_pagina=por_pagina, q=q, semaforo=semaforo, responsable=responsable,
-        mes=mes, anio=anio, responsables=responsables, meses=MESES,
+        mes=mes, anio=anio, tipo_contrato=tipo_contrato,
+        responsables=responsables, meses=MESES,
         anios=anios_bd, msg=msg,
         back_url=request.url.path + ("?" + str(request.url.query) if request.url.query else ""),
     ))

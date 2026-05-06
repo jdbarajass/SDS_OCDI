@@ -49,6 +49,7 @@
             <th>Nombre Completo</th>
             <th>Usuario</th>
             <th>Rol</th>
+            <th>Tipo Contrato</th>
             <th>Estado</th>
             {% if current_user.rol == 'admin' %}<th>Acciones</th>{% endif %}
         </tr>
@@ -59,6 +60,30 @@
             <td><strong>{{ u.nombre_completo }}</strong></td>
             <td>{{ u.username or '—' }}</td>
             <td><span class="badge-rol badge-{{ u.rol }}">{{ u.rol }}</span></td>
+            <td>
+                {% if u.tipo_contrato == 'planta' %}
+                <span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap">🏛 Planta</span>
+                {% elif u.tipo_contrato == 'contratista' %}
+                <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap">📋 Contratista</span>
+                {% else %}
+                <span style="color:#94a3b8;font-size:12px">—</span>
+                {% endif %}
+                {% if current_user.rol == 'admin' %}
+                <button type="button" class="btn-sm btn-secondary" style="margin-left:4px;font-size:10px"
+                        onclick="toggleContrato({{ u.id }})">✏</button>
+                <div class="pass-form" id="contrato-{{ u.id }}">
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/tipo-contrato" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                        <select name="tipo_contrato" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px">
+                            <option value="" {% if not u.tipo_contrato %}selected{% endif %}>— Sin asignar —</option>
+                            <option value="planta" {% if u.tipo_contrato == 'planta' %}selected{% endif %}>🏛 Planta</option>
+                            <option value="contratista" {% if u.tipo_contrato == 'contratista' %}selected{% endif %}>📋 Contratista</option>
+                        </select>
+                        <button type="submit" class="btn-sm btn-primary">Guardar</button>
+                        <button type="button" class="btn-sm btn-secondary" onclick="toggleContrato({{ u.id }})">Cancelar</button>
+                    </form>
+                </div>
+                {% endif %}
+            </td>
             <td>
                 <span class="badge-rol {% if u.activo %}badge-activo{% else %}badge-inactivo{% endif %}">
                     {% if u.activo %}Activo{% else %}Inactivo{% endif %}
@@ -154,6 +179,10 @@
 <script>
 function togglePass(uid) {
     var el = document.getElementById('pass-' + uid);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleContrato(uid) {
+    var el = document.getElementById('contrato-' + uid);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 function updateLabel(tipo, uid, mod, checked) {

@@ -45,12 +45,18 @@
     <option value="respondido" {% if semaforo == 'respondido' %}selected{% endif %}>✅ Respondido</option>
   </select>
 
+  <select name="tipo_contrato" class="filter-select">
+    <option value="">Todos los contratos</option>
+    <option value="planta"      {% if tipo_contrato == 'planta' %}selected{% endif %}>🏛 Planta</option>
+    <option value="contratista" {% if tipo_contrato == 'contratista' %}selected{% endif %}>📋 Contratista</option>
+  </select>
+
   <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
   <a href="/correspondencia/" class="btn btn-outline">✕ Limpiar</a>
 </form>
 
 <!-- Badges de filtro activo -->
-{% if semaforo or responsable or mes or anio %}
+{% if semaforo or responsable or mes or anio or tipo_contrato %}
 <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
   {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
   {% if semaforo %}
@@ -60,6 +66,8 @@
   {% endif %}
   {% if responsable %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">👤 {{ responsable }}</span>{% endif %}
   {% if mes %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📅 {{ mes }}</span>{% endif %}
+  {% if tipo_contrato == 'planta' %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">🏛 Planta</span>{% endif %}
+  {% if tipo_contrato == 'contratista' %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📋 Contratista</span>{% endif %}
 </div>
 {% endif %}
 
@@ -216,7 +224,7 @@
 <!-- Paginación -->
 {% if total_pages > 1 %}
 <div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-  {% set base_url = '/correspondencia/?q=' ~ q ~ '&responsable=' ~ responsable ~ '&mes=' ~ mes ~ '&anio=' ~ anio ~ '&semaforo=' ~ semaforo ~ '&por_pagina=' ~ por_pagina %}
+  {% set base_url = '/correspondencia/?q=' ~ q ~ '&responsable=' ~ responsable ~ '&mes=' ~ mes ~ '&anio=' ~ anio ~ '&semaforo=' ~ semaforo ~ '&tipo_contrato=' ~ tipo_contrato ~ '&por_pagina=' ~ por_pagina %}
   {% if page > 1 %}
   <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
   {% endif %}

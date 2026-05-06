@@ -50,6 +50,23 @@
                 {% endfor %}
             </select>
         </div>
+        <div style="min-width:200px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Asunto Auto</label>
+            <select name="asunto_auto" class="form-control" style="font-size:12px">
+                <option value="">— Todos los asuntos —</option>
+                {% for a in asuntos %}
+                <option value="{{ a }}" {% if a == asunto_auto %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:160px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Tipo Contrato</label>
+            <select name="tipo_contrato" class="form-control" style="font-size:13px">
+                <option value="">— Todos —</option>
+                <option value="planta"      {% if tipo_contrato == 'planta' %}selected{% endif %}>🏛 Planta</option>
+                <option value="contratista" {% if tipo_contrato == 'contratista' %}selected{% endif %}>📋 Contratista</option>
+            </select>
+        </div>
         <div style="display:flex;gap:8px;align-items:flex-end">
             <button type="submit" class="btn btn-primary" style="height:36px">🔍 Filtrar</button>
             <a href="/control-autos/" class="btn btn-secondary" style="height:36px;display:flex;align-items:center">✕ Limpiar</a>
@@ -58,12 +75,15 @@
 </form>
 
 <!-- Badges de filtros activos -->
-{% if q or abogado or anio or mes %}
+{% if q or abogado or anio or mes or asunto_auto or tipo_contrato %}
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     {% if q %}<span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🔍 "{{ q }}"</span>{% endif %}
     {% if abogado %}<span style="background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">👤 {{ abogado }}</span>{% endif %}
     {% if anio %}<span style="background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">📅 {{ anio }}</span>{% endif %}
     {% if mes %}<span style="background:#fef9c3;color:#854d0e;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🗓️ Mes {{ mes }}</span>{% endif %}
+    {% if asunto_auto %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600" title="{{ asunto_auto }}">⚖️ {{ asunto_auto[:40] }}{% if asunto_auto|length > 40 %}…{% endif %}</span>{% endif %}
+    {% if tipo_contrato == 'planta' %}<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🏛 Planta</span>{% endif %}
+    {% if tipo_contrato == 'contratista' %}<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">📋 Contratista</span>{% endif %}
 </div>
 {% endif %}
 
@@ -120,19 +140,19 @@
 {% if total_pages > 1 %}
 <div style="display:flex;justify-content:center;gap:6px;margin-top:20px;flex-wrap:wrap">
     {% if page > 1 %}
-    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&page={{ page-1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">‹ Anterior</a>
+    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&asunto_auto={{ asunto_auto | urlencode }}&tipo_contrato={{ tipo_contrato }}&page={{ page-1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">‹ Anterior</a>
     {% endif %}
     {% for p in range(1, total_pages+1) %}
     {% if p == page %}
     <span class="btn btn-primary" style="font-size:12px;padding:5px 12px">{{ p }}</span>
     {% elif p <= 3 or p >= total_pages-2 or (p >= page-2 and p <= page+2) %}
-    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&page={{ p }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">{{ p }}</a>
+    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&asunto_auto={{ asunto_auto | urlencode }}&tipo_contrato={{ tipo_contrato }}&page={{ p }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">{{ p }}</a>
     {% elif p == 4 or p == total_pages-3 %}
     <span style="padding:5px 4px;color:#6c757d">…</span>
     {% endif %}
     {% endfor %}
     {% if page < total_pages %}
-    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&page={{ page+1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">Siguiente ›</a>
+    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&asunto_auto={{ asunto_auto | urlencode }}&tipo_contrato={{ tipo_contrato }}&page={{ page+1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">Siguiente ›</a>
     {% endif %}
 </div>
 {% endif %}
@@ -142,7 +162,7 @@
     <div style="font-size:48px;margin-bottom:12px">⚖️</div>
     <div style="font-size:16px;font-weight:600;margin-bottom:6px">Sin registros</div>
     <div style="font-size:13px">
-        {% if q or abogado or anio or mes %}
+        {% if q or abogado or anio or mes or asunto_auto or tipo_contrato %}
         No se encontraron autos con los filtros aplicados. <a href="/control-autos/">Ver todos</a>
         {% else %}
         Aún no hay autos registrados. <a href="/control-autos/nuevo">Crear el primero</a> o <a href="/control-autos/importar">importar desde Excel</a>.

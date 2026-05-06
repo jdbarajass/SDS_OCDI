@@ -91,6 +91,8 @@ async def ca_lista(
     abogado: str = "",
     anio: str = "",
     mes: str = "",
+    asunto_auto: str = "",
+    tipo_contrato: str = "",
     page: int = 1,
     msg: str = "",
 ):
@@ -109,6 +111,14 @@ async def ca_lista(
     if mes:
         where.append("strftime('%m', fecha_auto) = ?")
         params.append(mes.zfill(2))
+    if asunto_auto:
+        where.append("asunto_auto = ?")
+        params.append(asunto_auto)
+    if tipo_contrato:
+        where.append(
+            "abogado_responsable IN (SELECT nombre_completo FROM usuarios WHERE tipo_contrato = ?)"
+        )
+        params.append(tipo_contrato)
 
     cond = ("WHERE " + " AND ".join(where)) if where else ""
     total = conn.execute(f"SELECT COUNT(*) FROM control_autos_sustanciacion {cond}", params).fetchone()[0]
@@ -127,7 +137,9 @@ async def ca_lista(
     return templates.TemplateResponse("ca_lista.html", tpl(request, _MOD,
         rows=[dict(r) for r in rows], total=total, page=page,
         total_pages=total_pages, q=q, abogado=abogado, anio=anio, mes=mes,
-        abogados=ABOGADOS_RESPONSABLES, anios=[r[0] for r in anios if r[0]],
+        asunto_auto=asunto_auto, tipo_contrato=tipo_contrato,
+        abogados=ABOGADOS_RESPONSABLES, asuntos=ASUNTOS_COMUNES,
+        anios=[r[0] for r in anios if r[0]],
         msg=msg, active="ca_lista",
     ))
 

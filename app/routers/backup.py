@@ -35,6 +35,9 @@ async def backup_home(request: Request, msg: str = ""):
     total_digitales     = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
     total_sala          = conn.execute("SELECT COUNT(*) FROM sala_agenda").fetchone()[0]
     total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]
+    total_corr          = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
+    total_sdqs          = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
+    total_seguimiento   = conn.execute("SELECT COUNT(*) FROM seguimiento_mensual").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("backup.html", {
         "request": request,
@@ -43,6 +46,9 @@ async def backup_home(request: Request, msg: str = ""):
         "total_digitales": total_digitales,
         "total_sala": total_sala,
         "total_control_autos": total_control_autos,
+        "total_corr": total_corr,
+        "total_sdqs": total_sdqs,
+        "total_seguimiento": total_seguimiento,
     })
 
 
@@ -508,6 +514,19 @@ async def backup_zip():
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     corr_rows = [_calcular_semaforo_row(dict(r)) for r in corr_rows_raw]
+    sdqs_rows    = conn.execute("SELECT * FROM sdqs ORDER BY fecha_radicado, id").fetchall()
+    seg_rows     = conn.execute("""
+        SELECT s.anio, s.mes, e.n_expediente, e.abogado_asignado, s.descripcion, s.created_by, s.created_at
+        FROM seguimiento_mensual s
+        JOIN expedientes e ON e.id = s.expediente_id
+        ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER), s.anio DESC,
+                 CASE s.mes
+                   WHEN 'ENERO' THEN 1 WHEN 'FEBRERO' THEN 2 WHEN 'MARZO' THEN 3
+                   WHEN 'ABRIL' THEN 4 WHEN 'MAYO' THEN 5 WHEN 'JUNIO' THEN 6
+                   WHEN 'JULIO' THEN 7 WHEN 'AGOSTO' THEN 8 WHEN 'SEPTIEMBRE' THEN 9
+                   WHEN 'OCTUBRE' THEN 10 WHEN 'NOVIEMBRE' THEN 11 WHEN 'DICIEMBRE' THEN 12
+                   ELSE 13 END
+    """).fetchall()
     conn.close()
 
     ultima_rev = {r["exp_digital_id"]: r["ultima_revision"] for r in dig_revs}
@@ -526,33 +545,40 @@ async def backup_zip():
         ws.title = "Base Expedientes"
         fill = PatternFill("solid", fgColor="1B4F8A")
         headers = [
-            "N. EXPEDIENTE","AÑO","MES","ORIGEN DEL PROCESO","N. RADICADO",
-            "FECHA RADICADO","FECHA SIIAS","INGRESO SIIAS","INGRESO SIAD",
-            "FECHA INGRESO SIAD","INGRESO SID4","NOMBRE ABOGADO","IMPEDIMENTO",
-            "INVESTIGADO","PERFIL INDAGADO","ENTIDAD ORIGEN","QUEJOSO",
-            "ASUNTO","TIPOLOGÍA","DESCRIPCIÓN TIPOLOGÍA","SINIESTRO","RESP. SINIESTRO",
-            "ACOSO/MALTRATO","RESP. ACOSO","CORRUPCIÓN","VALORES INSTITUCIONALES",
-            "FECHA HECHOS","F. APERTURA INDAGACIÓN","AUTO APERTURA IND.","F. AUTO APERTURA IND.",
-            "PLAZO IND. (días)","F. VENCIMIENTO IND.","AUTO TRASLADO IND.","F. AUTO TRASLADO IND.",
-            "AUTO ARCHIVO IND.","F. AUTO ARCHIVO IND.","F. APERTURA INVESTIGACIÓN",
-            "AUTO APERTURA INV.","F. AUTO APERTURA INV.","PLAZO INV. (días)","F. VENCIMIENTO INV.",
-            "AUTO TRASLADO INV.","F. AUTO TRASLADO INV.","AUTO ARCHIVO INV.","F. AUTO ARCHIVO INV.",
-            "ETAPA","ESTADO DEL PROCESO","OBSERVACIONES FINALES","CREADO POR",
-            "FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
+            "N. EXPEDIENTE","AÑO","MES","MEDIO DE INGRESO","N. RADICADO",
+            "FECHA RADICADO","ABOGADO ASIGNADO","ENTIDAD ORIGEN","QUEJOSO","ASUNTO",
+            "IMPEDIMENTO","FECHA APERTURA EXPEDIENTE","N. AUTO APERTURA IND.",
+            "FECHA AUTO APERTURA IND.","TIPO EXPEDIENTE","TIPOLOGÍA",
+            "RELACIONADO SINIESTRO","RESPONSABLE SINIESTRO","RELACIONADO MALTRATO",
+            "RELACIONADO CORRUPCIÓN","VALORES INSTITUCIONALES",
+            "FECHA HECHOS (OBS)","FECHA HECHOS","F. ÚLTIMA ACT. INDAGACIÓN",
+            "N. AUTO ÚLTIMA ACT. IND.","F. APERTURA INVESTIGACIÓN","N. AUTO APERTURA INV.",
+            "NOMBRE INVESTIGADO","CÉDULA","PERFIL INVESTIGADO","ÁREA ORIGEN INVESTIGADO",
+            "FECHA PRÓRROGA","N. AUTO PRÓRROGA","TIEMPO PRÓRROGA",
+            "F. ÚLTIMA ACT. INVESTIGACIÓN","N. AUTO ÚLTIMA ACT. INV.",
+            "N. AUTO TRASLADO","F. AUTO TRASLADO","N. AUTO ACUMULACIÓN","F. AUTO ACUMULACIÓN",
+            "EXPEDIENTE ACUMULA","F. AUTO ARCHIVO","N. AUTO ARCHIVO",
+            "F. AUTO PLIEGO CARGOS","N. AUTO PLIEGO CARGOS",
+            "ETAPA ACTUAL","ESTADO DEL PROCESO","OBSERVACIONES",
+            "CREADO POR","FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
         ]
         campos = [
-            "n_expediente","anio","mes","origen_proceso","n_radicado","fecha_radicado",
-            "fecha_siias","ingreso_siias","ingreso_siad","fecha_ingreso_siad","ingreso_sid4",
-            "nombre_abogado","impedimento","investigado","perfil_indagado","entidad_origen",
-            "quejoso","asunto","tipologia","descripcion_tipologia","relacionado_siniestro",
-            "responsable_siniestro","relacionado_acoso","responsable_acoso","relacionado_corrupcion",
-            "valores_institucionales","fecha_hechos","fecha_apertura_indagacion",
-            "numero_auto_apertura_ind","fecha_auto_apertura_ind","plazo_ind","fecha_vencimiento_ind",
-            "numero_auto_traslado_ind","fecha_auto_traslado_ind","numero_auto_archivo_ind",
-            "fecha_auto_archivo_ind","fecha_apertura_investigacion","numero_auto_apertura_inv",
-            "fecha_auto_apertura_inv","plazo_inv","fecha_vencimiento_inv","numero_auto_traslado_inv",
-            "fecha_auto_traslado_inv","numero_auto_archivo_inv","fecha_auto_archivo_inv",
-            "etapa","estado_proceso","observaciones_finales","created_by","created_at","updated_at",
+            "n_expediente","anio","mes","medio_ingreso","n_radicado",
+            "fecha_radicado","abogado_asignado","entidad_origen","quejoso","asunto",
+            "impedimento","fecha_apertura_expediente","numero_auto_apertura_ind",
+            "fecha_auto_apertura_ind","tipo_expediente","tipologia",
+            "relacionado_siniestro","responsable_siniestro","relacionado_maltrato",
+            "relacionado_corrupcion","valores_institucionales",
+            "fecha_hechos_obs","fecha_hechos","fecha_ultima_act_indagacion",
+            "numero_auto_ultima_act_ind","fecha_apertura_investigacion","numero_auto_apertura_inv",
+            "nombre_investigado","cedula","perfil_investigado","area_origen_investigado",
+            "fecha_prorroga","numero_auto_prorroga","tiempo_prorroga",
+            "fecha_ultima_act_investigacion","numero_auto_ultima_act_inv",
+            "numero_auto_traslado","fecha_auto_traslado","numero_auto_acumulacion","fecha_auto_acumulacion",
+            "expediente_acumula","fecha_auto_archivo","numero_auto_archivo",
+            "fecha_auto_pliego_cargos","numero_auto_pliego_cargos",
+            "etapa_actual","estado_proceso","observaciones",
+            "created_by","created_at","updated_at",
         ]
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
@@ -568,6 +594,68 @@ async def backup_zip():
         for col in ws.columns:
             ml = max((len(str(c.value or "")) for c in col), default=10)
             ws.column_dimensions[col[0].column_letter].width = min(ml + 4, 40)
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def make_wb_sdqs() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "SDQS"
+        fill = PatternFill("solid", fgColor="7B3F00")
+        headers = [
+            "MES","FECHA RAD","SDQS","QUEJOSO","CORREO","TEMA",
+            "COMPETENCIA OCDI","BPM","RESPONSABLE","RAD SALIDA","FECHA RESPUESTA",
+            "OBSERVACIONES","ESTADO PROCESO","HECHO CORRUPTO","VALOR INSTITUCIONAL",
+            "TIPOLOGIA","CREADO POR","FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
+        ]
+        campos = [
+            "mes","fecha_radicado","sdqs","quejoso","correo","tema",
+            "competencia_ocdi","bpm","responsable","rad_salida","fecha_respuesta",
+            "observaciones","estado_proceso","hecho_corrupto","valor_institucional",
+            "tipologia","created_by","created_at","updated_at",
+        ]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 30
+        for ri, row in enumerate(sdqs_rows, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            for ci, campo in enumerate(campos, 1):
+                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 6))
+                if rf: cell.fill = rf
+        col_widths = [10, 14, 14, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def make_wb_seguimiento() -> io.BytesIO:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Seguimiento Mensual"
+        fill = PatternFill("solid", fgColor="0D3060")
+        headers = ["AÑO SEG.", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.fill = fill; cell.font = h_font; cell.alignment = center
+        ws.row_dimensions[1].height = 30
+        for ri, row in enumerate(seg_rows, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
+                    d.get("abogado_asignado"), d.get("descripcion"),
+                    d.get("created_by"), d.get("created_at")]
+            for ci, v in enumerate(vals, 1):
+                cell = ws.cell(row=ri, column=ci, value=v)
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 5))
+                if rf: cell.fill = rf
+        col_widths = [10, 14, 16, 28, 60, 24, 20]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"
         buf = io.BytesIO(); wb.save(buf); buf.seek(0)
         return buf
@@ -730,19 +818,27 @@ async def backup_zip():
             make_wb_base().read(),
         )
         zf.writestr(
-            f"OCDI/02_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
+            f"OCDI/02_Seguimiento_Mensual/Seguimiento_Mensual_{hoy}.xlsx",
+            make_wb_seguimiento().read(),
+        )
+        zf.writestr(
+            f"OCDI/03_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
             make_wb_correspondencia().read(),
         )
         zf.writestr(
-            f"OCDI/03_Expedientes_Digitales/Exp_Digitales_{hoy}.xlsx",
+            f"OCDI/04_SDQS/SDQS_{hoy}.xlsx",
+            make_wb_sdqs().read(),
+        )
+        zf.writestr(
+            f"OCDI/05_Expedientes_Digitales/Exp_Digitales_{hoy}.xlsx",
             make_wb_digitales().read(),
         )
         zf.writestr(
-            f"OCDI/04_Sala_Audiencias/Sala_Audiencias_{hoy}.xlsx",
+            f"OCDI/06_Sala_Audiencias/Sala_Audiencias_{hoy}.xlsx",
             make_wb_sala().read(),
         )
         zf.writestr(
-            f"OCDI/05_Control_Autos_Sustanciacion/SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx",
+            f"OCDI/07_Control_Autos_Sustanciacion/SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx",
             make_wb_control_autos().read(),
         )
     zip_buf.seek(0)

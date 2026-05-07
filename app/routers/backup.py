@@ -622,34 +622,41 @@ async def backup_zip():
         return buf
 
     def make_wb_sdqs() -> io.BytesIO:
+        from app.routers.sdqs import _calcular_semaforo_sdqs
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "SDQS"
         fill = PatternFill("solid", fgColor="7B3F00")
         headers = [
-            "MES","FECHA RAD","SDQS","QUEJOSO","CORREO","TEMA",
+            "MES","FECHA ASIGNACION","SDQS","FECHA VENCIMIENTO","ESTADO DIAS",
+            "QUEJOSO","CORREO","TEMA",
             "COMPETENCIA OCDI","BPM","RESPONSABLE","RAD SALIDA","FECHA RESPUESTA",
             "OBSERVACIONES","ESTADO PROCESO","HECHO CORRUPTO","VALOR INSTITUCIONAL",
             "TIPOLOGIA","CREADO POR","FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
         ]
         campos = [
-            "mes","fecha_radicado","sdqs","quejoso","correo","tema",
+            "mes","fecha_asignacion","sdqs","fecha_vencimiento","estado_dias",
+            "quejoso","correo","tema",
             "competencia_ocdi","bpm","responsable","rad_salida","fecha_respuesta",
             "observaciones","estado_proceso","hecho_corrupto","valor_institucional",
             "tipologia","created_by","created_at","updated_at",
         ]
+        SEM_COLORS = {"verde": "D4EDDA", "amarillo": "FFF3CD", "rojo": "F8D7DA"}
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
             cell.fill = fill; cell.font = h_font; cell.alignment = center
         ws.row_dimensions[1].height = 30
         for ri, row in enumerate(sdqs_rows, 2):
-            d = dict(row)
+            d = _calcular_semaforo_sdqs(dict(row))
             rf = alt_fill if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
                 cell = ws.cell(row=ri, column=ci, value=d.get(campo))
-                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 6))
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 8))
                 if rf: cell.fill = rf
-        col_widths = [10, 14, 14, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
+            sem = d.get("semaforo_sdqs")
+            if sem and sem in SEM_COLORS:
+                ws.cell(ri, 5).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+        col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

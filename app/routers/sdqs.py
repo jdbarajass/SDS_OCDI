@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pathlib import Path
 from app.template_utils import make_templates
+from datetime import date, datetime
 import io
 
 from app.database import get_db, row_to_dict
@@ -38,12 +39,13 @@ ABOGADOS = [
 ]
 
 RESP_MAP = {
-    "CESAR RODRIGUEZ":      "CESAR IVAN RODRIGUEZ DAMIAN",
-    "DAVID MORALES":        "DAVID FELIPE MORALES NOGUERA",
-    "MARA OCRUS":           "MARA LUCIA UCROS MERLANO",
+    "CESAR RODRIGUEZ":       "CESAR IVAN RODRIGUEZ DAMIAN",
+    "DAVID MORALES":         "DAVID FELIPE MORALES NOGUERA",
+    "MARA OCRUS":            "MARA LUCIA UCROS MERLANO",
+    "MARA UCROS":            "MARA LUCIA UCROS MERLANO",
     "MABEL GICELLA HURTADO": "MABEL GICELLA HURTADO SANCHEZ",
-    "CARLOS PARRA":         "CARLOS ALFONSO PARRA MALAVER",
-    "ANDRES SANDOVAL":      "ANDRES EDUARDO SANDOVAL MAYORGA",
+    "CARLOS PARRA":          "CARLOS ALFONSO PARRA MALAVER",
+    "ANDRES SANDOVAL":       "ANDRES EDUARDO SANDOVAL MAYORGA",
 }
 
 _PAGE_SIZE = 25
@@ -54,6 +56,40 @@ def _str(val) -> str:
         return ""
     s = str(val).strip()
     return s if s.upper() != "NAN" else ""
+
+
+def _calcular_semaforo_sdqs(reg: dict) -> dict:
+    """
+    Calcula estado_dias (total días del plazo) y semaforo_sdqs ('verde'/'amarillo'/'rojo').
+    Verde  = primera mitad del plazo aún no cumplida.
+    Amarillo = segunda mitad del plazo (pero > 2 días restantes).
+    Rojo   = 2 días o menos hasta el vencimiento (o ya vencido).
+    """
+    fa = reg.get("fecha_asignacion")
+    fv = reg.get("fecha_vencimiento")
+    reg["estado_dias"] = None
+    reg["semaforo_sdqs"] = None
+    if not fa or not fv:
+        return reg
+    try:
+        fa_d = datetime.fromisoformat(str(fa)[:10]).date()
+        fv_d = datetime.fromisoformat(str(fv)[:10]).date()
+        total_dias = (fv_d - fa_d).days
+        if total_dias <= 0:
+            return reg
+        hoy = date.today()
+        dias_transcurridos = (hoy - fa_d).days
+        dias_restantes = (fv_d - hoy).days
+        reg["estado_dias"] = total_dias
+        if dias_restantes <= 2:
+            reg["semaforo_sdqs"] = "rojo"
+        elif dias_transcurridos >= total_dias // 2:
+            reg["semaforo_sdqs"] = "amarillo"
+        else:
+            reg["semaforo_sdqs"] = "verde"
+    except Exception:
+        pass
+    return reg
 
 
 # ── Lista ─────────────────────────────────────────────────────────────────────
@@ -92,12 +128,16 @@ async def lista(
         params + [_PAGE_SIZE, offset],
     ).fetchall()
 
-    meses_bd = [r[0] for r in conn.execute("SELECT DISTINCT mes FROM sdqs WHERE mes IS NOT NULL ORDER BY mes").fetchall()]
-    responsables_bd = [r[0] for r in conn.execute("SELECT DISTINCT responsable FROM sdqs WHERE responsable IS NOT NULL AND responsable != '' ORDER BY responsable").fetchall()]
+    meses_bd = [r[0] for r in conn.execute(
+        "SELECT DISTINCT mes FROM sdqs WHERE mes IS NOT NULL ORDER BY mes"
+    ).fetchall()]
+    responsables_bd = [r[0] for r in conn.execute(
+        "SELECT DISTINCT responsable FROM sdqs WHERE responsable IS NOT NULL AND responsable != '' ORDER BY responsable"
+    ).fetchall()]
     conn.close()
 
     total_pages = max(1, (total + _PAGE_SIZE - 1) // _PAGE_SIZE)
-    registros = [row_to_dict(r) for r in rows]
+    registros = [_calcular_semaforo_sdqs(row_to_dict(r)) for r in rows]
 
     return templates.TemplateResponse("sdqs_lista.html", tpl(request, _MOD,
         registros=registros,
@@ -131,8 +171,9 @@ async def nuevo_get(request: Request):
 async def nuevo_post(
     request: Request,
     mes: str = Form(""),
-    fecha_radicado: str = Form(""),
+    fecha_asignacion: str = Form(""),
     sdqs_num: str = Form("", alias="sdqs"),
+    fecha_vencimiento: str = Form(""),
     quejoso: str = Form(""),
     correo: str = Form(""),
     tema: str = Form(""),
@@ -149,21 +190,22 @@ async def nuevo_post(
 ):
     user = request.state.user
     if not _pw(user, _MOD):
-        return RedirectResponse(f"/sdqs/?msg=sin_permiso", status_code=303)
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
 
-    obligatorios = [mes, fecha_radicado, sdqs_num, quejoso, correo, tema, competencia_ocdi, observaciones]
+    obligatorios = [mes, fecha_asignacion, sdqs_num, quejoso, correo, tema, competencia_ocdi, observaciones]
     if any(not v.strip() for v in obligatorios):
-        return RedirectResponse(f"/sdqs/nuevo?msg=error_obligatorios", status_code=303)
+        return RedirectResponse("/sdqs/nuevo?msg=error_obligatorios", status_code=303)
 
     conn = get_db()
     conn.execute(
         """INSERT INTO sdqs
-           (mes, fecha_radicado, sdqs, quejoso, correo, tema, competencia_ocdi,
-            bpm, responsable, rad_salida, fecha_respuesta, observaciones,
+           (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
+            competencia_ocdi, bpm, responsable, rad_salida, fecha_respuesta, observaciones,
             estado_proceso, hecho_corrupto, valor_institucional, tipologia, created_by)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (mes.upper(), fecha_radicado, sdqs_num.upper(), quejoso.upper(), correo,
-         tema.upper(), competencia_ocdi.upper(),
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+         fecha_vencimiento or None,
+         quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
          bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
          observaciones, estado_proceso or None, hecho_corrupto or None,
          valor_institucional or None, tipologia or None,
@@ -184,9 +226,10 @@ async def ver(request: Request, id: int):
     conn.close()
     if not row:
         return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
+    registro = _calcular_semaforo_sdqs(row_to_dict(row))
     return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
         modo="ver",
-        registro=row_to_dict(row),
+        registro=registro,
         meses=MESES,
         abogados=ABOGADOS,
         estados=ESTADOS_PROCESO,
@@ -216,8 +259,9 @@ async def editar_post(
     request: Request,
     id: int,
     mes: str = Form(""),
-    fecha_radicado: str = Form(""),
+    fecha_asignacion: str = Form(""),
     sdqs_num: str = Form("", alias="sdqs"),
+    fecha_vencimiento: str = Form(""),
     quejoso: str = Form(""),
     correo: str = Form(""),
     tema: str = Form(""),
@@ -239,14 +283,16 @@ async def editar_post(
     conn = get_db()
     conn.execute(
         """UPDATE sdqs SET
-           mes=?, fecha_radicado=?, sdqs=?, quejoso=?, correo=?, tema=?,
-           competencia_ocdi=?, bpm=?, responsable=?, rad_salida=?,
-           fecha_respuesta=?, observaciones=?, estado_proceso=?,
-           hecho_corrupto=?, valor_institucional=?, tipologia=?,
+           mes=?, fecha_asignacion=?, sdqs=?, fecha_vencimiento=?,
+           quejoso=?, correo=?, tema=?, competencia_ocdi=?,
+           bpm=?, responsable=?, rad_salida=?, fecha_respuesta=?,
+           observaciones=?, estado_proceso=?, hecho_corrupto=?,
+           valor_institucional=?, tipologia=?,
            updated_at=datetime('now','localtime')
            WHERE id=?""",
-        (mes.upper(), fecha_radicado, sdqs_num.upper(), quejoso.upper(), correo,
-         tema.upper(), competencia_ocdi.upper(),
+        (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+         fecha_vencimiento or None,
+         quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
          bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
          observaciones, estado_proceso or None, hecho_corrupto or None,
          valor_institucional or None, tipologia or None, id),
@@ -305,7 +351,7 @@ async def exportar(
         params += [like, like, like]
 
     rows = conn.execute(
-        f"SELECT * FROM sdqs WHERE {' AND '.join(where)} ORDER BY id",
+        f"SELECT * FROM sdqs WHERE {' AND '.join(where)} ORDER BY fecha_asignacion, id",
         params,
     ).fetchall()
     conn.close()
@@ -315,7 +361,8 @@ async def exportar(
     ws.title = "SDQS"
 
     headers = [
-        "MES", "FECHA RAD", "SDQS", "QUEJOSO", "CORREO", "TEMA",
+        "MES", "FECHA ASIGNACION", "SDQS", "FECHA VENCIMIENTO", "ESTADO DIAS",
+        "QUEJOSO", "CORREO", "TEMA",
         "COMPETENCIA OCDI", "BPM", "RESPONSABLE", "RAD SALIDA",
         "FECHA RESPUESTA", "OBSERVACIONES", "ESTADO PROCESO",
         "HECHO CORRUPTO", "VALOR INSTITUCIONAL", "TIPOLOGIA",
@@ -328,16 +375,28 @@ async def exportar(
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
 
+    SEM_COLORS = {"verde": "D4EDDA", "amarillo": "FFF3CD", "rojo": "F8D7DA"}
+
     for r in rows:
-        d = row_to_dict(r)
+        d = _calcular_semaforo_sdqs(row_to_dict(r))
         ws.append([
-            d.get("mes"), d.get("fecha_radicado"), d.get("sdqs"),
+            d.get("mes"), d.get("fecha_asignacion"), d.get("sdqs"),
+            d.get("fecha_vencimiento"), d.get("estado_dias"),
             d.get("quejoso"), d.get("correo"), d.get("tema"),
             d.get("competencia_ocdi"), d.get("bpm"), d.get("responsable"),
             d.get("rad_salida"), d.get("fecha_respuesta"), d.get("observaciones"),
             d.get("estado_proceso"), d.get("hecho_corrupto"),
             d.get("valor_institucional"), d.get("tipologia"),
         ])
+        sem = d.get("semaforo_sdqs")
+        if sem and sem in SEM_COLORS:
+            fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+            ws.cell(ws.max_row, 5).fill = fill
+
+    col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -371,7 +430,7 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
     contenido = await archivo.read()
     count, errors = _importar_excel_sdqs(contenido)
     if errors:
-        return RedirectResponse(f"/sdqs/importar?msg=error_archivo", status_code=303)
+        return RedirectResponse("/sdqs/importar?msg=error_archivo", status_code=303)
     registrar_log(user, "importar", _MOD, f"{count} registros importados")
     return RedirectResponse(f"/sdqs/importar?msg=importado_{count}", status_code=303)
 
@@ -392,6 +451,27 @@ async def limpiar(request: Request):
 # ── Helper de importación Excel ───────────────────────────────────────────────
 
 def _importar_excel_sdqs(archivo_bytes: bytes):
+    """
+    Columnas del Excel BASE SDQS_Actualizada.xlsx (18 cols):
+    0  MES
+    1  FECHA ASIGNACION
+    2  SDQS
+    3  FECHA VENCIMIENTO
+    4  ESTADO DIAS  (ignorado — se calcula)
+    5  QUEJOSO
+    6  CORREO
+    7  TEMA
+    8  COMPETENCIA OCDI
+    9  BPM
+    10 RESPONSABLE
+    11 RAD SALIDA
+    12 FECHA RESPUESTA
+    13 OBSERVACIONES
+    14 ESTADO PROCESO
+    15 HECHO CORRUPTO
+    16 VALOR INSTITUCIONAL
+    17 TIPOLOGIA
+    """
     try:
         import openpyxl
     except ImportError:
@@ -403,15 +483,54 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
     except Exception as e:
         return 0, [str(e)]
 
-    def _fecha(val):
+    # Detectar posiciones de columnas por encabezado (tolerante a reordenamientos)
+    header_row = [str(ws.cell(1, c).value or "").strip().upper() for c in range(1, ws.max_column + 1)]
+    COL = {h: i for i, h in enumerate(header_row)}
+
+    def _ci(nombres):
+        for n in nombres:
+            if n in COL:
+                return COL[n]
+        return None
+
+    i_mes    = _ci(["MES"])
+    i_fasig  = _ci(["FECHA ASIGNACION", "FECHA ASIGNACIÓN", "FECHA RADICADO"])
+    i_sdqs   = _ci(["SDQS"])
+    i_fvenc  = _ci(["FECHA VENCIMINETO", "FECHA VENCIMIENTO"])
+    i_quej   = _ci(["QUEJOSO"])
+    i_correo = _ci(["CORREO"])
+    i_tema   = _ci(["TEMA"])
+    i_comp   = _ci(["COMPETENCIA OCDI"])
+    i_bpm    = _ci(["BPM"])
+    i_resp   = _ci(["RESPONSABLE"])
+    i_rsal   = _ci(["RAD SALIDA"])
+    i_frsp   = _ci(["FECHA RESPUESTA"])
+    i_obs    = _ci(["OBSERVACIONES"])
+    i_est    = _ci(["ESTADO PROCESO"])
+    i_hech   = _ci(["HECHO CORRUPTO"])
+    i_vinst  = _ci(["VALOR INSTITUCIONAL"])
+    i_tipo   = _ci(["TIPOLOGIA"])
+
+    def _v(row, idx):
+        if idx is None or idx >= len(row):
+            return None
+        val = row[idx]
+        if val is None:
+            return None
+        s = str(val).strip()
+        return None if s.upper() in ("NAN", "NONE", "") else s
+
+    def _fecha(row, idx):
+        if idx is None or idx >= len(row):
+            return None
+        val = row[idx]
         if val is None:
             return None
         try:
-            from datetime import datetime, date
-            if isinstance(val, (datetime, date)):
+            if isinstance(val, (date, datetime)):
                 return val.isoformat()[:10]
             s = str(val).strip()
-            if not s or s.upper() == "NAN":
+            if not s or s.upper() in ("NAN", "NONE"):
                 return None
             return s[:10]
         except Exception:
@@ -425,42 +544,57 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
         if all(v is None for v in row):
             continue
         try:
-            mes        = _str(row[0]).upper() if len(row) > 0 else ""
-            fecha_rad  = _fecha(row[1]) if len(row) > 1 else None
-            sdqs_num   = _str(row[2]).upper() if len(row) > 2 else ""
-            quejoso    = _str(row[3]).upper() if len(row) > 3 else ""
-            correo     = _str(row[4]) if len(row) > 4 else ""
-            tema       = _str(row[5]).upper() if len(row) > 5 else ""
-            comp_ocdi  = _str(row[6]).upper() if len(row) > 6 else "NO"
-            bpm        = _str(row[7]) or None if len(row) > 7 else None
-            resp_raw   = _str(row[8]).upper() if len(row) > 8 else ""
-            rad_sal    = _str(row[9]) or None if len(row) > 9 else None
-            fecha_resp = _fecha(row[10]) if len(row) > 10 else None
-            obs        = _str(row[11]) if len(row) > 11 else ""
-            estado     = _str(row[12]).upper() or None if len(row) > 12 else None
-            hecho      = _str(row[13]) or None if len(row) > 13 else None
-            valor_inst = _str(row[14]) or None if len(row) > 14 else None
-            tipologia  = _str(row[15]) or None if len(row) > 15 else None
-
+            sdqs_num = (_v(row, i_sdqs) or "").upper()
             if not sdqs_num:
                 continue
 
+            mes       = (_v(row, i_mes) or "").upper()
+            fa        = _fecha(row, i_fasig)
+            fv        = _fecha(row, i_fvenc)
+            quejoso   = (_v(row, i_quej) or "").upper()
+            correo    = _v(row, i_correo) or ""
+            tema      = (_v(row, i_tema) or "").upper()
+            comp_raw  = (_v(row, i_comp) or "NO").upper()
+            comp      = "SI" if comp_raw in ("SI", "SÍ", "S", "1") else "NO"
+            bpm       = _v(row, i_bpm)
+            resp_raw  = (_v(row, i_resp) or "").upper()
+            rad_sal   = _v(row, i_rsal)
+            f_resp    = _fecha(row, i_frsp)
+            obs       = _v(row, i_obs) or ""
+            estado    = (_v(row, i_est) or "").upper() or None
+            hecho     = _v(row, i_hech)
+            valor_inst = _v(row, i_vinst)
+            tipologia  = _v(row, i_tipo)
+
             responsable = RESP_MAP.get(resp_raw, resp_raw) or None
+            if responsable == "":
+                responsable = None
 
             conn.execute(
-                """INSERT OR IGNORE INTO sdqs
-                   (mes, fecha_radicado, sdqs, quejoso, correo, tema, competencia_ocdi,
-                    bpm, responsable, rad_salida, fecha_respuesta, observaciones,
-                    estado_proceso, hecho_corrupto, valor_institucional, tipologia,
-                    created_by)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (mes, fecha_rad, sdqs_num, quejoso, correo or "", tema,
-                 comp_ocdi if comp_ocdi in ("SI", "NO") else "NO",
-                 bpm, responsable, rad_sal, fecha_resp, obs,
-                 estado if estado else None, hecho, valor_inst, tipologia,
-                 "IMPORTACION"),
+                """INSERT INTO sdqs
+                   (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
+                    competencia_ocdi, bpm, responsable, rad_salida, fecha_respuesta,
+                    observaciones, estado_proceso, hecho_corrupto, valor_institucional,
+                    tipologia, created_by)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(sdqs) DO UPDATE SET
+                       mes=excluded.mes,
+                       fecha_asignacion=excluded.fecha_asignacion,
+                       fecha_vencimiento=excluded.fecha_vencimiento,
+                       quejoso=excluded.quejoso, correo=excluded.correo,
+                       tema=excluded.tema, competencia_ocdi=excluded.competencia_ocdi,
+                       bpm=excluded.bpm, responsable=excluded.responsable,
+                       rad_salida=excluded.rad_salida, fecha_respuesta=excluded.fecha_respuesta,
+                       observaciones=excluded.observaciones, estado_proceso=excluded.estado_proceso,
+                       hecho_corrupto=excluded.hecho_corrupto,
+                       valor_institucional=excluded.valor_institucional,
+                       tipologia=excluded.tipologia,
+                       updated_at=datetime('now','localtime')""",
+                (mes, fa, sdqs_num, fv, quejoso, correo, tema, comp,
+                 bpm, responsable, rad_sal, f_resp, obs,
+                 estado if estado else None, hecho, valor_inst, tipologia, "IMPORTACION"),
             )
-            count += conn.execute("SELECT changes()").fetchone()[0]
+            count += 1
         except Exception as e:
             errors.append(str(e))
 

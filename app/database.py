@@ -184,8 +184,9 @@ CREATE TABLE IF NOT EXISTS seguimiento_mensual (
 CREATE TABLE IF NOT EXISTS sdqs (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     mes                 TEXT NOT NULL,
-    fecha_radicado      TEXT NOT NULL,
+    fecha_asignacion    TEXT NOT NULL,
     sdqs                TEXT NOT NULL UNIQUE,
+    fecha_vencimiento   TEXT,
     quejoso             TEXT NOT NULL,
     correo              TEXT,
     tema                TEXT NOT NULL,
@@ -365,6 +366,18 @@ def init_db():
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_sdqs_sdqs ON sdqs(sdqs)")
     except Exception:
         pass
+    # Migración sdqs v2: renombrar fecha_radicado → fecha_asignacion, agregar fecha_vencimiento
+    sdqs_cols = [r[1] for r in conn.execute("PRAGMA table_info(sdqs)").fetchall()]
+    if "fecha_radicado" in sdqs_cols:
+        try:
+            conn.execute("ALTER TABLE sdqs RENAME COLUMN fecha_radicado TO fecha_asignacion")
+        except Exception:
+            pass
+    if "fecha_vencimiento" not in sdqs_cols:
+        try:
+            conn.execute("ALTER TABLE sdqs ADD COLUMN fecha_vencimiento TEXT")
+        except Exception:
+            pass
 
     # Migración: tipo de contrato por abogado
     try:

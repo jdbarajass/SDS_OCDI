@@ -143,6 +143,21 @@
         </a>
         {% endif %}
 
+        <!-- MÓDULO 1D: SDQS -->
+        {% if not permisos or permisos.get('sdqs', {}).get('puede_ver', True) %}
+        <a href="/sdqs/" class="portal-tile">
+            <div class="tile-ico">📩</div>
+            <div class="tile-title">SDQS — Quejas y<br>Solicitudes</div>
+            <div class="tile-desc">Registro y seguimiento de solicitudes, quejas y denuncias recibidas vía SDQS. Control de competencia OCDI, responsables asignados y estado del proceso.</div>
+            {% if total_sdqs > 0 %}
+            <span class="tile-stat">📩 {{ total_sdqs }} SDQS registrados</span>
+            {% else %}
+            <span class="tile-stat">📩 Sin datos aún</span>
+            {% endif %}
+            <span class="tile-cta">Abrir módulo →</span>
+        </a>
+        {% endif %}
+
         <!-- ══ SEPARADOR ══ -->
         <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,0.15);margin:4px 0"></div>
 

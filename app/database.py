@@ -180,6 +180,30 @@ CREATE TABLE IF NOT EXISTS seguimiento_mensual (
     UNIQUE(expediente_id, anio, mes)
 );
 
+-- ── SDQS (Sistema de Quejas y Solicitudes) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS sdqs (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes                 TEXT NOT NULL,
+    fecha_radicado      TEXT NOT NULL,
+    sdqs                TEXT NOT NULL UNIQUE,
+    quejoso             TEXT NOT NULL,
+    correo              TEXT,
+    tema                TEXT NOT NULL,
+    competencia_ocdi    TEXT NOT NULL DEFAULT 'NO',
+    bpm                 TEXT,
+    responsable         TEXT,
+    rad_salida          TEXT,
+    fecha_respuesta     TEXT,
+    observaciones       TEXT,
+    estado_proceso      TEXT,
+    hecho_corrupto      TEXT,
+    valor_institucional TEXT,
+    tipologia           TEXT,
+    created_at          TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at          TEXT DEFAULT (datetime('now', 'localtime')),
+    created_by          TEXT
+);
+
 -- ── CORRESPONDENCIA / LISTA DE REPARTO DE ABOGADOS ───────────────────────────
 CREATE TABLE IF NOT EXISTS correspondencia (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,6 +359,12 @@ def init_db():
     # Normalizar origen y asunto a mayúsculas en todos los registros históricos
     conn.execute("UPDATE correspondencia SET origen = UPPER(origen) WHERE origen IS NOT NULL AND origen != UPPER(origen)")
     conn.execute("UPDATE correspondencia SET asunto = UPPER(asunto) WHERE asunto IS NOT NULL AND asunto != UPPER(asunto)")
+
+    # Migración: índice único en sdqs.sdqs para deduplicación en importación
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_sdqs_sdqs ON sdqs(sdqs)")
+    except Exception:
+        pass
 
     # Migración: tipo de contrato por abogado
     try:

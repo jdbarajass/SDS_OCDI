@@ -25,6 +25,7 @@ async def hub(request: Request, msg: str = ""):
     ).fetchone()
 
     total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]
+    total_sdqs = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
 
     total_corr = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
     corr_rojos = conn.execute("""
@@ -42,5 +43,6 @@ async def hub(request: Request, msg: str = ""):
         prox_sala=dict(prox_sala) if prox_sala else None,
         total_corr=total_corr, corr_rojos=corr_rojos,
         total_control_autos=total_control_autos,
+        total_sdqs=total_sdqs,
         msg=msg,
     ))

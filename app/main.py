@@ -9,6 +9,7 @@ from app.routers import (
     expedientes, importar, dashboard, seguimiento, autos,
     portal, digitales, sala, backup, correspondencia, control_autos,
 )
+from app.routers import sdqs as sdqs_router
 from app.routers import auth as auth_router
 from app.routers import admin_usuarios
 
@@ -37,6 +38,7 @@ _URL_MODULO_MAP = [
     ("/autos",           "expedientes"),
     ("/correspondencia", "correspondencia"),
     ("/control-autos",   "control_autos"),
+    ("/sdqs",            "sdqs"),
     ("/digitales",       "digitales"),
     ("/sala",            "sala"),
     ("/backup",          "backup"),
@@ -125,6 +127,7 @@ app.include_router(sala.router)
 app.include_router(backup.router)
 app.include_router(correspondencia.router)
 app.include_router(control_autos.router)
+app.include_router(sdqs_router.router)
 
 
 @app.on_event("startup")

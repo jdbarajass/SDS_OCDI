@@ -1,0 +1,281 @@
+{% extends "base_sdqs.html" %}
+{% set active = 'sdqs_nuevo' if modo == 'nuevo' else 'sdqs_lista' %}
+
+{% block title %}
+{% if modo == 'nuevo' %}Nuevo SDQS{% elif modo == 'editar' %}Editar SDQS{% else %}Ver SDQS{% endif %}
+{% endblock %}
+
+{% block heading %}
+{% if modo == 'nuevo' %}Nuevo SDQS{% elif modo == 'editar' %}Editar SDQS #{{ registro.id }}{% else %}SDQS #{{ registro.id }}{% endif %}
+{% endblock %}
+
+{% block header_actions %}
+{% if modo == 'ver' %}
+<a href="/sdqs/{{ registro.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+<a href="/sdqs/" class="btn btn-secondary">← Volver a la lista</a>
+{% elif modo == 'editar' %}
+<a href="/sdqs/{{ registro.id }}" class="btn btn-secondary">← Cancelar</a>
+{% else %}
+<a href="/sdqs/" class="btn btn-secondary">← Volver a la lista</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% set es_ver = modo == 'ver' %}
+{% set form_action = '/sdqs/nuevo' if modo == 'nuevo' else '/sdqs/' ~ registro.id ~ '/editar' %}
+
+{% if es_ver %}
+<div style="display:flex;flex-direction:column;gap:24px">
+{% else %}
+<form method="post" action="{{ form_action }}" style="display:flex;flex-direction:column;gap:24px">
+{% endif %}
+
+    <!-- Sección 1: Datos del SDQS -->
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            1. Datos del SDQS
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">MES <span style="color:#dc3545">*</span></label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.mes or '—' }}</div>
+                {% else %}
+                <select name="mes" class="form-control" required>
+                    <option value="">— Seleccione —</option>
+                    {% for m in meses %}
+                    <option value="{{ m }}" {% if registro.mes == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA RADICADO <span style="color:#dc3545">*</span></label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.fecha_radicado or '—' }}</div>
+                {% else %}
+                <input type="date" name="fecha_radicado" class="form-control" value="{{ registro.fecha_radicado or '' }}" required>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">SDQS <span style="color:#dc3545">*</span></label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.sdqs or '—' }}</div>
+                {% else %}
+                <input type="text" name="sdqs" class="form-control" value="{{ registro.sdqs or '' }}" placeholder="Número SDQS" required>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">QUEJOSO <span style="color:#dc3545">*</span></label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.quejoso or '—' }}</div>
+                {% else %}
+                <input type="text" name="quejoso" class="form-control" value="{{ registro.quejoso or '' }}" required>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">CORREO <span style="color:#dc3545">*</span></label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.correo or '—' }}</div>
+                {% else %}
+                <input type="email" name="correo" class="form-control" value="{{ registro.correo or '' }}" required>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Sección 2: Tema -->
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            2. Tema
+        </div>
+        <div>
+            <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">TEMA <span style="color:#dc3545">*</span></label>
+            {% if es_ver %}
+            <div class="form-val" style="white-space:pre-wrap">{{ registro.tema or '—' }}</div>
+            {% else %}
+            <textarea name="tema" class="form-control" rows="5" required style="width:100%;resize:vertical">{{ registro.tema or '' }}</textarea>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Sección 3: Competencia OCDI -->
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            3. Competencia OCDI
+        </div>
+
+        <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:8px">COMPETENCIA OCDI <span style="color:#dc3545">*</span></label>
+            {% if es_ver %}
+            <div class="form-val">
+                {% if registro.competencia_ocdi == 'SI' %}
+                <span style="background:#d4edda;color:#155724;padding:3px 12px;border-radius:12px;font-weight:700">SI</span>
+                {% else %}
+                <span style="background:#e9ecef;color:#6c757d;padding:3px 12px;border-radius:12px;font-weight:700">NO</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div style="display:flex;gap:20px;align-items:center">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+                    <input type="radio" name="competencia_ocdi" value="SI" id="comp_si"
+                           {% if registro.get('competencia_ocdi') == 'SI' %}checked{% endif %}
+                           onchange="toggleOcdi(this.value)">
+                    SI
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+                    <input type="radio" name="competencia_ocdi" value="NO" id="comp_no"
+                           {% if not registro.get('competencia_ocdi') or registro.get('competencia_ocdi') == 'NO' %}checked{% endif %}
+                           onchange="toggleOcdi(this.value)">
+                    NO
+                </label>
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="campos-ocdi" style="display:{% if registro.get('competencia_ocdi') == 'SI' %}grid{% else %}none{% endif %};grid-template-columns:1fr 1fr;gap:16px">
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">BPM</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.bpm or '—' }}</div>
+                {% else %}
+                <input type="text" name="bpm" class="form-control" value="{{ registro.bpm or '' }}">
+                {% endif %}
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">RESPONSABLE</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.responsable or '—' }}</div>
+                {% else %}
+                <select name="responsable" class="form-control">
+                    <option value="">— Seleccione —</option>
+                    {% for ab in abogados %}
+                    <option value="{{ ab }}" {% if registro.get('responsable') == ab %}selected{% endif %}>{{ ab }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección 4: Respuesta y Seguimiento -->
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            4. Respuesta y Seguimiento
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">RAD SALIDA</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.rad_salida or '—' }}</div>
+                {% else %}
+                <input type="text" name="rad_salida" class="form-control" value="{{ registro.rad_salida or '' }}">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA RESPUESTA</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.fecha_respuesta or '—' }}</div>
+                {% else %}
+                <input type="date" name="fecha_respuesta" class="form-control" value="{{ registro.fecha_respuesta or '' }}">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">ESTADO PROCESO</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.estado_proceso or '—' }}</div>
+                {% else %}
+                <select name="estado_proceso" class="form-control">
+                    <option value="">— Seleccione —</option>
+                    {% for est in estados %}
+                    <option value="{{ est }}" {% if registro.get('estado_proceso') == est %}selected{% endif %}>{{ est }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">HECHO CORRUPTO</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.hecho_corrupto or '—' }}</div>
+                {% else %}
+                <input type="text" name="hecho_corrupto" class="form-control" value="{{ registro.hecho_corrupto or '' }}">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">VALOR INSTITUCIONAL</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.valor_institucional or '—' }}</div>
+                {% else %}
+                <input type="text" name="valor_institucional" class="form-control" value="{{ registro.valor_institucional or '' }}">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">TIPOLOGÍA</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.tipologia or '—' }}</div>
+                {% else %}
+                <input type="text" name="tipologia" class="form-control" value="{{ registro.tipologia or '' }}">
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Sección 5: Observaciones -->
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            5. Observaciones
+        </div>
+        <div>
+            <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">OBSERVACIONES <span style="color:#dc3545">*</span></label>
+            {% if es_ver %}
+            <div class="form-val" style="white-space:pre-wrap">{{ registro.observaciones or '—' }}</div>
+            {% else %}
+            <textarea name="observaciones" class="form-control" rows="4" required style="width:100%;resize:vertical">{{ registro.observaciones or '' }}</textarea>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not es_ver %}
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-bottom:16px">
+        <a href="/sdqs/" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            {% if modo == 'nuevo' %}➕ Registrar SDQS{% else %}💾 Guardar Cambios{% endif %}
+        </button>
+    </div>
+    {% endif %}
+
+{% if es_ver %}
+</div>
+{% else %}
+</form>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleOcdi(val) {
+    var div = document.getElementById('campos-ocdi');
+    if (!div) return;
+    div.style.display = val === 'SI' ? 'grid' : 'none';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var si = document.getElementById('comp_si');
+    if (si) toggleOcdi(si.checked ? 'SI' : 'NO');
+});
+</script>
+{% endblock %}

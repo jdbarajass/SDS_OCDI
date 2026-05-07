@@ -11,6 +11,7 @@ MODULOS_SISTEMA = [
     ("digitales",       "💻 Exp. Digitales"),
     ("sala",            "🗓️ Sala de Audiencias"),
     ("backup",          "📦 Backup"),
+    ("sdqs",            "📩 SDQS"),
 ]
 
 # Roles que siempre tienen acceso completo (no configurables por módulo)

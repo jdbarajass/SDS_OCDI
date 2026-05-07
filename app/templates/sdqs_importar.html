@@ -1,0 +1,56 @@
+{% extends "base_sdqs.html" %}
+{% set active = 'sdqs_importar' %}
+
+{% block title %}Importar Excel — SDQS{% endblock %}
+{% block heading %}Importar Excel SDQS{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;flex-direction:column;gap:24px;max-width:700px">
+
+    <!-- Estado actual -->
+    <div class="card" style="padding:22px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Estado actual de la base de datos</div>
+        <div style="font-size:22px;font-weight:800;color:#0d3060">{{ total_bd }}</div>
+        <div style="font-size:13px;color:#6c757d;margin-top:2px">registro{{ 's' if total_bd != 1 else '' }} SDQS almacenado{{ 's' if total_bd != 1 else '' }}</div>
+    </div>
+
+    <!-- Importar -->
+    <div class="card" style="padding:22px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:16px">
+            📥 Importar desde Excel
+        </div>
+        <p style="font-size:13px;color:#555;margin-bottom:14px">
+            El archivo debe ser <strong>.xlsx</strong> con la fila 1 como encabezado y datos desde la fila 2.
+            Columnas esperadas: MES · FECHA RAD · SDQS · QUEJOSO · CORREO · TEMA · COMPETENCIA OCDI · BPM · RESPONSABLE · RAD SALIDA · FECHA RESPUESTA · OBSERVACIONES · ESTADO PROCESO · HECHO CORRUPTO · VALOR INSTITUCIONAL · TIPOLOGIA.
+        </p>
+        <p style="font-size:12.5px;color:#888;margin-bottom:16px">
+            Los registros con SDQS duplicado serán ignorados (INSERT OR IGNORE).
+        </p>
+        <form method="post" action="/sdqs/importar" enctype="multipart/form-data">
+            <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px">
+                    <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Archivo Excel (.xlsx)</label>
+                    <input type="file" name="archivo" accept=".xlsx" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">📥 Importar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Zona de peligro -->
+    <div class="card" style="padding:22px;border:2px solid #f8d7da">
+        <div style="font-size:13px;font-weight:700;color:#dc3545;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #f8d7da;padding-bottom:10px;margin-bottom:16px">
+            ⚠️ Zona de Peligro
+        </div>
+        <p style="font-size:13px;color:#555;margin-bottom:14px">
+            Esta acción <strong>eliminará permanentemente todos los registros SDQS</strong> de la base de datos. No se puede deshacer.
+        </p>
+        <form method="post" action="/sdqs/limpiar" onsubmit="return confirm('¿Está seguro? Esta acción eliminará TODOS los registros SDQS y no se puede deshacer.')">
+            <button type="submit" class="btn" style="background:#dc3545;color:#fff;border:none;cursor:pointer">🗑 Borrar todos los SDQS</button>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

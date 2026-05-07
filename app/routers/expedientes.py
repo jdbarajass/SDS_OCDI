@@ -1,70 +1,253 @@
-from fastapi import APIRouter, Request, Form, UploadFile, File
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pathlib import Path
 from app.template_utils import make_templates
-from datetime import date, timedelta
-from typing import List, Optional
+from datetime import date
+from calendar import monthrange
+from typing import Optional
+import json
 import io
 
 from app.database import get_db, calcular_alerta, row_to_dict
 from app.auth_utils import puede_escribir as _pw, registrar_log
 
 _MOD = "expedientes"
+_ROOT = Path(__file__).parent.parent.parent
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
+# ── Datos estáticos ────────────────────────────────────────────────────────────
+
 MESES = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
          "JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"]
 
-ETAPAS = [
-    "INDAGACIÓN PREVIA",
-    "INVESTIGACIÓN DISCIPLINARIA",
-    "ARCHIVADO",
-    "SANCIONADO",
-    "OTRO",
+MEDIOS_INGRESO = ["SDQS", "CORREO ELECTRONICO", "OFICIO", "VERBAL", "RADICADO", "OTRO"]
+
+ABOGADOS = [
+    "MABEL GICELLA HURTADO SANCHEZ",
+    "RODOLFO CARRILLO QUINTERO",
+    "DAVID FELIPE MORALES NOGUERA",
+    "CARLOS ALFONSO PARRA MALAVER",
+    "CESAR IVAN RODRIGUEZ DAMIAN",
+    "MARA LUCIA UCROS MERLANO",
+    "JANIK HERNANDO DE LA HOZ RIOS",
 ]
+
+TIPOS_EXPEDIENTE = ["FISICO", "ELECTRONICO"]
+
+PERFILES_INVESTIGADO = [
+    "ALMACENISTA GENERAL", "ASESOR", "AUXILIAR ADMINISTRATIVO", "AUXILIAR ÁREA SALUD",
+    "AUXILIAR DE SERVICIOS GENERALES", "CONDUCTOR", "DIRECTOR", "JEFE DE OFICINA",
+    "MÉDICO GENERAL", "PROFESIONAL ESPECIALIZADO", "PROFESIONAL ESPECIALIZADO ÁREA SALUD",
+    "PROFESIONAL UNIVERSITARIO", "PROFESIONAL UNIVERSITARIO ÁREA SALUD", "SECRETARIO",
+    "SECRETARIO EJECUTIVO", "SUBDIRECTOR", "SUBSECRETARIO DE DESPACHO",
+    "TÉCNICO ÁREA SALUD", "TÉCNICO OPERATIVO", "TESORERO GENERAL",
+]
+
+TIEMPOS_PRORROGA = ["1", "3", "6"]
+
+ETAPAS = ["INDAGACIÓN PREVIA", "INVESTIGACIÓN DISCIPLINARIA"]
 
 ESTADOS = [
-    "EN TRÁMITE",
-    "AUTO DE ARCHIVO",
-    "ARCHIVADO",
-    "INVESTIGACIÓN DISCIPLINARIA",
+    "ABIERTO", "AUTO DE ARCHIVO", "ACUMULADO", "INCORPORADO",
+    "TRASLADADO - PERSONERIA", "TRASLADADO - PROCURADURIA",
+    "TRASLADADO - ALCALDIA",
+    "TRASLADADO - SUBRED CENTRO ORIENTE E.S.E",
+    "TRASLADADO - SUBRED NORTE E.S.E",
+    "TRASLADADO - SUBRED SUR E.S.E",
+    "TRASLADADO - SUBRED SUR OCCIDENTE E.S.E",
     "PLIEGO DE CARGOS",
-    "FALLO SANCIONATORIO",
-    "FALLO ABSOLUTORIO",
 ]
 
+ENTIDADES_SUGERIDAS = [
+    "SDQS", "PERSONERIA DE BOGOTA", "PERSONA PARTICULAR", "ANONIMO", "CONTRALORIA",
+]
 
-def _limpiar(valor):
-    """Convierte cadena vacía en None."""
-    if valor is None or str(valor).strip() == "":
+VALORES_SUGERIDOS = [
+    "HONESTIDAD", "RESPETO", "COMPROMISO", "DILIGENCIA",
+    "JUSTICIA", "ALTRUISMO", "TODOS",
+]
+
+# ── Caché de JSON ──────────────────────────────────────────────────────────────
+
+_tipologias_cache = None
+_entidades_cache = None
+
+
+def _get_tipologias():
+    global _tipologias_cache
+    if _tipologias_cache is None:
+        path = _ROOT / "Tipologias_Json.txt"
+        with open(path, "r", encoding="utf-8") as f:
+            _tipologias_cache = json.load(f)
+    return _tipologias_cache
+
+
+def _get_entidades():
+    global _entidades_cache
+    if _entidades_cache is None:
+        path = _ROOT / "EntidadesDependencias_Json.txt"
+        with open(path, "r", encoding="utf-8") as f:
+            _entidades_cache = json.load(f)
+    return _entidades_cache
+
+
+# ── Helpers de fecha y semáforo ────────────────────────────────────────────────
+
+def _add_months(d: date, months: int) -> date:
+    m = d.month - 1 + months
+    year = d.year + m // 12
+    month = m % 12 + 1
+    day = min(d.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _add_years(d: date, years: int) -> date:
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:
+        return date(d.year + years, 2, 28)
+
+
+def _parse_flexible_date(s: str) -> date | None:
+    if not s:
         return None
-    return str(valor).strip()
+    s = s.strip()
+    if len(s) == 4 and s.isdigit():
+        try:
+            return date(int(s), 1, 1)
+        except ValueError:
+            return None
+    elif len(s) == 7 and s[4] == "-":
+        try:
+            return date(int(s[:4]), int(s[5:]), 1)
+        except ValueError:
+            return None
+    else:
+        try:
+            return date.fromisoformat(s)
+        except ValueError:
+            return None
 
 
 def _enriquecer(exp: dict) -> dict:
-    """Agrega campos calculados de alerta al expediente."""
-    exp["alerta_ind"] = calcular_alerta(exp.get("fecha_vencimiento_ind"))
-    exp["alerta_inv"] = calcular_alerta(exp.get("fecha_vencimiento_inv"))
+    # VENCIMIENTO ETAPA INDAGACIÓN (col P) = 6 meses desde FECHA DEL AUTO (col N)
+    fv_ind = None
+    if exp.get("fecha_auto_apertura_ind"):
+        try:
+            fv_ind = _add_months(date.fromisoformat(exp["fecha_auto_apertura_ind"]), 6).isoformat()
+        except ValueError:
+            pass
+    exp["fecha_vencimiento_ind"] = fv_ind
+    exp["alerta_ind"] = calcular_alerta(fv_ind)
+
+    # PRESCRIPCION (col Y) = 5 años desde FECHA DE LOS HECHOS (col X)
+    fv_presc = None
+    d_hechos = _parse_flexible_date(exp.get("fecha_hechos") or "")
+    if d_hechos:
+        fv_presc = _add_years(d_hechos, 5).isoformat()
+    exp["fecha_prescripcion"] = fv_presc
+    exp["alerta_prescripcion"] = calcular_alerta(fv_presc)
+
+    # VENCIMIENTO ETAPA INVESTIGACIÓN (col AD) = 6 meses desde FECHA APERTURA INVESTIGACION (col AB)
+    fv_inv = None
+    if exp.get("fecha_apertura_investigacion"):
+        try:
+            fv_inv = _add_months(date.fromisoformat(exp["fecha_apertura_investigacion"]), 6).isoformat()
+        except ValueError:
+            pass
+    exp["fecha_vencimiento_inv"] = fv_inv
+    exp["alerta_inv"] = calcular_alerta(fv_inv)
+
+    # VENCIMIENTO PRORROGA (col AL) = FECHA DE PRORROGA (col AI) + TIEMPO PRORROGA (col AK) meses
+    fv_prorr = None
+    if exp.get("fecha_prorroga") and exp.get("tiempo_prorroga"):
+        try:
+            fv_prorr = _add_months(
+                date.fromisoformat(exp["fecha_prorroga"]),
+                int(exp["tiempo_prorroga"])
+            ).isoformat()
+        except (ValueError, TypeError):
+            pass
+    exp["fecha_vencimiento_prorroga"] = fv_prorr
+    exp["alerta_prorroga"] = calcular_alerta(fv_prorr)
+
     return exp
 
 
-# ── Listado ────────────────────────────────────────────────────
+def _limpiar(v):
+    if v is None or str(v).strip() == "":
+        return None
+    return str(v).strip()
+
+
+def _next_n_expediente(conn) -> str:
+    row = conn.execute("SELECT MAX(CAST(n_expediente AS INTEGER)) FROM expedientes").fetchone()
+    siguiente = (row[0] or 0) + 1
+    return f"{siguiente:03d}"
+
+
+def _ctx_base():
+    return {
+        "meses": MESES,
+        "medios_ingreso": MEDIOS_INGRESO,
+        "abogados": ABOGADOS,
+        "tipos_expediente": TIPOS_EXPEDIENTE,
+        "perfiles_investigado": PERFILES_INVESTIGADO,
+        "tiempos_prorroga": TIEMPOS_PRORROGA,
+        "etapas": ETAPAS,
+        "estados": ESTADOS,
+        "entidades_sugeridas": ENTIDADES_SUGERIDAS,
+        "valores_sugeridos": VALORES_SUGERIDOS,
+        "tipologias_json": json.dumps(_get_tipologias(), ensure_ascii=False),
+        "entidades_json": json.dumps(_get_entidades(), ensure_ascii=False),
+    }
+
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    por_etapa = conn.execute(
+        "SELECT etapa_actual, COUNT(*) as cnt FROM expedientes GROUP BY etapa_actual ORDER BY cnt DESC"
+    ).fetchall()
+    por_estado = conn.execute(
+        "SELECT estado_proceso, COUNT(*) as cnt FROM expedientes GROUP BY estado_proceso ORDER BY cnt DESC"
+    ).fetchall()
+    por_abogado = conn.execute(
+        "SELECT abogado_asignado, COUNT(*) as cnt FROM expedientes GROUP BY abogado_asignado ORDER BY cnt DESC"
+    ).fetchall()
+    ultimos = conn.execute(
+        "SELECT * FROM expedientes ORDER BY created_at DESC LIMIT 10"
+    ).fetchall()
+    conn.close()
+    ultimos_enriquecidos = [_enriquecer(dict(r)) for r in ultimos]
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "total": total,
+        "por_etapa": [dict(r) for r in por_etapa],
+        "por_estado": [dict(r) for r in por_estado],
+        "por_abogado": [dict(r) for r in por_abogado],
+        "ultimos": ultimos_enriquecidos,
+        "active": "dashboard",
+    })
+
+
+# ── Listado ────────────────────────────────────────────────────────────────────
 
 @router.get("/expedientes", response_class=HTMLResponse)
 async def lista_expedientes(
     request: Request,
     q: str = "",
     anio: str = "",
-    etapa: str = "",
+    mes: str = "",
     abogado: str = "",
-    origen: str = "",
+    etapa: str = "",
+    estado: str = "",
     alerta: str = "",
-    fecha_desde: str = "",
-    fecha_hasta: str = "",
-    orden: str = "anio",
-    dir_orden: str = "desc",
     page: int = 1,
     por_pagina: int = 50,
     msg: str = "",
@@ -72,94 +255,79 @@ async def lista_expedientes(
     conn = get_db()
     filtros = []
     params = []
+
     if q:
-        if q.strip().lstrip("0").isdigit() and q.strip().isdigit():
-            # búsqueda numérica: también comparar por valor entero para encontrar "46" con query "046"
-            q_int = int(q.strip())
-            filtros.append("""(
-                n_expediente LIKE ? OR CAST(n_expediente AS INTEGER) = ?
-                OR investigado LIKE ? OR asunto LIKE ?
-                OR n_radicado LIKE ? OR quejoso LIKE ?
-            )""")
-            params += [f"%{q}%", q_int, f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
-        else:
-            filtros.append("(n_expediente LIKE ? OR investigado LIKE ? OR asunto LIKE ? OR n_radicado LIKE ? OR quejoso LIKE ?)")
-            params += [f"%{q}%"] * 5
+        filtros.append("""(
+            n_expediente LIKE ? OR CAST(n_expediente AS INTEGER) = ?
+            OR nombre_investigado LIKE ? OR asunto LIKE ?
+            OR n_radicado LIKE ? OR quejoso LIKE ?
+            OR entidad_origen LIKE ?
+        )""")
+        q_int = int(q.strip()) if q.strip().isdigit() else -1
+        params += [f"%{q}%", q_int, f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
     if anio:
         filtros.append("anio = ?")
         params.append(int(anio))
-    if etapa:
-        filtros.append("etapa LIKE ?")
-        params.append(f"%{etapa}%")
+    if mes:
+        filtros.append("mes = ?")
+        params.append(mes)
     if abogado:
-        filtros.append("nombre_abogado LIKE ?")
+        filtros.append("abogado_asignado LIKE ?")
         params.append(f"%{abogado}%")
-    if origen:
-        filtros.append("origen_proceso LIKE ?")
-        params.append(f"%{origen}%")
-    if fecha_desde:
-        filtros.append("fecha_radicado >= ?")
-        params.append(fecha_desde)
-    if fecha_hasta:
-        filtros.append("fecha_radicado <= ?")
-        params.append(fecha_hasta)
-    if alerta == "vencido":
-        # date() retorna NULL para valores no-fecha como "#VALUE!", evitando falsos positivos
-        filtros.append("""(
-            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) < date('now'))
-            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) < date('now'))
-        )""")
-    elif alerta == "proximo30":
-        filtros.append("""(
-            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) BETWEEN date('now') AND date('now','+30 days'))
-            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) BETWEEN date('now') AND date('now','+30 days'))
-        )""")
-    elif alerta == "proximo60":
-        filtros.append("""(
-            (date(fecha_vencimiento_ind) IS NOT NULL AND date(fecha_vencimiento_ind) BETWEEN date('now') AND date('now','+60 days'))
-            OR (date(fecha_vencimiento_inv) IS NOT NULL AND date(fecha_vencimiento_inv) BETWEEN date('now') AND date('now','+60 days'))
-        )""")
+    if etapa:
+        filtros.append("etapa_actual = ?")
+        params.append(etapa)
+    if estado:
+        filtros.append("estado_proceso = ?")
+        params.append(estado)
 
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
-    COLS = {"exp":"CAST(n_expediente AS INTEGER)","anio":"anio","investigado":"investigado",
-            "abogado":"nombre_abogado","venc_ind":"fecha_vencimiento_ind",
-            "venc_inv":"fecha_vencimiento_inv","etapa":"etapa","estado":"estado_proceso"}
-    sort_col = COLS.get(orden, "anio")
-    sort_dir = "ASC" if dir_orden == "asc" else "DESC"
 
-    rows = conn.execute(
-        f"SELECT * FROM expedientes {where} ORDER BY {sort_col} {sort_dir}, id DESC",
-        params,
+    total = conn.execute(f"SELECT COUNT(*) FROM expedientes {where}", params).fetchone()[0]
+    total_pages = max(1, (total + por_pagina - 1) // por_pagina)
+    page = max(1, min(page, total_pages))
+    offset = (page - 1) * por_pagina
+
+    rows_raw = conn.execute(
+        f"SELECT * FROM expedientes {where} ORDER BY CAST(n_expediente AS INTEGER) DESC LIMIT ? OFFSET ?",
+        params + [por_pagina, offset],
     ).fetchall()
 
-    abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado").fetchall()]
-    anios = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC").fetchall()]
-    origenes = [r[0] for r in conn.execute(
-        "SELECT DISTINCT origen_proceso FROM expedientes WHERE origen_proceso IS NOT NULL ORDER BY origen_proceso").fetchall()]
+    anios_list = [r[0] for r in conn.execute(
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
+    ).fetchall()]
+    abogados_list = [r[0] for r in conn.execute(
+        "SELECT DISTINCT abogado_asignado FROM expedientes WHERE abogado_asignado IS NOT NULL ORDER BY abogado_asignado"
+    ).fetchall()]
     conn.close()
 
-    total_filtrado = len(rows)
-    if por_pagina <= 0:
-        expedientes = [_enriquecer(row_to_dict(r)) for r in rows]
-        total_paginas = 1
-        page = 1
-    else:
-        total_paginas = max(1, (total_filtrado + por_pagina - 1) // por_pagina)
-        page = max(1, min(page, total_paginas))
-        offset = (page - 1) * por_pagina
-        expedientes = [_enriquecer(row_to_dict(r)) for r in rows[offset:offset + por_pagina]]
+    rows = [_enriquecer(dict(r)) for r in rows_raw]
+
+    # Filtro por alerta (post-enriquecimiento)
+    if alerta:
+        rows = [r for r in rows if (
+            r["alerta_ind"]["clase"] == alerta or
+            r["alerta_inv"]["clase"] == alerta or
+            r["alerta_prescripcion"]["clase"] == alerta
+        )]
 
     return templates.TemplateResponse("lista.html", {
-        "request": request, "expedientes": expedientes, "total": total_filtrado,
-        "q": q, "anio_filtro": anio, "etapa_filtro": etapa, "abogado_filtro": abogado,
-        "origen_filtro": origen, "alerta_filtro": alerta,
-        "fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta,
-        "orden": orden, "dir_orden": dir_orden,
-        "abogados": abogados, "anios": anios, "origenes": origenes, "etapas": ETAPAS,
-        "page": page, "total_paginas": total_paginas, "por_pagina": por_pagina,
-        "msg": msg, "active": "lista",
+        "request": request,
+        "rows": rows,
+        "total": total,
+        "page": page,
+        "total_pages": total_pages,
+        "por_pagina": por_pagina,
+        "q": q, "anio": anio, "mes": mes,
+        "abogado": abogado, "etapa": etapa,
+        "estado": estado, "alerta": alerta,
+        "anios_list": anios_list,
+        "abogados_list": abogados_list,
+        "etapas": ETAPAS,
+        "estados": ESTADOS,
+        "meses": MESES,
+        "msg": msg,
+        "active": "lista",
     })
 
 
@@ -167,814 +335,495 @@ async def lista_expedientes(
 
 @router.get("/expediente/nuevo", response_class=HTMLResponse)
 async def nuevo_form(request: Request):
-    return templates.TemplateResponse("form.html", {
+    conn = get_db()
+    proximo = _next_n_expediente(conn)
+    conn.close()
+    ctx = _ctx_base()
+    ctx.update({
         "request": request,
-        "exp": {},
-        "escaneos": [],
-        "modos": "nuevo",
-        "meses": MESES,
-        "etapas": ETAPAS,
-        "estados": ESTADOS,
+        "r": {},
+        "proximo_n": proximo,
+        "modo": "nuevo",
         "active": "nuevo",
-        "titulo": "Nuevo Expediente",
-        "errores": [],
     })
+    return templates.TemplateResponse("form.html", ctx)
 
 
-@router.post("/expediente/nuevo")
-async def crear_expediente(request: Request):
+@router.post("/expediente/nuevo", response_class=HTMLResponse)
+async def nuevo_post(request: Request):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
+
     form = await request.form()
-    data = {k: _limpiar(v) for k, v in form.items()}
-    errores = []
 
-    if not data.get("n_expediente"):
-        errores.append("El número de expediente es obligatorio.")
-    if not data.get("anio"):
-        errores.append("El año es obligatorio.")
-
-    if errores:
-        return templates.TemplateResponse("form.html", {
-            "request": request,
-            "exp": data,
-            "escaneos": [],
-            "modos": "nuevo",
-            "meses": MESES,
-            "etapas": ETAPAS,
-            "estados": ESTADOS,
-            "active": "nuevo",
-            "titulo": "Nuevo Expediente",
-            "errores": errores,
-        })
+    def f(key):
+        return _limpiar(form.get(key))
 
     conn = get_db()
-    cur = conn.execute("""
-        INSERT INTO expedientes (
-            n_expediente, anio, mes, origen_proceso, n_radicado,
-            fecha_radicado, fecha_siias, ingreso_siias, ingreso_siad,
-            fecha_ingreso_siad, ingreso_sid4,
-            nombre_abogado, impedimento, investigado, perfil_indagado,
-            entidad_origen, quejoso,
-            asunto, tipologia, descripcion_tipologia,
-            relacionado_siniestro, responsable_siniestro,
-            relacionado_acoso, responsable_acoso,
-            relacionado_corrupcion, valores_institucionales, fecha_hechos,
-            fecha_apertura_indagacion, numero_auto_apertura_ind,
-            fecha_auto_apertura_ind, plazo_ind, fecha_vencimiento_ind,
-            numero_auto_traslado_ind, fecha_auto_traslado_ind,
-            numero_auto_archivo_ind, fecha_auto_archivo_ind,
-            fecha_apertura_investigacion, numero_auto_apertura_inv,
-            fecha_auto_apertura_inv, plazo_inv, fecha_vencimiento_inv,
-            numero_auto_traslado_inv, fecha_auto_traslado_inv,
-            numero_auto_archivo_inv, fecha_auto_archivo_inv,
-            etapa, estado_proceso, observaciones_finales,
-            created_by
-        ) VALUES (
-            :n_expediente, :anio, :mes, :origen_proceso, :n_radicado,
-            :fecha_radicado, :fecha_siias, :ingreso_siias, :ingreso_siad,
-            :fecha_ingreso_siad, :ingreso_sid4,
-            :nombre_abogado, :impedimento, :investigado, :perfil_indagado,
-            :entidad_origen, :quejoso,
-            :asunto, :tipologia, :descripcion_tipologia,
-            :relacionado_siniestro, :responsable_siniestro,
-            :relacionado_acoso, :responsable_acoso,
-            :relacionado_corrupcion, :valores_institucionales, :fecha_hechos,
-            :fecha_apertura_indagacion, :numero_auto_apertura_ind,
-            :fecha_auto_apertura_ind, :plazo_ind, :fecha_vencimiento_ind,
-            :numero_auto_traslado_ind, :fecha_auto_traslado_ind,
-            :numero_auto_archivo_ind, :fecha_auto_archivo_ind,
-            :fecha_apertura_investigacion, :numero_auto_apertura_inv,
-            :fecha_auto_apertura_inv, :plazo_inv, :fecha_vencimiento_inv,
-            :numero_auto_traslado_inv, :fecha_auto_traslado_inv,
-            :numero_auto_archivo_inv, :fecha_auto_archivo_inv,
-            :etapa, :estado_proceso, :observaciones_finales,
-            :created_by
-        )
-    """, {
-        "n_expediente": data.get("n_expediente"),
-        "anio": data.get("anio"),
-        "mes": data.get("mes"),
-        "origen_proceso": data.get("origen_proceso"),
-        "n_radicado": data.get("n_radicado"),
-        "fecha_radicado": data.get("fecha_radicado"),
-        "fecha_siias": data.get("fecha_siias"),
-        "ingreso_siias": data.get("ingreso_siias", "NO"),
-        "ingreso_siad": data.get("ingreso_siad", "NO"),
-        "fecha_ingreso_siad": data.get("fecha_ingreso_siad"),
-        "ingreso_sid4": data.get("ingreso_sid4", "NO"),
-        "nombre_abogado": data.get("nombre_abogado"),
-        "impedimento": data.get("impedimento", "NO"),
-        "investigado": data.get("investigado"),
-        "perfil_indagado": data.get("perfil_indagado"),
-        "entidad_origen": data.get("entidad_origen"),
-        "quejoso": data.get("quejoso"),
-        "asunto": data.get("asunto"),
-        "tipologia": data.get("tipologia"),
-        "descripcion_tipologia": data.get("descripcion_tipologia"),
-        "relacionado_siniestro": data.get("relacionado_siniestro", "NO"),
-        "responsable_siniestro": data.get("responsable_siniestro"),
-        "relacionado_acoso": data.get("relacionado_acoso", "NO"),
-        "responsable_acoso": data.get("responsable_acoso"),
-        "relacionado_corrupcion": data.get("relacionado_corrupcion", "NO"),
-        "valores_institucionales": data.get("valores_institucionales"),
-        "fecha_hechos": data.get("fecha_hechos"),
-        "fecha_apertura_indagacion": data.get("fecha_apertura_indagacion"),
-        "numero_auto_apertura_ind": data.get("numero_auto_apertura_ind"),
-        "fecha_auto_apertura_ind": data.get("fecha_auto_apertura_ind"),
-        "plazo_ind": data.get("plazo_ind") or 180,
-        "fecha_vencimiento_ind": data.get("fecha_vencimiento_ind"),
-        "numero_auto_traslado_ind": data.get("numero_auto_traslado_ind"),
-        "fecha_auto_traslado_ind": data.get("fecha_auto_traslado_ind"),
-        "numero_auto_archivo_ind": data.get("numero_auto_archivo_ind"),
-        "fecha_auto_archivo_ind": data.get("fecha_auto_archivo_ind"),
-        "fecha_apertura_investigacion": data.get("fecha_apertura_investigacion"),
-        "numero_auto_apertura_inv": data.get("numero_auto_apertura_inv"),
-        "fecha_auto_apertura_inv": data.get("fecha_auto_apertura_inv"),
-        "plazo_inv": data.get("plazo_inv") or 180,
-        "fecha_vencimiento_inv": data.get("fecha_vencimiento_inv"),
-        "numero_auto_traslado_inv": data.get("numero_auto_traslado_inv"),
-        "fecha_auto_traslado_inv": data.get("fecha_auto_traslado_inv"),
-        "numero_auto_archivo_inv": data.get("numero_auto_archivo_inv"),
-        "fecha_auto_archivo_inv": data.get("fecha_auto_archivo_inv"),
-        "etapa": data.get("etapa"),
-        "estado_proceso": data.get("estado_proceso"),
-        "observaciones_finales": data.get("observaciones_finales"),
-        "created_by": data.get("created_by"),
-    })
-    exp_id = cur.lastrowid
+    campos = [
+        "n_expediente", "anio", "mes", "medio_ingreso", "n_radicado",
+        "fecha_radicado", "abogado_asignado", "entidad_origen", "quejoso",
+        "asunto", "impedimento", "fecha_apertura_expediente",
+        "numero_auto_apertura_ind", "fecha_auto_apertura_ind", "tipo_expediente",
+        "tipologia", "relacionado_siniestro", "responsable_siniestro",
+        "relacionado_maltrato", "relacionado_corrupcion", "valores_institucionales",
+        "fecha_hechos_obs", "fecha_hechos",
+        "fecha_ultima_act_indagacion", "numero_auto_ultima_act_ind",
+        "fecha_apertura_investigacion", "numero_auto_apertura_inv",
+        "nombre_investigado", "cedula", "perfil_investigado", "area_origen_investigado",
+        "fecha_prorroga", "numero_auto_prorroga", "tiempo_prorroga",
+        "fecha_ultima_act_investigacion", "numero_auto_ultima_act_inv",
+        "numero_auto_traslado", "fecha_auto_traslado",
+        "numero_auto_acumulacion", "fecha_auto_acumulacion", "expediente_acumula",
+        "fecha_auto_archivo", "numero_auto_archivo",
+        "fecha_auto_pliego_cargos", "numero_auto_pliego_cargos",
+        "etapa_actual", "estado_proceso", "observaciones",
+    ]
+    vals = []
+    for c in campos:
+        v = f(c)
+        if c == "anio" and v:
+            try:
+                v = int(v)
+            except ValueError:
+                v = None
+        vals.append(v)
 
-    # Escaneos dinámicos (campos escaner_fecha_0, escaner_folio_0, etc.)
-    i = 0
-    while f"escaner_fecha_{i}" in data or f"escaner_folio_{i}" in data:
-        fecha = data.get(f"escaner_fecha_{i}")
-        folio = data.get(f"escaner_folio_{i}")
-        resp = data.get(f"escaner_responsable_{i}")
-        if fecha or folio:
-            conn.execute(
-                "INSERT INTO escaneos (expediente_id, fecha_escaner, folio, responsable) VALUES (?,?,?,?)",
-                (exp_id, fecha, folio, resp),
-            )
-        i += 1
-
+    conn.execute(
+        f"INSERT INTO expedientes ({', '.join(campos)}, created_by) VALUES ({', '.join(['?']*len(campos))}, ?)",
+        vals + [user.get("nombre_completo") if user else None],
+    )
+    n_exp = f("n_expediente") or ""
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/expediente/{exp_id}?msg=creado", status_code=303)
+    registrar_log(user, "CREAR", _MOD, f"Expediente {n_exp}")
+    return RedirectResponse(f"/expedientes?msg=creado", status_code=303)
 
 
-# ── Ver expediente ─────────────────────────────────────────────────────────────
+# ── Detalle ────────────────────────────────────────────────────────────────────
 
 @router.get("/expediente/{exp_id}", response_class=HTMLResponse)
-async def ver_expediente(request: Request, exp_id: int, msg: str = ""):
+async def detalle(request: Request, exp_id: int):
     conn = get_db()
     row = conn.execute("SELECT * FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
-    if not row:
-        conn.close()
-        return RedirectResponse("/expedientes?msg=no_encontrado")
-
-    exp = _enriquecer(row_to_dict(row))
-    escaneos = [row_to_dict(r) for r in conn.execute(
-        "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (exp_id,)
-    ).fetchall()]
-    actuaciones = [row_to_dict(r) for r in conn.execute(
-        "SELECT * FROM actuaciones WHERE expediente_id = ? ORDER BY anio DESC, id DESC", (exp_id,)
-    ).fetchall()]
     conn.close()
-
-    return templates.TemplateResponse("detalle.html", {
+    if not row:
+        return RedirectResponse("/expedientes?msg=no_encontrado", status_code=303)
+    exp = _enriquecer(dict(row))
+    ctx = _ctx_base()
+    ctx.update({
         "request": request,
-        "exp": exp,
-        "escaneos": escaneos,
-        "actuaciones": actuaciones,
-        "msg": msg,
+        "r": exp,
+        "modo": "ver",
         "active": "lista",
     })
+    return templates.TemplateResponse("form.html", ctx)
 
 
-# ── Editar expediente ──────────────────────────────────────────────────────────
+# ── Editar ─────────────────────────────────────────────────────────────────────
 
 @router.get("/expediente/{exp_id}/editar", response_class=HTMLResponse)
 async def editar_form(request: Request, exp_id: int):
     conn = get_db()
     row = conn.execute("SELECT * FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
-    if not row:
-        conn.close()
-        return RedirectResponse("/expedientes")
-    exp = row_to_dict(row)
-    escaneos = [row_to_dict(r) for r in conn.execute(
-        "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (exp_id,)
-    ).fetchall()]
     conn.close()
-
-    return templates.TemplateResponse("form.html", {
+    if not row:
+        return RedirectResponse("/expedientes?msg=no_encontrado", status_code=303)
+    exp = _enriquecer(dict(row))
+    ctx = _ctx_base()
+    ctx.update({
         "request": request,
-        "exp": exp,
-        "escaneos": escaneos,
-        "modos": "editar",
-        "meses": MESES,
-        "etapas": ETAPAS,
-        "estados": ESTADOS,
+        "r": exp,
+        "modo": "editar",
         "active": "lista",
-        "titulo": f"Editar Expediente #{exp['n_expediente']}",
-        "errores": [],
     })
+    return templates.TemplateResponse("form.html", ctx)
 
 
-@router.post("/expediente/{exp_id}/editar")
-async def actualizar_expediente(request: Request, exp_id: int):
+@router.post("/expediente/{exp_id}/editar", response_class=HTMLResponse)
+async def editar_post(request: Request, exp_id: int):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse(f"/expediente/{exp_id}?msg=sin_permiso", status_code=303)
+
     form = await request.form()
-    data = {k: _limpiar(v) for k, v in form.items()}
-    errores = []
 
-    if not data.get("n_expediente"):
-        errores.append("El número de expediente es obligatorio.")
-    if not data.get("anio"):
-        errores.append("El año es obligatorio.")
+    def f(key):
+        return _limpiar(form.get(key))
 
-    if errores:
-        conn = get_db()
-        escaneos = [row_to_dict(r) for r in conn.execute(
-            "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (exp_id,)
-        ).fetchall()]
-        conn.close()
-        return templates.TemplateResponse("form.html", {
-            "request": request,
-            "exp": {**data, "id": exp_id},
-            "escaneos": escaneos,
-            "modos": "editar",
-            "meses": MESES,
-            "etapas": ETAPAS,
-            "estados": ESTADOS,
-            "active": "lista",
-            "titulo": f"Editar Expediente #{data.get('n_expediente', '')}",
-            "errores": errores,
-        })
+    campos = [
+        "n_expediente", "anio", "mes", "medio_ingreso", "n_radicado",
+        "fecha_radicado", "abogado_asignado", "entidad_origen", "quejoso",
+        "asunto", "impedimento", "fecha_apertura_expediente",
+        "numero_auto_apertura_ind", "fecha_auto_apertura_ind", "tipo_expediente",
+        "tipologia", "relacionado_siniestro", "responsable_siniestro",
+        "relacionado_maltrato", "relacionado_corrupcion", "valores_institucionales",
+        "fecha_hechos_obs", "fecha_hechos",
+        "fecha_ultima_act_indagacion", "numero_auto_ultima_act_ind",
+        "fecha_apertura_investigacion", "numero_auto_apertura_inv",
+        "nombre_investigado", "cedula", "perfil_investigado", "area_origen_investigado",
+        "fecha_prorroga", "numero_auto_prorroga", "tiempo_prorroga",
+        "fecha_ultima_act_investigacion", "numero_auto_ultima_act_inv",
+        "numero_auto_traslado", "fecha_auto_traslado",
+        "numero_auto_acumulacion", "fecha_auto_acumulacion", "expediente_acumula",
+        "fecha_auto_archivo", "numero_auto_archivo",
+        "fecha_auto_pliego_cargos", "numero_auto_pliego_cargos",
+        "etapa_actual", "estado_proceso", "observaciones",
+    ]
+    set_clause = ", ".join(f"{c} = ?" for c in campos)
+    vals = []
+    for c in campos:
+        v = f(c)
+        if c == "anio" and v:
+            try:
+                v = int(v)
+            except ValueError:
+                v = None
+        vals.append(v)
 
     conn = get_db()
-    conn.execute("""
-        UPDATE expedientes SET
-            n_expediente=:n_expediente, anio=:anio, mes=:mes,
-            origen_proceso=:origen_proceso, n_radicado=:n_radicado,
-            fecha_radicado=:fecha_radicado, fecha_siias=:fecha_siias,
-            ingreso_siias=:ingreso_siias, ingreso_siad=:ingreso_siad,
-            fecha_ingreso_siad=:fecha_ingreso_siad, ingreso_sid4=:ingreso_sid4,
-            nombre_abogado=:nombre_abogado, impedimento=:impedimento,
-            investigado=:investigado, perfil_indagado=:perfil_indagado,
-            entidad_origen=:entidad_origen, quejoso=:quejoso,
-            asunto=:asunto, tipologia=:tipologia,
-            descripcion_tipologia=:descripcion_tipologia,
-            relacionado_siniestro=:relacionado_siniestro,
-            responsable_siniestro=:responsable_siniestro,
-            relacionado_acoso=:relacionado_acoso,
-            responsable_acoso=:responsable_acoso,
-            relacionado_corrupcion=:relacionado_corrupcion,
-            valores_institucionales=:valores_institucionales,
-            fecha_hechos=:fecha_hechos,
-            fecha_apertura_indagacion=:fecha_apertura_indagacion,
-            numero_auto_apertura_ind=:numero_auto_apertura_ind,
-            fecha_auto_apertura_ind=:fecha_auto_apertura_ind,
-            plazo_ind=:plazo_ind, fecha_vencimiento_ind=:fecha_vencimiento_ind,
-            numero_auto_traslado_ind=:numero_auto_traslado_ind,
-            fecha_auto_traslado_ind=:fecha_auto_traslado_ind,
-            numero_auto_archivo_ind=:numero_auto_archivo_ind,
-            fecha_auto_archivo_ind=:fecha_auto_archivo_ind,
-            fecha_apertura_investigacion=:fecha_apertura_investigacion,
-            numero_auto_apertura_inv=:numero_auto_apertura_inv,
-            fecha_auto_apertura_inv=:fecha_auto_apertura_inv,
-            plazo_inv=:plazo_inv, fecha_vencimiento_inv=:fecha_vencimiento_inv,
-            numero_auto_traslado_inv=:numero_auto_traslado_inv,
-            fecha_auto_traslado_inv=:fecha_auto_traslado_inv,
-            numero_auto_archivo_inv=:numero_auto_archivo_inv,
-            fecha_auto_archivo_inv=:fecha_auto_archivo_inv,
-            etapa=:etapa, estado_proceso=:estado_proceso,
-            observaciones_finales=:observaciones_finales,
-            updated_at=datetime('now','localtime')
-        WHERE id=:id
-    """, {**{
-        "n_expediente": data.get("n_expediente"),
-        "anio": data.get("anio"),
-        "mes": data.get("mes"),
-        "origen_proceso": data.get("origen_proceso"),
-        "n_radicado": data.get("n_radicado"),
-        "fecha_radicado": data.get("fecha_radicado"),
-        "fecha_siias": data.get("fecha_siias"),
-        "ingreso_siias": data.get("ingreso_siias", "NO"),
-        "ingreso_siad": data.get("ingreso_siad", "NO"),
-        "fecha_ingreso_siad": data.get("fecha_ingreso_siad"),
-        "ingreso_sid4": data.get("ingreso_sid4", "NO"),
-        "nombre_abogado": data.get("nombre_abogado"),
-        "impedimento": data.get("impedimento", "NO"),
-        "investigado": data.get("investigado"),
-        "perfil_indagado": data.get("perfil_indagado"),
-        "entidad_origen": data.get("entidad_origen"),
-        "quejoso": data.get("quejoso"),
-        "asunto": data.get("asunto"),
-        "tipologia": data.get("tipologia"),
-        "descripcion_tipologia": data.get("descripcion_tipologia"),
-        "relacionado_siniestro": data.get("relacionado_siniestro", "NO"),
-        "responsable_siniestro": data.get("responsable_siniestro"),
-        "relacionado_acoso": data.get("relacionado_acoso", "NO"),
-        "responsable_acoso": data.get("responsable_acoso"),
-        "relacionado_corrupcion": data.get("relacionado_corrupcion", "NO"),
-        "valores_institucionales": data.get("valores_institucionales"),
-        "fecha_hechos": data.get("fecha_hechos"),
-        "fecha_apertura_indagacion": data.get("fecha_apertura_indagacion"),
-        "numero_auto_apertura_ind": data.get("numero_auto_apertura_ind"),
-        "fecha_auto_apertura_ind": data.get("fecha_auto_apertura_ind"),
-        "plazo_ind": data.get("plazo_ind") or 180,
-        "fecha_vencimiento_ind": data.get("fecha_vencimiento_ind"),
-        "numero_auto_traslado_ind": data.get("numero_auto_traslado_ind"),
-        "fecha_auto_traslado_ind": data.get("fecha_auto_traslado_ind"),
-        "numero_auto_archivo_ind": data.get("numero_auto_archivo_ind"),
-        "fecha_auto_archivo_ind": data.get("fecha_auto_archivo_ind"),
-        "fecha_apertura_investigacion": data.get("fecha_apertura_investigacion"),
-        "numero_auto_apertura_inv": data.get("numero_auto_apertura_inv"),
-        "fecha_auto_apertura_inv": data.get("fecha_auto_apertura_inv"),
-        "plazo_inv": data.get("plazo_inv") or 180,
-        "fecha_vencimiento_inv": data.get("fecha_vencimiento_inv"),
-        "numero_auto_traslado_inv": data.get("numero_auto_traslado_inv"),
-        "fecha_auto_traslado_inv": data.get("fecha_auto_traslado_inv"),
-        "numero_auto_archivo_inv": data.get("numero_auto_archivo_inv"),
-        "fecha_auto_archivo_inv": data.get("fecha_auto_archivo_inv"),
-        "etapa": data.get("etapa"),
-        "estado_proceso": data.get("estado_proceso"),
-        "observaciones_finales": data.get("observaciones_finales"),
-    }, "id": exp_id})
-
-    # Reemplazar escaneos: borrar los existentes y reinsertar
-    conn.execute("DELETE FROM escaneos WHERE expediente_id = ?", (exp_id,))
-    i = 0
-    while f"escaner_fecha_{i}" in data or f"escaner_folio_{i}" in data:
-        fecha = data.get(f"escaner_fecha_{i}")
-        folio = data.get(f"escaner_folio_{i}")
-        resp = data.get(f"escaner_responsable_{i}")
-        if fecha or folio:
-            conn.execute(
-                "INSERT INTO escaneos (expediente_id, fecha_escaner, folio, responsable) VALUES (?,?,?,?)",
-                (exp_id, fecha, folio, resp),
-            )
-        i += 1
-
+    conn.execute(
+        f"UPDATE expedientes SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?",
+        vals + [exp_id],
+    )
+    n_exp = f("n_expediente") or str(exp_id)
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/expediente/{exp_id}?msg=actualizado", status_code=303)
+    registrar_log(user, "EDITAR", _MOD, f"Expediente {n_exp}")
+    return RedirectResponse(f"/expedientes?msg=actualizado", status_code=303)
 
 
-# ── Eliminar expediente ────────────────────────────────────────────────────────
+# ── Eliminar ───────────────────────────────────────────────────────────────────
 
 @router.post("/expediente/{exp_id}/eliminar")
-async def eliminar_expediente(request: Request, exp_id: int):
+async def eliminar(request: Request, exp_id: int):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
-        return RedirectResponse(f"/expediente/{exp_id}?msg=sin_permiso", status_code=303)
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     conn = get_db()
     row = conn.execute("SELECT n_expediente FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
-    n = row["n_expediente"] if row else exp_id
+    n_exp = row["n_expediente"] if row else str(exp_id)
     conn.execute("DELETE FROM expedientes WHERE id = ?", (exp_id,))
     conn.commit()
     conn.close()
-    registrar_log(user, "eliminar", _MOD, f"Expediente #{n}", None)
-    return RedirectResponse(f"/expedientes?msg=eliminado_{n}", status_code=303)
+    registrar_log(user, "ELIMINAR", _MOD, f"Expediente {n_exp}")
+    return RedirectResponse(f"/expedientes?msg=eliminado_{n_exp}", status_code=303)
 
 
-# ── Exportar filtrado (formulario) ────────────────────────────────────────────
+# ── Exportar — Página de personalización ──────────────────────────────────────
 
 @router.get("/exportar-filtrado", response_class=HTMLResponse)
-async def exportar_filtrado_form(request: Request):
+async def exportar_filtrado_page(request: Request):
     conn = get_db()
-    anios = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC").fetchall()]
-    abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT nombre_abogado FROM expedientes WHERE nombre_abogado IS NOT NULL ORDER BY nombre_abogado").fetchall()]
-    etapas_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT etapa FROM expedientes WHERE etapa IS NOT NULL ORDER BY etapa").fetchall()]
-    estados_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT estado_proceso FROM expedientes WHERE estado_proceso IS NOT NULL ORDER BY estado_proceso").fetchall()]
-    total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    anios_list = [r[0] for r in conn.execute(
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
+    ).fetchall()]
+    total_preview = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     conn.close()
-    qp = request.query_params
-    filtros_pre = {
+    filtros = {
         "anios": [], "abogados": [], "etapas": [], "estados": [],
         "fecha_desde": "", "fecha_hasta": "",
-        "solo_vencidos": qp.get("solo_vencidos") == "1",
-        "proximos_30":   qp.get("proximos_30") == "1",
-        "proximos_60":   qp.get("proximos_60") == "1",
+        "solo_vencidos": False, "proximos_30": False, "proximos_60": False,
         "bloques_off": [],
     }
     return templates.TemplateResponse("exportar_filtrado.html", {
-        "request": request, "active": "exportar",
-        "anios": anios, "abogados": abogados, "etapas": etapas_bd, "estados": estados_bd,
-        "total_preview": total, "filtros": filtros_pre,
+        "request": request,
+        "active": "exportar",
+        "anios": anios_list,
+        "abogados": ABOGADOS,
+        "etapas": ETAPAS,
+        "estados": ESTADOS,
+        "filtros": filtros,
+        "total_preview": total_preview,
     })
 
 
+# ── Exportar — Descarga Excel ──────────────────────────────────────────────────
+
 @router.get("/exportar-filtrado/descargar")
-async def exportar_filtrado_descargar(request: Request):
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment
+async def exportar_descargar(
+    request: Request,
+    q: str = "",
+    anio: str = "",
+    mes: str = "",
+    abogado: str = "",
+    etapa: str = "",
+    estado: str = "",
+    solo_vencidos: str = "",
+    proximos_30: str = "",
+    proximos_60: str = "",
+    fecha_desde: str = "",
+    fecha_hasta: str = "",
+):
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return RedirectResponse("/expedientes?msg=error_openpyxl")
 
-    params = request.query_params
+    anios_sel    = request.query_params.getlist("anios")
+    abogados_sel = request.query_params.getlist("abogados")
+    etapas_sel   = request.query_params.getlist("etapas")
+    estados_sel  = request.query_params.getlist("estados")
+    bloques      = request.query_params.getlist("bloques")
+    if not bloques:
+        bloques = ["identificacion", "partes", "asunto", "indagacion", "investigacion", "cierre"]
 
-    # Recoger filtros (los parámetros multi-valor vienen como listas)
-    anios_f    = params.getlist("anios")    if hasattr(params, "getlist") else params._list.get("anios", [])
-    abogados_f = params.getlist("abogados") if hasattr(params, "getlist") else params._list.get("abogados", [])
-    etapas_f   = params.getlist("etapas")   if hasattr(params, "getlist") else params._list.get("etapas", [])
-    estados_f  = params.getlist("estados")  if hasattr(params, "getlist") else params._list.get("estados", [])
-    bloques_sel = params.getlist("bloques") if hasattr(params, "getlist") else params._list.get("bloques", [])
+    conn = get_db()
+    hoy = date.today().isoformat()
+    filtros_sql, params = [], []
 
-    # Starlette query params: usar getlist
-    anios_f    = list(params.getlist("anios"))
-    abogados_f = list(params.getlist("abogados"))
-    etapas_f   = list(params.getlist("etapas"))
-    estados_f  = list(params.getlist("estados"))
-    bloques_sel = list(params.getlist("bloques"))
+    # Filtros simples (compat con lista.html y dashboard)
+    if q:
+        filtros_sql.append("(n_expediente LIKE ? OR nombre_investigado LIKE ? OR asunto LIKE ? OR n_radicado LIKE ?)")
+        params += [f"%{q}%"] * 4
+    if anio:
+        filtros_sql.append("anio = ?"); params.append(int(anio))
+    if mes:
+        filtros_sql.append("mes = ?"); params.append(mes)
+    if abogado:
+        filtros_sql.append("abogado_asignado LIKE ?"); params.append(f"%{abogado}%")
+    if etapa:
+        filtros_sql.append("etapa_actual = ?"); params.append(etapa)
+    if estado:
+        filtros_sql.append("estado_proceso = ?"); params.append(estado)
 
-    fecha_desde   = params.get("fecha_desde", "")
-    fecha_hasta   = params.get("fecha_hasta", "")
-    solo_vencidos = params.get("solo_vencidos") == "1"
-    proximos_30   = params.get("proximos_30") == "1"
-    proximos_60   = params.get("proximos_60") == "1"
-    incluir_todos = params.get("incluir_todos") == "1"
-
-    # Bloques por defecto: todos si no se seleccionó ninguno
-    todos_bloques = ["identificacion", "partes", "asunto", "indagacion", "investigacion", "cierre", "escaneos"]
-    if not bloques_sel:
-        bloques_sel = todos_bloques
-
-    # Construcción de la consulta
-    filtros_sql = []
-    params_sql  = []
-
-    if anios_f:
-        placeholders = ",".join("?" * len(anios_f))
-        filtros_sql.append(f"anio IN ({placeholders})")
-        params_sql.extend([int(a) for a in anios_f])
-    if abogados_f:
-        placeholders = ",".join("?" * len(abogados_f))
-        filtros_sql.append(f"nombre_abogado IN ({placeholders})")
-        params_sql.extend(abogados_f)
-    if etapas_f:
-        placeholders = ",".join("?" * len(etapas_f))
-        filtros_sql.append(f"etapa IN ({placeholders})")
-        params_sql.extend(etapas_f)
-    if estados_f:
-        placeholders = ",".join("?" * len(estados_f))
-        filtros_sql.append(f"estado_proceso IN ({placeholders})")
-        params_sql.extend(estados_f)
+    # Filtros multi-select (formulario personalizado)
+    if anios_sel:
+        filtros_sql.append(f"anio IN ({','.join(['?']*len(anios_sel))})")
+        params += [int(a) for a in anios_sel]
+    if abogados_sel:
+        filtros_sql.append(f"abogado_asignado IN ({','.join(['?']*len(abogados_sel))})")
+        params += abogados_sel
+    if etapas_sel:
+        filtros_sql.append(f"etapa_actual IN ({','.join(['?']*len(etapas_sel))})")
+        params += etapas_sel
+    if estados_sel:
+        filtros_sql.append(f"estado_proceso IN ({','.join(['?']*len(estados_sel))})")
+        params += estados_sel
     if fecha_desde:
-        filtros_sql.append("fecha_radicado >= ?")
-        params_sql.append(fecha_desde)
+        filtros_sql.append("fecha_radicado >= ?"); params.append(fecha_desde)
     if fecha_hasta:
-        filtros_sql.append("fecha_radicado <= ?")
-        params_sql.append(fecha_hasta)
+        filtros_sql.append("fecha_radicado <= ?"); params.append(fecha_hasta)
+
+    # Filtros de alerta
     if solo_vencidos:
-        filtros_sql.append("(fecha_vencimiento_ind < date('now') OR fecha_vencimiento_inv < date('now'))")
-    elif proximos_30:
-        filtros_sql.append("""(
-            (fecha_vencimiento_ind BETWEEN date('now') AND date('now','+30 days'))
-            OR (fecha_vencimiento_inv BETWEEN date('now') AND date('now','+30 days'))
-        )""")
-    elif proximos_60:
-        filtros_sql.append("""(
-            (fecha_vencimiento_ind BETWEEN date('now') AND date('now','+60 days'))
-            OR (fecha_vencimiento_inv BETWEEN date('now') AND date('now','+60 days'))
-        )""")
+        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
+            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') < ?)
+            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') < ?))""")
+        params += [hoy, hoy]
+    if proximos_30:
+        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
+            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') BETWEEN ? AND date(?,'+ 30 days'))
+            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') BETWEEN ? AND date(?,'+ 30 days')))""")
+        params += [hoy, hoy, hoy, hoy]
+    if proximos_60:
+        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
+            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') BETWEEN ? AND date(?,'+ 60 days'))
+            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') BETWEEN ? AND date(?,'+ 60 days')))""")
+        params += [hoy, hoy, hoy, hoy]
 
     where = ("WHERE " + " AND ".join(filtros_sql)) if filtros_sql else ""
-
-    conn = get_db()
-    rows_filtradas = conn.execute(
-        f"SELECT * FROM expedientes {where} ORDER BY anio DESC, n_expediente DESC",
-        params_sql,
+    rows = conn.execute(
+        f"SELECT * FROM expedientes {where} ORDER BY anio, CAST(n_expediente AS INTEGER)",
+        params,
     ).fetchall()
-
-    if incluir_todos:
-        ids_filtrados = {row_to_dict(r)["id"] for r in rows_filtradas}
-        all_rows = conn.execute(
-            "SELECT * FROM expedientes ORDER BY anio DESC, n_expediente DESC"
-        ).fetchall()
-        rows_con_flag = (
-            [(r, "SI") for r in all_rows if row_to_dict(r)["id"] in ids_filtrados] +
-            [(r, "NO") for r in all_rows if row_to_dict(r)["id"] not in ids_filtrados]
-        )
-    else:
-        all_rows = rows_filtradas
-        rows_con_flag = [(r, "SI") for r in rows_filtradas]
-
-    rows = rows_filtradas  # referencia para resumen y escaneos
-
-    # Definición de bloques y sus columnas
-    col_defs = [("EN FILTRO", "__en_filtro__")] if incluir_todos else []
-    if "identificacion" in bloques_sel:
-        col_defs += [
-            ("N° EXPEDIENTE",    "n_expediente"),
-            ("AÑO",              "anio"),
-            ("MES",              "mes"),
-            ("ORIGEN",           "origen_proceso"),
-            ("N° RADICADO",      "n_radicado"),
-            ("FECHA RADICADO",   "fecha_radicado"),
-            ("FECHA SIIAS",      "fecha_siias"),
-            ("INGRESO SIIAS",    "ingreso_siias"),
-            ("INGRESO SIAD",     "ingreso_siad"),
-            ("FECHA SIAD",       "fecha_ingreso_siad"),
-            ("INGRESO SID4",     "ingreso_sid4"),
-        ]
-    if "partes" in bloques_sel:
-        col_defs += [
-            ("ABOGADO",          "nombre_abogado"),
-            ("IMPEDIMENTO",      "impedimento"),
-            ("INVESTIGADO",      "investigado"),
-            ("PERFIL",           "perfil_indagado"),
-            ("ENTIDAD ORIGEN",   "entidad_origen"),
-            ("QUEJOSO",          "quejoso"),
-        ]
-    if "asunto" in bloques_sel:
-        col_defs += [
-            ("ASUNTO",           "asunto"),
-            ("TIPOLOGÍA",        "tipologia"),
-            ("DESC. TIPOLOGÍA",  "descripcion_tipologia"),
-            ("SINIESTRO",        "relacionado_siniestro"),
-            ("RESP. SINIESTRO",  "responsable_siniestro"),
-            ("ACOSO/MALTRATO",   "relacionado_acoso"),
-            ("RESP. ACOSO",      "responsable_acoso"),
-            ("CORRUPCIÓN",       "relacionado_corrupcion"),
-            ("VALORES INST.",    "valores_institucionales"),
-            ("FECHA HECHOS",     "fecha_hechos"),
-        ]
-    if "indagacion" in bloques_sel:
-        col_defs += [
-            ("F. APERTURA IND.", "fecha_apertura_indagacion"),
-            ("AUTO APERTURA IND.", "numero_auto_apertura_ind"),
-            ("F. AUTO AP. IND.", "fecha_auto_apertura_ind"),
-            ("PLAZO IND.",       "plazo_ind"),
-            ("F. VENC. IND.",    "fecha_vencimiento_ind"),
-            ("AUTO TRASLADO IND.", "numero_auto_traslado_ind"),
-            ("F. TRASLADO IND.", "fecha_auto_traslado_ind"),
-            ("AUTO ARCHIVO IND.", "numero_auto_archivo_ind"),
-            ("F. ARCHIVO IND.",  "fecha_auto_archivo_ind"),
-        ]
-    if "investigacion" in bloques_sel:
-        col_defs += [
-            ("F. APERTURA INV.", "fecha_apertura_investigacion"),
-            ("AUTO APERTURA INV.", "numero_auto_apertura_inv"),
-            ("F. AUTO AP. INV.", "fecha_auto_apertura_inv"),
-            ("PLAZO INV.",       "plazo_inv"),
-            ("F. VENC. INV.",    "fecha_vencimiento_inv"),
-            ("AUTO TRASLADO INV.", "numero_auto_traslado_inv"),
-            ("F. TRASLADO INV.", "fecha_auto_traslado_inv"),
-            ("AUTO ARCHIVO INV.", "numero_auto_archivo_inv"),
-            ("F. ARCHIVO INV.",  "fecha_auto_archivo_inv"),
-        ]
-    if "cierre" in bloques_sel:
-        col_defs += [
-            ("ETAPA",            "etapa"),
-            ("ESTADO",           "estado_proceso"),
-            ("OBSERVACIONES",    "observaciones_finales"),
-            ("CREADO POR",       "created_by"),
-            ("FECHA CREACIÓN",   "created_at"),
-        ]
-
-    # Columna de alerta calculada
-    col_defs.append(("ALERTA VENC. IND.", "__alerta_ind__"))
-    col_defs.append(("ALERTA VENC. INV.", "__alerta_inv__"))
-
-    # Generar Excel
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "EXPEDIENTES"
-
-    header_fill = PatternFill("solid", fgColor="1B4F8A")
-    header_font = Font(bold=True, color="FFFFFF", size=10)
-    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    alt_fill = PatternFill("solid", fgColor="EBF3FD")
-
-    # Encabezados
-    for ci, (header, _) in enumerate(col_defs, 1):
-        cell = ws.cell(row=1, column=ci, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = center
-    ws.row_dimensions[1].height = 36
-
-    # Datos
-    vencido_fill  = PatternFill("solid", fgColor="FADADD")
-    proximo_fill  = PatternFill("solid", fgColor="FFF9C4")
-
-    gray_fill = PatternFill("solid", fgColor="F0F0F0")
-    gray_font = Font(color="AAAAAA")
-
-    for ri, (row, en_filtro) in enumerate(rows_con_flag, 2):
-        d = row_to_dict(row)
-        alerta_ind = calcular_alerta(d.get("fecha_vencimiento_ind"))
-        alerta_inv = calcular_alerta(d.get("fecha_vencimiento_inv"))
-
-        if en_filtro == "NO":
-            fila_fill = gray_fill
-        else:
-            fila_fill = alt_fill if ri % 2 == 0 else None
-
-        for ci, (_, campo) in enumerate(col_defs, 1):
-            if campo == "__en_filtro__":
-                valor = en_filtro
-            elif campo == "__alerta_ind__":
-                valor = alerta_ind["texto"]
-            elif campo == "__alerta_inv__":
-                valor = alerta_inv["texto"]
-            else:
-                valor = d.get(campo)
-
-            cell = ws.cell(row=ri, column=ci, value=valor)
-            cell.alignment = Alignment(vertical="center", wrap_text=False)
-            if fila_fill:
-                cell.fill = fila_fill
-            if en_filtro == "NO":
-                cell.font = gray_font
-
-        # Colorear alertas solo en filas del filtro
-        if en_filtro == "SI":
-            if alerta_ind["clase"] == "vencido" or alerta_inv["clase"] == "vencido":
-                for ci in range(1, len(col_defs) + 1):
-                    ws.cell(row=ri, column=ci).fill = vencido_fill
-            elif alerta_ind["clase"] == "proximo" or alerta_inv["clase"] == "proximo":
-                for ci in range(1, len(col_defs) + 1):
-                    ws.cell(row=ri, column=ci).fill = proximo_fill
-
-    # Anchos automáticos
-    for col in ws.columns:
-        max_len = max((len(str(c.value or "")) for c in col), default=8)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 45)
-
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
-
-    # Hoja de escaneos (si aplica)
-    if "escaneos" in bloques_sel:
-        ws_esc = wb.create_sheet("ESCANEOS")
-        ids = [row_to_dict(r)["id"] for r in rows_filtradas]
-        esc_headers = ["N° EXPEDIENTE", "AÑO", "FECHA ESCÁNER", "FOLIO", "RESPONSABLE"]
-        for ci, h in enumerate(esc_headers, 1):
-            cell = ws_esc.cell(row=1, column=ci, value=h)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = center
-
-        ri_esc = 2
-        for exp_row in rows_filtradas:
-            d = row_to_dict(exp_row)
-            escs = conn.execute(
-                "SELECT * FROM escaneos WHERE expediente_id = ? ORDER BY id", (d["id"],)
-            ).fetchall()
-            for esc in escs:
-                e = row_to_dict(esc)
-                ws_esc.cell(row=ri_esc, column=1, value=d["n_expediente"])
-                ws_esc.cell(row=ri_esc, column=2, value=d["anio"])
-                ws_esc.cell(row=ri_esc, column=3, value=e.get("fecha_escaner"))
-                ws_esc.cell(row=ri_esc, column=4, value=e.get("folio"))
-                ws_esc.cell(row=ri_esc, column=5, value=e.get("responsable"))
-                ri_esc += 1
-
-    # Hoja de resumen
-    ws_res = wb.create_sheet("RESUMEN")
-    ws_res.cell(row=1, column=1, value="REPORTE OCDI — RESUMEN").font = Font(bold=True, size=13)
-    ws_res.cell(row=2, column=1, value=f"Generado el: {date.today().strftime('%d/%m/%Y')}")
-    filtros_texto = []
-    if anios_f:    filtros_texto.append(f"Años: {', '.join(anios_f)}")
-    if abogados_f: filtros_texto.append(f"Abogados: {', '.join(abogados_f)}")
-    if etapas_f:   filtros_texto.append(f"Etapas: {', '.join(etapas_f)}")
-    if estados_f:  filtros_texto.append(f"Estados: {', '.join(estados_f)}")
-    if fecha_desde: filtros_texto.append(f"Fecha desde: {fecha_desde}")
-    if fecha_hasta: filtros_texto.append(f"Fecha hasta: {fecha_hasta}")
-    if solo_vencidos: filtros_texto.append("Solo vencidos")
-    if proximos_30:   filtros_texto.append("Próximos 30 días")
-    if proximos_60:   filtros_texto.append("Próximos 60 días")
-    if incluir_todos:
-        ws_res.cell(row=3, column=1, value=f"Expedientes en filtro (EN FILTRO=SI): {len(rows_filtradas)}")
-        ws_res.cell(row=4, column=1, value=f"Expedientes fuera del filtro (EN FILTRO=NO): {len(all_rows) - len(rows_filtradas)}")
-        ws_res.cell(row=5, column=1, value=f"Total expedientes en archivo: {len(all_rows)}")
-        ws_res.cell(row=6, column=1, value="Filtros aplicados: " + (", ".join(filtros_texto) if filtros_texto else "Ninguno"))
-    else:
-        ws_res.cell(row=3, column=1, value=f"Total de expedientes en reporte: {len(rows_filtradas)}")
-        ws_res.cell(row=4, column=1, value="Filtros aplicados: " + (", ".join(filtros_texto) if filtros_texto else "Ninguno"))
-
     conn.close()
 
-    stream = io.BytesIO()
-    wb.save(stream)
-    stream.seek(0)
+    datos = [_enriquecer(dict(r)) for r in rows]
 
-    filtro_str = "_filtrado" if filtros_texto else "_completo"
-    filename = f"OCDI_Reporte{filtro_str}_{date.today().strftime('%Y%m%d')}.xlsx"
-    return StreamingResponse(
-        stream,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    # Columnas según bloques seleccionados
+    BLOQUES_DEF = {
+        "identificacion": (
+            ["N. EXPEDIENTE","AÑO","MES","MEDIO DE INGRESO","N. RADICADO",
+             "FECHA RADICADO","ABOGADO ASIGNADO","IMPEDIMENTO","TIPO EXPEDIENTE"],
+            ["n_expediente","anio","mes","medio_ingreso","n_radicado",
+             "fecha_radicado","abogado_asignado","impedimento","tipo_expediente"],
+        ),
+        "partes": (
+            ["NOMBRE INVESTIGADO","CÉDULA","PERFIL INVESTIGADO","ÁREA ORIGEN INVESTIGADO",
+             "ENTIDAD ORIGEN","QUEJOSO"],
+            ["nombre_investigado","cedula","perfil_investigado","area_origen_investigado",
+             "entidad_origen","quejoso"],
+        ),
+        "asunto": (
+            ["ASUNTO","TIPOLOGÍA","VALORES INSTITUCIONALES","FECHA HECHOS (OBS.)","FECHA HECHOS",
+             "PRESCRIPCIÓN (calc.)","REL. SINIESTRO","RESP. SINIESTRO",
+             "REL. MALTRATO/ACOSO","REL. CORRUPCIÓN"],
+            ["asunto","tipologia","valores_institucionales","fecha_hechos_obs","fecha_hechos",
+             "fecha_prescripcion","relacionado_siniestro","responsable_siniestro",
+             "relacionado_maltrato","relacionado_corrupcion"],
+        ),
+        "indagacion": (
+            ["F. APERTURA EXPEDIENTE","N. AUTO APERTURA IND.","F. AUTO APERTURA IND.",
+             "VENCIMIENTO IND. (calc.)","F. ÚLTIMA ACT. IND.","N. AUTO ÚLTIMA ACT. IND."],
+            ["fecha_apertura_expediente","numero_auto_apertura_ind","fecha_auto_apertura_ind",
+             "fecha_vencimiento_ind","fecha_ultima_act_indagacion","numero_auto_ultima_act_ind"],
+        ),
+        "investigacion": (
+            ["F. APERTURA INV.","N. AUTO APERTURA INV.","VENCIMIENTO INV. (calc.)",
+             "F. ÚLTIMA ACT. INV.","N. AUTO ÚLTIMA ACT. INV.",
+             "F. PRÓRROGA","N. AUTO PRÓRROGA","TIEMPO PRÓRROGA (meses)","VENCIMIENTO PRÓRROGA (calc.)"],
+            ["fecha_apertura_investigacion","numero_auto_apertura_inv","fecha_vencimiento_inv",
+             "fecha_ultima_act_investigacion","numero_auto_ultima_act_inv",
+             "fecha_prorroga","numero_auto_prorroga","tiempo_prorroga","fecha_vencimiento_prorroga"],
+        ),
+        "cierre": (
+            ["N. AUTO TRASLADO","F. AUTO TRASLADO","N. AUTO ACUMULACIÓN","F. AUTO ACUMULACIÓN",
+             "EXP. ACUMULA","F. AUTO ARCHIVO","N. AUTO ARCHIVO",
+             "F. AUTO PLIEGO CARGOS","N. AUTO PLIEGO CARGOS",
+             "ETAPA ACTUAL","ESTADO DEL PROCESO","OBSERVACIONES"],
+            ["numero_auto_traslado","fecha_auto_traslado","numero_auto_acumulacion","fecha_auto_acumulacion",
+             "expediente_acumula","fecha_auto_archivo","numero_auto_archivo",
+             "fecha_auto_pliego_cargos","numero_auto_pliego_cargos",
+             "etapa_actual","estado_proceso","observaciones"],
+        ),
+    }
 
+    headers_out, campos_out = [], []
+    for bloque in ["identificacion","partes","asunto","indagacion","investigacion","cierre"]:
+        if bloque in bloques:
+            h, c = BLOQUES_DEF[bloque]
+            headers_out += h
+            campos_out  += c
 
-# ── Exportar Excel ─────────────────────────────────────────────────────────────
-
-@router.get("/exportar")
-async def exportar_excel():
-    from fastapi.responses import StreamingResponse
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
-    conn.close()
+    if not headers_out:
+        headers_out = ["N. EXPEDIENTE","AÑO","ETAPA ACTUAL","ESTADO DEL PROCESO"]
+        campos_out  = ["n_expediente","anio","etapa_actual","estado_proceso"]
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "EXPEDIENTES"
-
-    # Encabezados
-    headers = [
-        "N. EXPEDIENTE", "AÑO", "MES", "ORIGEN DEL PROCESO",
-        "N. RADICADO", "FECHA RADICADO", "FECHA SIIAS",
-        "INGRESO SIIAS", "INGRESO SIAD", "FECHA INGRESO SIAD", "INGRESO SID4",
-        "NOMBRE ABOGADO", "IMPEDIMENTO", "INVESTIGADO", "PERFIL INDAGADO",
-        "ENTIDAD ORIGEN", "QUEJOSO",
-        "ASUNTO", "TIPOLOGÍA", "DESCRIPCIÓN TIPOLOGÍA",
-        "SINIESTRO", "RESP. SINIESTRO", "ACOSO/MALTRATO", "RESP. ACOSO",
-        "CORRUPCIÓN", "VALORES INSTITUCIONALES", "FECHA HECHOS",
-        # Indagación
-        "F. APERTURA INDAGACIÓN", "AUTO APERTURA IND.", "F. AUTO APERTURA IND.",
-        "PLAZO IND. (días)", "F. VENCIMIENTO IND.",
-        "AUTO TRASLADO IND.", "F. AUTO TRASLADO IND.",
-        "AUTO ARCHIVO IND.", "F. AUTO ARCHIVO IND.",
-        # Investigación
-        "F. APERTURA INVESTIGACIÓN", "AUTO APERTURA INV.", "F. AUTO APERTURA INV.",
-        "PLAZO INV. (días)", "F. VENCIMIENTO INV.",
-        "AUTO TRASLADO INV.", "F. AUTO TRASLADO INV.",
-        "AUTO ARCHIVO INV.", "F. AUTO ARCHIVO INV.",
-        # Cierre
-        "ETAPA", "ESTADO DEL PROCESO", "OBSERVACIONES FINALES",
-        "CREADO POR", "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN",
-    ]
-
-    # Estilos de encabezado
-    header_fill = PatternFill("solid", fgColor="1B4F8A")
-    header_font = Font(bold=True, color="FFFFFF", size=10)
-    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-    for col_idx, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_idx, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = center
-
-    ws.row_dimensions[1].height = 40
-
-    # Datos
-    campos = [
-        "n_expediente","anio","mes","origen_proceso","n_radicado",
-        "fecha_radicado","fecha_siias","ingreso_siias","ingreso_siad",
-        "fecha_ingreso_siad","ingreso_sid4","nombre_abogado","impedimento",
-        "investigado","perfil_indagado","entidad_origen","quejoso",
-        "asunto","tipologia","descripcion_tipologia",
-        "relacionado_siniestro","responsable_siniestro",
-        "relacionado_acoso","responsable_acoso","relacionado_corrupcion",
-        "valores_institucionales","fecha_hechos",
-        "fecha_apertura_indagacion","numero_auto_apertura_ind",
-        "fecha_auto_apertura_ind","plazo_ind","fecha_vencimiento_ind",
-        "numero_auto_traslado_ind","fecha_auto_traslado_ind",
-        "numero_auto_archivo_ind","fecha_auto_archivo_ind",
-        "fecha_apertura_investigacion","numero_auto_apertura_inv",
-        "fecha_auto_apertura_inv","plazo_inv","fecha_vencimiento_inv",
-        "numero_auto_traslado_inv","fecha_auto_traslado_inv",
-        "numero_auto_archivo_inv","fecha_auto_archivo_inv",
-        "etapa","estado_proceso","observaciones_finales",
-        "created_by","created_at","updated_at",
-    ]
-
+    ws.title = "Base Expedientes"
+    h_font   = Font(bold=True, color="FFFFFF", size=10)
+    fill_h   = PatternFill("solid", fgColor="1B4F8A")
     alt_fill = PatternFill("solid", fgColor="EBF1F8")
-    for row_idx, row in enumerate(rows, 2):
-        d = row_to_dict(row)
-        fill = alt_fill if row_idx % 2 == 0 else None
-        for col_idx, campo in enumerate(campos, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=d.get(campo))
-            cell.alignment = Alignment(vertical="center", wrap_text=False)
+    center   = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for ci, h in enumerate(headers_out, 1):
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.fill = fill_h; cell.font = h_font; cell.alignment = center
+    ws.row_dimensions[1].height = 42
+
+    for ri, d in enumerate(datos, 2):
+        fill = alt_fill if ri % 2 == 0 else None
+        for ci, campo in enumerate(campos_out, 1):
+            cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+            cell.alignment = Alignment(vertical="center")
             if fill:
                 cell.fill = fill
 
-    # Anchos de columna
     for col in ws.columns:
         max_len = max((len(str(c.value or "")) for c in col), default=10)
         ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
-
     ws.freeze_panes = "A2"
 
-    stream = io.BytesIO()
-    wb.save(stream)
-    stream.seek(0)
-
-    filename = f"OCDI_Expedientes_{date.today().strftime('%Y%m%d')}.xlsx"
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    hoy_str = date.today().strftime("%Y%m%d")
     return StreamingResponse(
-        stream,
+        output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename=BaseExpedientes_{hoy_str}.xlsx"},
     )
+
+
+# ── Importar Excel ─────────────────────────────────────────────────────────────
+
+@router.get("/importar", response_class=HTMLResponse)
+async def importar_form(request: Request, msg: str = ""):
+    conn = get_db()
+    total_bd = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    conn.close()
+    return templates.TemplateResponse("importar.html", {
+        "request": request,
+        "active": "importar",
+        "msg": msg,
+        "total_bd": total_bd,
+    })
+
+
+@router.post("/importar", response_class=HTMLResponse)
+async def importar_post(request: Request):
+    from fastapi import UploadFile, File
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
+    try:
+        import openpyxl
+    except ImportError:
+        return RedirectResponse("/importar?msg=error_openpyxl", status_code=303)
+
+    form = await request.form()
+    archivo = form.get("archivo")
+    if not archivo or not archivo.filename:
+        return RedirectResponse("/importar?msg=error_vacio", status_code=303)
+
+    contenido = await archivo.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
+    except Exception:
+        return RedirectResponse("/importar?msg=error_archivo", status_code=303)
+
+    campos = [
+        "n_expediente","anio","mes","medio_ingreso","n_radicado",
+        "fecha_radicado","abogado_asignado","entidad_origen",
+        "quejoso","asunto","impedimento","fecha_apertura_expediente",
+        "numero_auto_apertura_ind","fecha_auto_apertura_ind","tipo_expediente",
+        "tipologia","relacionado_siniestro","responsable_siniestro",
+        "relacionado_maltrato","relacionado_corrupcion","valores_institucionales",
+        "fecha_hechos_obs","fecha_hechos",
+        "fecha_ultima_act_indagacion","numero_auto_ultima_act_ind",
+        "fecha_apertura_investigacion","numero_auto_apertura_inv",
+        "nombre_investigado","cedula","perfil_investigado","area_origen_investigado",
+        "fecha_prorroga","numero_auto_prorroga","tiempo_prorroga",
+        "fecha_ultima_act_investigacion","numero_auto_ultima_act_inv",
+        "numero_auto_traslado","fecha_auto_traslado",
+        "numero_auto_acumulacion","fecha_auto_acumulacion","expediente_acumula",
+        "fecha_auto_archivo","numero_auto_archivo",
+        "fecha_auto_pliego_cargos","numero_auto_pliego_cargos",
+        "etapa_actual","estado_proceso","observaciones",
+        "created_by","created_at","updated_at",
+    ]
+
+    def _v(val):
+        if val is None:
+            return None
+        s = str(val).strip()
+        return None if s in ("", "nan", "None", "#VALUE!", "#N/A", "#REF!", "—") else s
+
+    ws_name = "Base Expedientes"
+    if ws_name not in wb.sheetnames:
+        return RedirectResponse("/importar?msg=error_hoja", status_code=303)
+
+    ws = wb[ws_name]
+    conn = get_db()
+    conn.execute("DELETE FROM expedientes")
+    count = 0
+    try:
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not any(v for v in row if v is not None):
+                continue
+            n_exp = _v(row[0]) if len(row) > 0 else None
+            if not n_exp:
+                continue
+            vals = [_v(row[i]) if i < len(row) else None for i in range(len(campos))]
+            conn.execute(
+                f"INSERT INTO expedientes ({', '.join(campos)}) VALUES ({', '.join(['?']*len(campos))})",
+                vals,
+            )
+            count += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return RedirectResponse("/importar?msg=error_import", status_code=303)
+    conn.close()
+    registrar_log(user, "IMPORTAR", _MOD, f"{count} expedientes")
+    return RedirectResponse(f"/expedientes?msg=importado_{count}", status_code=303)
+
+
+@router.get("/autos", response_class=HTMLResponse)
+async def autos_redirect(request: Request):
+    return RedirectResponse("/control-autos/", status_code=302)

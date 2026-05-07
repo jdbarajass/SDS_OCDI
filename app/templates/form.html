@@ -1,441 +1,1108 @@
 {% extends "base.html" %}
+{% if modo == 'nuevo' %}
+{% set titulo = "Nuevo Expediente" %}
+{% elif modo == 'editar' %}
+{% set titulo = "Editar Expediente " ~ r.n_expediente %}
+{% else %}
+{% set titulo = "Expediente " ~ r.n_expediente %}
+{% endif %}
 {% block title %}{{ titulo }}{% endblock %}
-{% block heading %}{{ titulo }}{% endblock %}
+{% block heading %}
+{% if modo == 'nuevo' %}➕ Nuevo Expediente
+{% elif modo == 'editar' %}✏️ Editar Expediente <strong>{{ r.n_expediente }}</strong>
+{% else %}📁 Expediente <strong>{{ r.n_expediente }}</strong>
+{% endif %}
+{% endblock %}
 
 {% block header_actions %}
-{% if modos == 'editar' %}
-<a href="/expediente/{{ exp.id }}" class="btn btn-outline">← Cancelar</a>
+{% if modo == 'ver' %}
+<a href="/expediente/{{ r.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+<a href="/expedientes" class="btn btn-secondary" style="margin-left:8px">← Volver</a>
 {% else %}
-<a href="/" class="btn btn-outline">← Volver</a>
+<a href="/expedientes" class="btn btn-secondary">← Volver a la lista</a>
 {% endif %}
 {% endblock %}
 
 {% block content %}
+<style>
+.form-section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px 22px; margin-bottom:18px; box-shadow:0 1px 3px rgba(0,0,0,.05); display:block; }
+.form-section-title { font-size:13px; font-weight:800; color:#0d3060; text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; display:flex; align-items:center; gap:8px; border-bottom:2px solid #e2e8f0; padding-bottom:8px; }
+.form-grid { display:grid; gap:12px 16px; }
+.fg-2 { grid-template-columns: repeat(2, 1fr); }
+.fg-3 { grid-template-columns: repeat(3, 1fr); }
+.fg-4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:760px){ .fg-2,.fg-3,.fg-4 { grid-template-columns:1fr; } }
+.field-label { font-size:11.5px; font-weight:700; color:#374151; display:block; margin-bottom:4px; }
+.field-hint  { font-size:10.5px; color:#94a3b8; margin-top:2px; }
+.form-control { width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; }
+.form-control:focus { border-color:#1B4F8A; outline:none; box-shadow:0 0 0 2px rgba(27,79,138,.15); }
+select.form-control { background-color:#fff; }
+.semaforo-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:10px; font-size:12px; font-weight:700; margin-top:6px; }
+.sem-vigente  { background:#d1fae5; color:#065f46; }
+.sem-proximo  { background:#fef3c7; color:#92400e; }
+.sem-vencido  { background:#fee2e2; color:#991b1b; }
+.sem-sin-plazo{ background:#f1f5f9; color:#64748b; }
+/* Dropdown buscable */
+.dropdown-buscable { position:relative; }
+.dropdown-buscable .db-input { width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; }
+.dropdown-buscable .db-input:focus { border-color:#1B4F8A; outline:none; }
+.db-panel { display:none; position:absolute; z-index:200; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.15); width:100%; min-width:340px; max-width:560px; }
+.db-panel.open { display:flex; flex-direction:column; }
+.db-search-wrap { padding:8px 10px; border-bottom:1px solid #e2e8f0; }
+.db-search { width:100%; padding:6px 10px; border:1px solid #cbd5e1; border-radius:5px; font-size:13px; box-sizing:border-box; }
+.db-body { display:flex; gap:0; max-height:320px; }
+.db-tree { flex:1; overflow-y:auto; border-right:1px solid #e2e8f0; font-size:12.5px; }
+.db-results { flex:2; overflow-y:auto; font-size:12.5px; padding:4px 0; }
+.db-tree .cat-header { padding:6px 10px; font-weight:700; color:#0d3060; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:4px; }
+.db-tree .cat-header:hover { background:#f0f7ff; }
+.db-tree .cat-children { display:none; }
+.db-tree .cat-children.open { display:block; }
+.db-tree .leaf-item { padding:5px 10px 5px 22px; cursor:pointer; color:#374151; }
+.db-tree .leaf-item:hover, .db-results .res-item:hover { background:#eff6ff; }
+.db-results .res-item { padding:6px 12px; cursor:pointer; color:#1e293b; border-bottom:1px solid #f8fafc; line-height:1.4; }
+.db-results .res-item .cat-tag { font-size:10px; color:#64748b; display:block; }
+.db-results.empty::after { content:'Sin resultados'; padding:16px 12px; color:#9ca3af; display:block; font-size:12px; }
+.db-footer { padding:6px 10px; border-top:1px solid #e2e8f0; display:flex; gap:8px; }
+.db-clear-btn { font-size:11px; color:#dc2626; cursor:pointer; border:none; background:none; padding:2px 6px; }
+</style>
 
-{% if errores %}
-<div class="alert alert-danger">
-    <strong>Por favor corrija los siguientes errores:</strong>
-    <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
-</div>
+{% set readonly = (modo == 'ver') %}
+
+{% if modo != 'ver' %}
+<form method="post" action="{{ '/expediente/nuevo' if modo == 'nuevo' else '/expediente/' ~ r.id ~ '/editar' }}">
 {% endif %}
 
-{% set action = '/expediente/nuevo' if modos == 'nuevo' else '/expediente/' ~ exp.id ~ '/editar' %}
-<form method="post" action="{{ action }}" id="exp-form">
-
-    <!-- NAVEGACIÓN DE SECCIONES -->
-    <div class="form-tabs" id="form-tabs">
-        <button type="button" class="tab-btn active" data-target="sec-1">1. Identificación</button>
-        <button type="button" class="tab-btn" data-target="sec-2">2. Partes</button>
-        <button type="button" class="tab-btn" data-target="sec-3">3. Asunto</button>
-        <button type="button" class="tab-btn" data-target="sec-4">4. Indagación Previa</button>
-        <button type="button" class="tab-btn" data-target="sec-5" id="tab-inv">5. Investigación Disc.</button>
-        <button type="button" class="tab-btn" data-target="sec-6">6. Cierre</button>
-        <button type="button" class="tab-btn" data-target="sec-7">7. Escaneos</button>
-    </div>
-
-    <!-- ── SECCIÓN 1: IDENTIFICACIÓN ─────────────────────────────────── -->
-    <div class="form-section active" id="sec-1">
-        <h2 class="section-title">1. Identificación del Expediente</h2>
-        <div class="form-grid">
-            <div class="field-group required">
-                <label for="n_expediente">N° de Expediente *</label>
-                <input type="text" id="n_expediente" name="n_expediente"
-                       value="{{ exp.n_expediente or '' }}" required>
-            </div>
-            <div class="field-group required">
-                <label for="anio">Año *</label>
-                <input type="number" id="anio" name="anio" min="2000" max="2099"
-                       value="{{ exp.anio or '' }}" required>
-            </div>
-            <div class="field-group">
-                <label for="mes">Mes</label>
-                <select id="mes" name="mes">
-                    <option value="">— Seleccione —</option>
-                    {% for m in meses %}
-                    <option value="{{ m }}" {% if exp.mes == m %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="field-group">
-                <label for="origen_proceso">Origen del Proceso</label>
-                <input type="text" id="origen_proceso" name="origen_proceso"
-                       value="{{ exp.origen_proceso or '' }}" placeholder="Ej: SDQS, PGN">
-            </div>
-            <div class="field-group">
-                <label for="n_radicado">N° Radicado Comunicación Inicial</label>
-                <input type="text" id="n_radicado" name="n_radicado"
-                       value="{{ exp.n_radicado or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_radicado">Fecha Radicado</label>
-                <input type="date" id="fecha_radicado" name="fecha_radicado"
-                       value="{{ exp.fecha_radicado or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_siias">Fecha SIIAS</label>
-                <input type="date" id="fecha_siias" name="fecha_siias"
-                       value="{{ exp.fecha_siias or '' }}">
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Plataformas</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label>Ingreso SIIAS</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="ingreso_siias" value="SI" {% if exp.ingreso_siias == 'SI' %}checked{% endif %}> SI</label>
-                    <label><input type="radio" name="ingreso_siias" value="NO" {% if exp.ingreso_siias != 'SI' %}checked{% endif %}> NO</label>
-                </div>
-            </div>
-            <div class="field-group">
-                <label>Ingreso SIAD (Personería)</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="ingreso_siad" value="SI" {% if exp.ingreso_siad == 'SI' %}checked{% endif %} onchange="toggleField('fecha_ingreso_siad_wrap', this.value)"> SI</label>
-                    <label><input type="radio" name="ingreso_siad" value="NO" {% if exp.ingreso_siad != 'SI' %}checked{% endif %} onchange="toggleField('fecha_ingreso_siad_wrap', this.value)"> NO</label>
-                </div>
-            </div>
-            <div class="field-group" id="fecha_ingreso_siad_wrap" {% if exp.ingreso_siad != 'SI' %}style="display:none"{% endif %}>
-                <label for="fecha_ingreso_siad">Fecha Ingreso SIAD</label>
-                <input type="date" id="fecha_ingreso_siad" name="fecha_ingreso_siad"
-                       value="{{ exp.fecha_ingreso_siad or '' }}">
-            </div>
-            <div class="field-group">
-                <label>Ingreso SID4</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="ingreso_sid4" value="SI" {% if exp.ingreso_sid4 == 'SI' %}checked{% endif %}> SI</label>
-                    <label><input type="radio" name="ingreso_sid4" value="NO" {% if exp.ingreso_sid4 != 'SI' %}checked{% endif %}> NO</label>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 2: PARTES ──────────────────────────────────────────── -->
-    <div class="form-section" id="sec-2">
-        <h2 class="section-title">2. Asignación y Partes</h2>
-        <div class="form-grid">
-            <div class="field-group">
-                <label for="nombre_abogado">Abogado Asignado</label>
-                <input type="text" id="nombre_abogado" name="nombre_abogado"
-                       value="{{ exp.nombre_abogado or '' }}" placeholder="Nombre completo del abogado">
-            </div>
-            <div class="field-group">
-                <label>Impedimento</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="impedimento" value="SI" {% if exp.impedimento == 'SI' %}checked{% endif %}> SI</label>
-                    <label><input type="radio" name="impedimento" value="NO" {% if exp.impedimento != 'SI' %}checked{% endif %}> NO</label>
-                </div>
-            </div>
-            <div class="field-group field-full">
-                <label for="investigado">Investigado</label>
-                <input type="text" id="investigado" name="investigado"
-                       value="{{ exp.investigado or '' }}"
-                       placeholder="Nombre del investigado o 'EN AVERIGUACIÓN DE RESPONSABLES'">
-            </div>
-            <div class="field-group">
-                <label for="perfil_indagado">Perfil del Indagado/Investigado</label>
-                <input type="text" id="perfil_indagado" name="perfil_indagado"
-                       value="{{ exp.perfil_indagado or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="entidad_origen">Entidad Origen del Proceso</label>
-                <input type="text" id="entidad_origen" name="entidad_origen"
-                       value="{{ exp.entidad_origen or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="quejoso">Quejoso y/o Informante</label>
-                <input type="text" id="quejoso" name="quejoso"
-                       value="{{ exp.quejoso or '' }}" placeholder="Nombre o 'ANÓNIMO'">
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 3: ASUNTO ──────────────────────────────────────────── -->
-    <div class="form-section" id="sec-3">
-        <h2 class="section-title">3. Asunto y Tipología</h2>
-        <div class="form-grid">
-            <div class="field-group field-full">
-                <label for="asunto">Asunto</label>
-                <textarea id="asunto" name="asunto" rows="4"
-                          placeholder="Descripción del asunto del proceso">{{ exp.asunto or '' }}</textarea>
-            </div>
-            <div class="field-group">
-                <label for="tipologia">Tipología</label>
-                <input type="text" id="tipologia" name="tipologia"
-                       value="{{ exp.tipologia or '' }}">
-            </div>
-            <div class="field-group field-full">
-                <label for="descripcion_tipologia">Descripción de Tipologías Específicas</label>
-                <textarea id="descripcion_tipologia" name="descripcion_tipologia" rows="3">{{ exp.descripcion_tipologia or '' }}</textarea>
-            </div>
-            <div class="field-group">
-                <label for="fecha_hechos">Fecha de los Hechos</label>
-                <input type="text" id="fecha_hechos" name="fecha_hechos"
-                       value="{{ exp.fecha_hechos or '' }}" placeholder="Ej: ENERO DE 2023">
-            </div>
-            <div class="field-group">
-                <label for="valores_institucionales">Valores Institucionales Comprometidos</label>
-                <input type="text" id="valores_institucionales" name="valores_institucionales"
-                       value="{{ exp.valores_institucionales or '' }}">
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Relacionados</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label>¿Relacionado con siniestro o pérdida?</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="relacionado_siniestro" value="SI" {% if exp.relacionado_siniestro == 'SI' %}checked{% endif %} onchange="toggleField('resp_siniestro_wrap', this.value)"> SI</label>
-                    <label><input type="radio" name="relacionado_siniestro" value="NO" {% if exp.relacionado_siniestro != 'SI' %}checked{% endif %} onchange="toggleField('resp_siniestro_wrap', this.value)"> NO</label>
-                </div>
-            </div>
-            <div class="field-group" id="resp_siniestro_wrap" {% if exp.relacionado_siniestro != 'SI' %}style="display:none"{% endif %}>
-                <label for="responsable_siniestro">Responsable del Bien Siniestro</label>
-                <input type="text" id="responsable_siniestro" name="responsable_siniestro"
-                       value="{{ exp.responsable_siniestro or '' }}">
-            </div>
-        </div>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label>¿Relacionado con maltrato o acoso laboral?</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="relacionado_acoso" value="SI" {% if exp.relacionado_acoso == 'SI' %}checked{% endif %} onchange="toggleField('resp_acoso_wrap', this.value)"> SI</label>
-                    <label><input type="radio" name="relacionado_acoso" value="NO" {% if exp.relacionado_acoso != 'SI' %}checked{% endif %} onchange="toggleField('resp_acoso_wrap', this.value)"> NO</label>
-                </div>
-            </div>
-            <div class="field-group" id="resp_acoso_wrap" {% if exp.relacionado_acoso != 'SI' %}style="display:none"{% endif %}>
-                <label for="responsable_acoso">Responsable del Acoso</label>
-                <input type="text" id="responsable_acoso" name="responsable_acoso"
-                       value="{{ exp.responsable_acoso or '' }}">
-            </div>
-        </div>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label>¿Relacionado con hecho de corrupción?</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="relacionado_corrupcion" value="SI" {% if exp.relacionado_corrupcion == 'SI' %}checked{% endif %}> SI</label>
-                    <label><input type="radio" name="relacionado_corrupcion" value="NO" {% if exp.relacionado_corrupcion != 'SI' %}checked{% endif %}> NO</label>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 4: INDAGACIÓN PREVIA ──────────────────────────────── -->
-    <div class="form-section" id="sec-4">
-        <h2 class="section-title">4. Indagación Previa</h2>
-        <div class="form-grid">
-            <div class="field-group">
-                <label for="fecha_apertura_indagacion">Fecha Apertura Indagación</label>
-                <input type="date" id="fecha_apertura_indagacion" name="fecha_apertura_indagacion"
-                       value="{{ exp.fecha_apertura_indagacion or '' }}"
-                       onchange="calcularVencimiento('ind')">
-            </div>
-            <div class="field-group">
-                <label for="numero_auto_apertura_ind">N° Auto de Apertura</label>
-                <input type="text" id="numero_auto_apertura_ind" name="numero_auto_apertura_ind"
-                       value="{{ exp.numero_auto_apertura_ind or '' }}" placeholder="Ej: 010-2023">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_apertura_ind">Fecha Auto de Apertura</label>
-                <input type="date" id="fecha_auto_apertura_ind" name="fecha_auto_apertura_ind"
-                       value="{{ exp.fecha_auto_apertura_ind or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="plazo_ind">Plazo (días)</label>
-                <input type="number" id="plazo_ind" name="plazo_ind" min="1"
-                       value="{{ exp.plazo_ind or 180 }}"
-                       onchange="calcularVencimiento('ind')">
-            </div>
-            <div class="field-group">
-                <label for="fecha_vencimiento_ind">Fecha Vencimiento</label>
-                <input type="date" id="fecha_vencimiento_ind" name="fecha_vencimiento_ind"
-                       value="{{ exp.fecha_vencimiento_ind or '' }}"
-                       class="campo-calculado">
-                <small class="field-hint">Se calcula automáticamente desde Fecha Apertura + Plazo</small>
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Traslado</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label for="numero_auto_traslado_ind">N° Auto de Traslado</label>
-                <input type="text" id="numero_auto_traslado_ind" name="numero_auto_traslado_ind"
-                       value="{{ exp.numero_auto_traslado_ind or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_traslado_ind">Fecha Auto Traslado</label>
-                <input type="date" id="fecha_auto_traslado_ind" name="fecha_auto_traslado_ind"
-                       value="{{ exp.fecha_auto_traslado_ind or '' }}">
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Archivo (de Indagación Previa)</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label for="numero_auto_archivo_ind">N° Auto de Archivo</label>
-                <input type="text" id="numero_auto_archivo_ind" name="numero_auto_archivo_ind"
-                       value="{{ exp.numero_auto_archivo_ind or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_archivo_ind">Fecha Auto de Archivo</label>
-                <input type="date" id="fecha_auto_archivo_ind" name="fecha_auto_archivo_ind"
-                       value="{{ exp.fecha_auto_archivo_ind or '' }}">
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 5: INVESTIGACIÓN DISCIPLINARIA (condicional) ──────── -->
-    <div class="form-section" id="sec-5">
-        <h2 class="section-title">5. Investigación Disciplinaria
-            <span class="section-badge" id="inv-badge">Solo si aplica</span>
-        </h2>
-        <div class="form-grid">
-            <div class="field-group">
-                <label for="fecha_apertura_investigacion">Fecha Apertura Investigación</label>
-                <input type="date" id="fecha_apertura_investigacion" name="fecha_apertura_investigacion"
-                       value="{{ exp.fecha_apertura_investigacion or '' }}"
-                       onchange="calcularVencimiento('inv')">
-            </div>
-            <div class="field-group">
-                <label for="numero_auto_apertura_inv">N° Auto de Apertura</label>
-                <input type="text" id="numero_auto_apertura_inv" name="numero_auto_apertura_inv"
-                       value="{{ exp.numero_auto_apertura_inv or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_apertura_inv">Fecha Auto de Apertura</label>
-                <input type="date" id="fecha_auto_apertura_inv" name="fecha_auto_apertura_inv"
-                       value="{{ exp.fecha_auto_apertura_inv or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="plazo_inv">Plazo (días)</label>
-                <input type="number" id="plazo_inv" name="plazo_inv" min="1"
-                       value="{{ exp.plazo_inv or 180 }}"
-                       onchange="calcularVencimiento('inv')">
-            </div>
-            <div class="field-group">
-                <label for="fecha_vencimiento_inv">Fecha Vencimiento</label>
-                <input type="date" id="fecha_vencimiento_inv" name="fecha_vencimiento_inv"
-                       value="{{ exp.fecha_vencimiento_inv or '' }}"
-                       class="campo-calculado">
-                <small class="field-hint">Se calcula automáticamente</small>
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Traslado</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label for="numero_auto_traslado_inv">N° Auto de Traslado</label>
-                <input type="text" id="numero_auto_traslado_inv" name="numero_auto_traslado_inv"
-                       value="{{ exp.numero_auto_traslado_inv or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_traslado_inv">Fecha Auto Traslado</label>
-                <input type="date" id="fecha_auto_traslado_inv" name="fecha_auto_traslado_inv"
-                       value="{{ exp.fecha_auto_traslado_inv or '' }}">
-            </div>
-        </div>
-
-        <h3 class="subsection-title">Archivo (de Investigación)</h3>
-        <div class="form-grid form-grid-3">
-            <div class="field-group">
-                <label for="numero_auto_archivo_inv">N° Auto de Archivo</label>
-                <input type="text" id="numero_auto_archivo_inv" name="numero_auto_archivo_inv"
-                       value="{{ exp.numero_auto_archivo_inv or '' }}">
-            </div>
-            <div class="field-group">
-                <label for="fecha_auto_archivo_inv">Fecha Auto de Archivo</label>
-                <input type="date" id="fecha_auto_archivo_inv" name="fecha_auto_archivo_inv"
-                       value="{{ exp.fecha_auto_archivo_inv or '' }}">
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 6: CIERRE ──────────────────────────────────────────── -->
-    <div class="form-section" id="sec-6">
-        <h2 class="section-title">6. Estado y Cierre</h2>
-        <div class="form-grid">
-            <div class="field-group">
-                <label for="etapa">Etapa Actual</label>
-                <select id="etapa" name="etapa" onchange="toggleInvestigacion(this.value)">
-                    <option value="">— Seleccione —</option>
-                    {% for e in etapas %}
-                    <option value="{{ e }}" {% if exp.etapa and e in exp.etapa %}selected{% endif %}>{{ e }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="field-group">
-                <label for="estado_proceso">Estado del Proceso</label>
-                <select id="estado_proceso" name="estado_proceso">
-                    <option value="">— Seleccione —</option>
-                    {% for es in estados %}
-                    <option value="{{ es }}" {% if exp.estado_proceso == es %}selected{% endif %}>{{ es }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="field-group">
-                <label for="created_by">Registrado por</label>
-                <input type="text" id="created_by" name="created_by"
-                       value="{{ exp.created_by or '' }}" placeholder="Nombre del funcionario">
-            </div>
-            <div class="field-group field-full">
-                <label for="observaciones_finales">Observaciones Finales</label>
-                <textarea id="observaciones_finales" name="observaciones_finales" rows="4">{{ exp.observaciones_finales or '' }}</textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── SECCIÓN 7: ESCANEOS ────────────────────────────────────────── -->
-    <div class="form-section" id="sec-7">
-        <h2 class="section-title">7. Escaneos y Folios</h2>
-        <div id="escaneos-container">
-            {% if escaneos %}
-                {% for esc in escaneos %}
-                <div class="escaneo-row" data-idx="{{ loop.index0 }}">
-                    <div class="form-grid form-grid-3">
-                        <div class="field-group">
-                            <label>Fecha Escáner</label>
-                            <input type="date" name="escaner_fecha_{{ loop.index0 }}"
-                                   value="{{ esc.fecha_escaner or '' }}">
-                        </div>
-                        <div class="field-group">
-                            <label>Folio</label>
-                            <input type="text" name="escaner_folio_{{ loop.index0 }}"
-                                   value="{{ esc.folio or '' }}">
-                        </div>
-                        <div class="field-group">
-                            <label>Responsable</label>
-                            <input type="text" name="escaner_responsable_{{ loop.index0 }}"
-                                   value="{{ esc.responsable or '' }}">
-                        </div>
-                    </div>
-                    <button type="button" class="btn-remove-row" onclick="quitarEscaneo(this)">✖ Quitar</button>
-                </div>
-                {% endfor %}
+<!-- ══ SECCIÓN 1: Identificación ══════════════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">📋 Identificación del Expediente</div>
+    <div class="form-grid fg-4">
+        <div>
+            <label class="field-label">N. EXPEDIENTE <span style="color:#dc2626">*</span></label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.n_expediente or '—' }}</div>
+            {% else %}
+            <input type="text" name="n_expediente" class="form-control"
+                   value="{{ r.n_expediente if r else proximo_n }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" required>
+            <div class="field-hint">Auto-generado: {{ proximo_n if modo == 'nuevo' else '' }}</div>
             {% endif %}
         </div>
-        <button type="button" class="btn btn-outline" onclick="agregarEscaneo()">➕ Agregar Escaneo</button>
+        <div>
+            <label class="field-label">AÑO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.anio or '—' }}</div>
+            {% else %}
+            <select name="anio" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for y in range(2025, 2019, -1) %}
+                <option value="{{ y }}" {% if (r.anio or '')|string == y|string %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">MES</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.mes or '—' }}</div>
+            {% else %}
+            <select name="mes" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for m in meses %}
+                <option value="{{ m }}" {% if r.mes == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">TIPO EXPEDIENTE</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.tipo_expediente or '—' }}</div>
+            {% else %}
+            <select name="tipo_expediente" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for t in tipos_expediente %}
+                <option value="{{ t }}" {% if r.tipo_expediente == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
     </div>
+    <div class="form-grid fg-3" style="margin-top:12px">
+        <div>
+            <label class="field-label">MEDIO DE INGRESO A LA OFICINA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.medio_ingreso or '—' }}</div>
+            {% else %}
+            <select name="medio_ingreso" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for m in medios_ingreso %}
+                <option value="{{ m }}" {% if r.medio_ingreso == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N. RADICADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.n_radicado or '—' }}</div>
+            {% else %}
+            <input type="text" name="n_radicado" class="form-control"
+                   value="{{ r.n_radicado or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA RADICADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_radicado or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_radicado" class="form-control" value="{{ r.fecha_radicado or '' }}">
+            {% endif %}
+        </div>
+    </div>
+    <div class="form-grid fg-2" style="margin-top:12px">
+        <div>
+            <label class="field-label">ABOGADO ASIGNADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.abogado_asignado or '—' }}</div>
+            {% else %}
+            <select name="abogado_asignado" class="form-control">
+                <option value="">— Seleccionar abogado —</option>
+                {% for a in abogados %}
+                <option value="{{ a }}" {% if r.abogado_asignado == a %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">IMPEDIMENTO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.impedimento or 'NO' }}</div>
+            {% else %}
+            <select name="impedimento" class="form-control">
+                <option value="NO" {% if (r.impedimento or 'NO') == 'NO' %}selected{% endif %}>NO</option>
+                <option value="SI" {% if r.impedimento == 'SI' %}selected{% endif %}>SI</option>
+            </select>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-    <!-- BOTONES GLOBALES -->
-    <div class="form-footer">
-        <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Expediente</button>
-        {% if modos == 'editar' %}
-        <a href="/expediente/{{ exp.id }}" class="btn btn-outline btn-lg">Cancelar</a>
-        <form method="post" action="/expediente/{{ exp.id }}/eliminar" style="display:inline"
-              onsubmit="return confirm('¿Eliminar este expediente? Esta acción no se puede deshacer.')">
-            <button type="submit" class="btn btn-danger btn-lg">🗑 Eliminar</button>
-        </form>
+<!-- ══ SECCIÓN 2: Origen e Involucrados ══════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">🏛 Origen e Involucrados</div>
+    <div class="form-grid fg-2">
+        <div>
+            <label class="field-label">ENTIDAD ORIGEN DEL PROCESO Y/O PERSONA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.entidad_origen or '—' }}</div>
+            {% else %}
+            <input type="text" name="entidad_origen" class="form-control" list="entidades-sugeridas"
+                   value="{{ r.entidad_origen or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <datalist id="entidades-sugeridas">
+                {% for e in entidades_sugeridas %}
+                <option value="{{ e }}">
+                {% endfor %}
+            </datalist>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">QUEJOSO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.quejoso or '—' }}</div>
+            {% else %}
+            <input type="text" name="quejoso" class="form-control"
+                   value="{{ r.quejoso or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top:12px">
+        <label class="field-label">ASUNTO</label>
+        {% if readonly %}
+        <div class="form-control" style="background:#f8fafc;min-height:60px">{{ r.asunto or '—' }}</div>
+        {% else %}
+        <textarea name="asunto" class="form-control" rows="2"
+                  style="text-transform:uppercase;resize:vertical"
+                  oninput="this.value=this.value.toUpperCase()">{{ r.asunto or '' }}</textarea>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 3: Apertura Indagación Previa ═════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">🔍 Indagación Previa</div>
+    <div class="form-grid fg-3">
+        <div>
+            <label class="field-label">FECHA DE APERTURA EXPEDIENTE</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_apertura_expediente or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_apertura_expediente" class="form-control" value="{{ r.fecha_apertura_expediente or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO DE APERTURA INDAGACIÓN PREVIA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_apertura_ind or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_apertura_ind" class="form-control"
+                   value="{{ r.numero_auto_apertura_ind or '' }}"
+                   placeholder="Ej: 010-2023"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA DEL AUTO <span style="color:#64748b;font-weight:400">(base para vencimiento)</span></label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_auto_apertura_ind or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_auto_apertura_ind" class="form-control"
+                   value="{{ r.fecha_auto_apertura_ind or '' }}"
+                   id="fecha-auto-ind" onchange="calcularVencInd()">
+            {% endif %}
+        </div>
+    </div>
+    <!-- Semáforo VENCIMIENTO INDAGACIÓN PREVIA (col P = 6 meses desde fecha del auto) -->
+    {% if modo == 'ver' or (r and r.fecha_auto_apertura_ind) %}
+    <div id="semaforo-ind-wrap" style="margin-top:10px">
+        {% if r.alerta_ind %}
+        {% set ai = r.alerta_ind %}
+        <span class="semaforo-badge sem-{{ ai.clase }}">
+            {% if ai.clase == 'vencido' %}🔴{% elif ai.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+            VENCIMIENTO ETAPA IND.: {{ ai.texto }}
+            {% if r.fecha_vencimiento_ind %} · {{ r.fecha_vencimiento_ind }}{% endif %}
+        </span>
+        {% endif %}
+    </div>
+    {% else %}
+    <div id="semaforo-ind-wrap" style="margin-top:10px"></div>
+    {% endif %}
+    <div class="form-grid fg-2" style="margin-top:12px">
+        <div>
+            <label class="field-label">FECHA ÚLTIMA ACTUACIÓN EN INDAGACIÓN PREVIA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_ultima_act_indagacion or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_ultima_act_indagacion" class="form-control" value="{{ r.fecha_ultima_act_indagacion or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO ÚLTIMA ACTUACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_ultima_act_ind or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_ultima_act_ind" class="form-control"
+                   value="{{ r.numero_auto_ultima_act_ind or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 4: Tipología y Clasificación ══════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">⚖️ Tipología y Clasificación</div>
+
+    <!-- TIPOLOGÍA (dropdown buscable con árbol) -->
+    <div style="margin-bottom:14px">
+        <label class="field-label">TIPOLOGÍA</label>
+        {% if readonly %}
+        <div class="form-control" style="background:#f8fafc">{{ r.tipologia or '—' }}</div>
+        {% else %}
+        <div class="dropdown-buscable" id="db-tipologia">
+            <input type="hidden" name="tipologia" id="tipologia-val" value="{{ r.tipologia or '' }}">
+            <input type="text" class="db-input" id="tipologia-display"
+                   value="{{ r.tipologia or '' }}"
+                   placeholder="Escriba para buscar tipología o haga clic para navegar..."
+                   autocomplete="off" readonly
+                   onclick="abrirDropdown('tipologia')" style="cursor:pointer">
+        </div>
         {% endif %}
     </div>
 
+    <div class="form-grid fg-3">
+        <div>
+            <label class="field-label">RELACIONADO SINIESTRO O PÉRDIDA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.relacionado_siniestro or 'NO' }}</div>
+            {% else %}
+            <select name="relacionado_siniestro" class="form-control" onchange="toggleSiniestro(this.value)">
+                <option value="NO" {% if (r.relacionado_siniestro or 'NO') == 'NO' %}selected{% endif %}>NO</option>
+                <option value="SI" {% if r.relacionado_siniestro == 'SI' %}selected{% endif %}>SI</option>
+            </select>
+            {% endif %}
+        </div>
+        <div id="campo-resp-siniestro" {% if not r.relacionado_siniestro or r.relacionado_siniestro == 'NO' %}style="display:none"{% endif %}>
+            <label class="field-label">RESPONSABLE DEL BIEN SINIESTRO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.responsable_siniestro or '—' }}</div>
+            {% else %}
+            <input type="text" name="responsable_siniestro" class="form-control"
+                   value="{{ r.responsable_siniestro or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">RELACIONADO MALTRATO O ACOSO LABORAL</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.relacionado_maltrato or 'NO' }}</div>
+            {% else %}
+            <select name="relacionado_maltrato" class="form-control">
+                <option value="NO" {% if (r.relacionado_maltrato or 'NO') == 'NO' %}selected{% endif %}>NO</option>
+                <option value="SI" {% if r.relacionado_maltrato == 'SI' %}selected{% endif %}>SI</option>
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">RELACIONADO HECHO DE CORRUPCIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.relacionado_corrupcion or 'NO' }}</div>
+            {% else %}
+            <select name="relacionado_corrupcion" class="form-control">
+                <option value="NO" {% if (r.relacionado_corrupcion or 'NO') == 'NO' %}selected{% endif %}>NO</option>
+                <option value="SI" {% if r.relacionado_corrupcion == 'SI' %}selected{% endif %}>SI</option>
+            </select>
+            {% endif %}
+        </div>
+        <div style="grid-column:span 2">
+            <label class="field-label">VALORES INSTITUCIONALES COMPROMETIDOS</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.valores_institucionales or '—' }}</div>
+            {% else %}
+            <input type="text" name="valores_institucionales" class="form-control" list="valores-sugeridos"
+                   value="{{ r.valores_institucionales or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <datalist id="valores-sugeridos">
+                {% for v in valores_sugeridos %}
+                <option value="{{ v }}">
+                {% endfor %}
+            </datalist>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 5: Fecha de Hechos y Prescripción ═════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">📅 Fecha de Hechos y Prescripción</div>
+    <div class="form-grid fg-2">
+        <div>
+            <label class="field-label">FECHA DE LOS HECHOS (CON OBSERVACIONES)</label>
+            <div class="field-hint" style="margin-bottom:4px">Texto libre — p. ej. "ENERO DE 2023" o "PRIMER SEMESTRE 2022"</div>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_hechos_obs or '—' }}</div>
+            {% else %}
+            <input type="text" name="fecha_hechos_obs" class="form-control"
+                   value="{{ r.fecha_hechos_obs or '' }}"
+                   placeholder="Descripción aproximada de la fecha"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA DE LOS HECHOS <span style="color:#64748b;font-weight:400">(para prescripción)</span></label>
+            <div class="field-hint" style="margin-bottom:4px">Puede ser solo año (AAAA), año-mes (AAAA-MM) o fecha completa (AAAA-MM-DD)</div>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_hechos or '—' }}</div>
+            {% else %}
+            <input type="text" name="fecha_hechos" class="form-control"
+                   value="{{ r.fecha_hechos or '' }}"
+                   placeholder="2022 · 2022-03 · 2022-03-15"
+                   id="fecha-hechos-inp" oninput="calcularPrescripcion()">
+            {% endif %}
+            <!-- Semáforo PRESCRIPCIÓN (5 años desde fecha_hechos) -->
+            {% if r and r.alerta_prescripcion and r.alerta_prescripcion.dias is not none %}
+            {% set ap = r.alerta_prescripcion %}
+            <span class="semaforo-badge sem-{{ ap.clase }}" id="sem-prescripcion">
+                {% if ap.clase == 'vencido' %}🔴{% elif ap.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+                PRESCRIPCIÓN: {{ ap.texto }}
+                {% if r.fecha_prescripcion %} · {{ r.fecha_prescripcion }}{% endif %}
+            </span>
+            {% else %}
+            <div id="sem-prescripcion"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 6: Apertura Investigación Disciplinaria ═══════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">🔎 Investigación Disciplinaria</div>
+    <div class="form-grid fg-3">
+        <div>
+            <label class="field-label">FECHA APERTURA DE INVESTIGACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_apertura_investigacion or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_apertura_investigacion" class="form-control"
+                   value="{{ r.fecha_apertura_investigacion or '' }}"
+                   id="fecha-apertura-inv" onchange="calcularVencInv()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO DE APERTURA DE INVESTIGACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_apertura_inv or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_apertura_inv" class="form-control"
+                   value="{{ r.numero_auto_apertura_inv or '' }}"
+                   placeholder="Ej: 343-2023"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div></div>
+    </div>
+    <!-- Semáforo VENCIMIENTO INVESTIGACIÓN (col AC = 6 meses desde col AA) -->
+    {% if r and r.alerta_inv and r.alerta_inv.dias is not none %}
+    <div id="semaforo-inv-wrap" style="margin-top:8px">
+        {% set ainv = r.alerta_inv %}
+        <span class="semaforo-badge sem-{{ ainv.clase }}">
+            {% if ainv.clase == 'vencido' %}🔴{% elif ainv.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+            VENCIMIENTO ETAPA INV.: {{ ainv.texto }}
+            {% if r.fecha_vencimiento_inv %} · {{ r.fecha_vencimiento_inv }}{% endif %}
+        </span>
+    </div>
+    {% else %}
+    <div id="semaforo-inv-wrap" style="margin-top:8px"></div>
+    {% endif %}
+
+    <div class="form-grid fg-2" style="margin-top:12px">
+        <div>
+            <label class="field-label">FECHA ÚLTIMA ACTUACIÓN EN INVESTIGACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_ultima_act_investigacion or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_ultima_act_investigacion" class="form-control" value="{{ r.fecha_ultima_act_investigacion or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO ÚLTIMA ACTUACIÓN EN INVESTIGACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_ultima_act_inv or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_ultima_act_inv" class="form-control"
+                   value="{{ r.numero_auto_ultima_act_inv or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 7: Investigado ════════════════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">👤 Datos del Investigado</div>
+    <div class="form-grid fg-3">
+        <div>
+            <label class="field-label">NOMBRE INVESTIGADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.nombre_investigado or '—' }}</div>
+            {% else %}
+            <input type="text" name="nombre_investigado" class="form-control"
+                   value="{{ r.nombre_investigado or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">CÉDULA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.cedula or '—' }}</div>
+            {% else %}
+            <input type="text" name="cedula" class="form-control" value="{{ r.cedula or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">PERFIL DEL INVESTIGADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.perfil_investigado or '—' }}</div>
+            {% else %}
+            <select name="perfil_investigado" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for p in perfiles_investigado %}
+                <option value="{{ p }}" {% if r.perfil_investigado == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ÁREA DE ORIGEN INVESTIGADO (dropdown buscable con árbol) -->
+    <div style="margin-top:12px">
+        <label class="field-label">ÁREA DE ORIGEN DEL INVESTIGADO</label>
+        {% if readonly %}
+        <div class="form-control" style="background:#f8fafc">{{ r.area_origen_investigado or '—' }}</div>
+        {% else %}
+        <div class="dropdown-buscable" id="db-entidad">
+            <input type="hidden" name="area_origen_investigado" id="entidad-val" value="{{ r.area_origen_investigado or '' }}">
+            <input type="text" class="db-input" id="entidad-display"
+                   value="{{ r.area_origen_investigado or '' }}"
+                   placeholder="Escriba para buscar área/dependencia o haga clic para navegar el árbol..."
+                   autocomplete="off" readonly
+                   onclick="abrirDropdown('entidad')" style="cursor:pointer">
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 8: Prórroga ═══════════════════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">⏳ Prórroga</div>
+    <div class="form-grid fg-4">
+        <div>
+            <label class="field-label">FECHA DE PRÓRROGA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_prorroga or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_prorroga" class="form-control"
+                   value="{{ r.fecha_prorroga or '' }}"
+                   id="fecha-prorroga" onchange="calcularVencProrr()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO DE PRÓRROGA</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_prorroga or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_prorroga" class="form-control"
+                   value="{{ r.numero_auto_prorroga or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">TIEMPO PRÓRROGA (MESES)</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.tiempo_prorroga or '—' }}</div>
+            {% else %}
+            <select name="tiempo_prorroga" class="form-control" id="tiempo-prorroga" onchange="calcularVencProrr()">
+                <option value="">— Seleccionar —</option>
+                {% for t in tiempos_prorroga %}
+                <option value="{{ t }}" {% if r.tiempo_prorroga == t %}selected{% endif %}>{{ t }} mes{{ 'es' if t != '1' else '' }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div style="display:flex;align-items:flex-end">
+            {% if r and r.alerta_prorroga and r.alerta_prorroga.dias is not none %}
+            {% set ap2 = r.alerta_prorroga %}
+            <span class="semaforo-badge sem-{{ ap2.clase }}" id="sem-prorroga">
+                {% if ap2.clase == 'vencido' %}🔴{% elif ap2.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+                {{ ap2.texto }}{% if r.fecha_vencimiento_prorroga %} · {{ r.fecha_vencimiento_prorroga }}{% endif %}
+            </span>
+            {% else %}
+            <div id="sem-prorroga"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 9: Traslado y Acumulación ═════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">🔄 Traslado y Acumulación</div>
+    <div class="form-grid fg-4">
+        <div>
+            <label class="field-label">N° AUTO TRASLADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_traslado or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_traslado" class="form-control"
+                   value="{{ r.numero_auto_traslado or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA AUTO TRASLADO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_auto_traslado or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_auto_traslado" class="form-control" value="{{ r.fecha_auto_traslado or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO ACUMULACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_acumulacion or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_acumulacion" class="form-control"
+                   value="{{ r.numero_auto_acumulacion or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA AUTO ACUMULACIÓN</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_auto_acumulacion or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_auto_acumulacion" class="form-control" value="{{ r.fecha_auto_acumulacion or '' }}">
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top:12px">
+        <label class="field-label">EXPEDIENTE AL CUAL SE ACUMULA</label>
+        {% if readonly %}
+        <div class="form-control" style="background:#f8fafc">{{ r.expediente_acumula or '—' }}</div>
+        {% else %}
+        <input type="text" name="expediente_acumula" class="form-control"
+               value="{{ r.expediente_acumula or '' }}"
+               style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" style="max-width:300px">
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 10: Archivo y Pliego de Cargos ════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">📂 Archivo y Pliego de Cargos</div>
+    <div class="form-grid fg-4">
+        <div>
+            <label class="field-label">FECHA AUTO ARCHIVO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_auto_archivo or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_auto_archivo" class="form-control" value="{{ r.fecha_auto_archivo or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO DE ARCHIVO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_archivo or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_archivo" class="form-control"
+                   value="{{ r.numero_auto_archivo or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">FECHA AUTO PLIEGO DE CARGOS</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.fecha_auto_pliego_cargos or '—' }}</div>
+            {% else %}
+            <input type="date" name="fecha_auto_pliego_cargos" class="form-control" value="{{ r.fecha_auto_pliego_cargos or '' }}">
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">N° AUTO PLIEGO DE CARGOS</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.numero_auto_pliego_cargos or '—' }}</div>
+            {% else %}
+            <input type="text" name="numero_auto_pliego_cargos" class="form-control"
+                   value="{{ r.numero_auto_pliego_cargos or '' }}"
+                   style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 11: Estado General ════════════════════════════════════════════ -->
+<div class="form-section">
+    <div class="form-section-title">📌 Estado General del Expediente</div>
+    <div class="form-grid fg-2">
+        <div>
+            <label class="field-label">ETAPA ACTUAL DEL EXPEDIENTE</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.etapa_actual or '—' }}</div>
+            {% else %}
+            <select name="etapa_actual" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for e in etapas %}
+                <option value="{{ e }}" {% if r.etapa_actual == e %}selected{% endif %}>{{ e }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        <div>
+            <label class="field-label">ESTADO DEL PROCESO</label>
+            {% if readonly %}
+            <div class="form-control" style="background:#f8fafc">{{ r.estado_proceso or '—' }}</div>
+            {% else %}
+            <select name="estado_proceso" class="form-control">
+                <option value="">— Seleccionar —</option>
+                {% for e in estados %}
+                <option value="{{ e }}" {% if r.estado_proceso == e %}selected{% endif %}>{{ e }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top:12px">
+        <label class="field-label">OBSERVACIONES</label>
+        {% if readonly %}
+        <div class="form-control" style="background:#f8fafc;min-height:60px">{{ r.observaciones or '—' }}</div>
+        {% else %}
+        <textarea name="observaciones" class="form-control" rows="3"
+                  style="resize:vertical;text-transform:uppercase"
+                  oninput="this.value=this.value.toUpperCase()">{{ r.observaciones or '' }}</textarea>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══ MODAL PICKER (Tipología / Área de Origen) ═════════════════════════════ -->
+<div id="modal-picker" class="modal-overlay" style="display:none"
+     onclick="if(event.target===this)cerrarDropdown(_pickerActivo)">
+    <div id="picker-box" style="background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.28);
+                width:90vw;height:88vh;max-width:1400px;display:flex;flex-direction:column;
+                overflow:hidden;position:relative">
+        <!-- Encabezado -->
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:14px 20px;border-bottom:2px solid #e2e8f0;background:#f0f7ff;flex-shrink:0">
+            <span id="picker-titulo" style="font-size:14px;font-weight:800;color:#0d3060;letter-spacing:.3px"></span>
+            <button type="button" onclick="cerrarDropdown(_pickerActivo)"
+                    style="border:none;background:none;font-size:26px;color:#64748b;cursor:pointer;
+                           line-height:1;padding:0 6px">&times;</button>
+        </div>
+        <!-- Búsqueda -->
+        <div style="padding:10px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+            <input type="text" id="picker-search" placeholder="🔍  Escriba para buscar..."
+                   autocomplete="off" oninput="pickerFiltrar(this.value)"
+                   style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;
+                          font-size:13px;box-sizing:border-box">
+        </div>
+        <!-- Cuerpo: árbol (full width en modo árbol, izquierda en modo búsqueda) -->
+        <div style="display:flex;flex:1;overflow:hidden">
+            <div id="picker-tree" class="db-tree"
+                 style="flex:1;overflow-y:auto;overflow-x:auto;padding:6px 0;min-width:0"></div>
+            <div id="picker-results" class="db-results"
+                 style="flex:2;overflow-y:auto;padding:4px 0;display:none;
+                        border-left:1px solid #e2e8f0;min-width:0"></div>
+        </div>
+        <!-- Pie -->
+        <div style="padding:10px 16px;border-top:1px solid #e2e8f0;display:flex;gap:12px;align-items:center;
+                    background:#f8fafc;flex-shrink:0">
+            <button type="button" onclick="limpiarDropdown(_pickerActivo)"
+                    style="font-size:12px;color:#dc2626;cursor:pointer;border:none;background:none;
+                           padding:4px 10px;border-radius:4px;font-weight:600">✕ Limpiar selección</button>
+            <button type="button" onclick="cerrarDropdown(_pickerActivo)"
+                    style="font-size:12px;color:#374151;cursor:pointer;border:1px solid #d1d5db;
+                           background:#fff;padding:4px 10px;border-radius:4px;font-weight:600">Cerrar</button>
+            <span style="flex:1"></span>
+            <span style="font-size:11px;color:#94a3b8;user-select:none">↔↕ Arrastre la esquina ↘ para redimensionar</span>
+        </div>
+        <!-- Manija de redimensionado (esquina inferior derecha) -->
+        <div id="picker-resize"
+             style="position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:se-resize;
+                    border-right:3px solid #94a3b8;border-bottom:3px solid #94a3b8;
+                    border-radius:0 0 10px 0;opacity:.5"
+             title="Arrastrar para redimensionar"></div>
+    </div>
+</div>
+
+{% if modo != 'ver' %}
+<!-- Botones de acción -->
+<div style="display:flex;gap:12px;margin-top:8px;padding-bottom:32px">
+    <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:14px">
+        {% if modo == 'nuevo' %}💾 Guardar Expediente{% else %}💾 Guardar Cambios{% endif %}
+    </button>
+    <a href="/expedientes" class="btn btn-secondary" style="padding:10px 20px;font-size:14px">Cancelar</a>
+    {% if modo == 'editar' %}
+    <form method="post" action="/expediente/{{ r.id }}/eliminar" style="margin:0" onsubmit="return confirm('¿Eliminar expediente {{ r.n_expediente }}? Esta acción no se puede deshacer.')">
+        <button type="submit" class="btn" style="padding:10px 18px;font-size:14px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer">🗑️ Eliminar</button>
+    </form>
+    {% endif %}
+</div>
 </form>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Inicializar estado de la sección de investigación según etapa actual
-    document.addEventListener('DOMContentLoaded', function() {
-        const etapaVal = document.getElementById('etapa').value;
-        toggleInvestigacion(etapaVal);
+// ── Datos JSON ──────────────────────────────────────────────────────────────
+const TIPOLOGIAS = {{ tipologias_json | safe }};
+const ENTIDADES  = {{ entidades_json | safe }};
+
+// ── Helpers de fecha ─────────────────────────────────────────────────────────
+function addMonths(dateStr, months) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d)) return null;
+    const orig = d.getDate();
+    d.setMonth(d.getMonth() + months);
+    if (d.getDate() !== orig) d.setDate(0); // desborde de mes
+    return d.toISOString().slice(0, 10);
+}
+function addYearsFlexible(fechaStr) {
+    if (!fechaStr) return null;
+    const s = fechaStr.trim();
+    let base;
+    if (/^\d{4}$/.test(s)) {
+        base = new Date(parseInt(s), 0, 1);
+    } else if (/^\d{4}-\d{2}$/.test(s)) {
+        const [y, m] = s.split('-');
+        base = new Date(parseInt(y), parseInt(m) - 1, 1);
+    } else {
+        base = new Date(s + 'T00:00:00');
+    }
+    if (isNaN(base)) return null;
+    base.setFullYear(base.getFullYear() + 5);
+    return base.toISOString().slice(0, 10);
+}
+function diasRestantes(fechaISO) {
+    if (!fechaISO) return null;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const fv  = new Date(fechaISO + 'T00:00:00');
+    return Math.round((fv - hoy) / 86400000);
+}
+function semaforoHtml(label, fechaVenc) {
+    if (!fechaVenc) return '';
+    const dias = diasRestantes(fechaVenc);
+    let cls, ico;
+    if (dias < 0)       { cls = 'sem-vencido';  ico = '🔴'; }
+    else if (dias <= 30){ cls = 'sem-proximo';  ico = '🟡'; }
+    else                { cls = 'sem-vigente';  ico = '🟢'; }
+    const texto = dias < 0 ? `Vencido hace ${Math.abs(dias)} días` : `Vence en ${dias} días`;
+    return `<span class="semaforo-badge ${cls}">${ico} ${label}: ${texto} · ${fechaVenc}</span>`;
+}
+
+// ── Cálculos de semáforo en tiempo real ──────────────────────────────────────
+function calcularVencInd() {
+    const fv = addMonths(document.getElementById('fecha-auto-ind').value, 6);
+    document.getElementById('semaforo-ind-wrap').innerHTML = semaforoHtml('VENCIMIENTO ETAPA IND.', fv);
+}
+function calcularVencInv() {
+    const fv = addMonths(document.getElementById('fecha-apertura-inv').value, 6);
+    document.getElementById('semaforo-inv-wrap').innerHTML = semaforoHtml('VENCIMIENTO ETAPA INV.', fv);
+}
+function calcularPrescripcion() {
+    const fv = addYearsFlexible(document.getElementById('fecha-hechos-inp').value);
+    document.getElementById('sem-prescripcion').innerHTML = semaforoHtml('PRESCRIPCIÓN', fv);
+}
+function calcularVencProrr() {
+    const fp = document.getElementById('fecha-prorroga').value;
+    const tp = document.getElementById('tiempo-prorroga').value;
+    if (!fp || !tp) { document.getElementById('sem-prorroga').innerHTML = ''; return; }
+    const fv = addMonths(fp, parseInt(tp));
+    document.getElementById('sem-prorroga').innerHTML = semaforoHtml('VENC. PRÓRROGA', fv);
+}
+
+// ── Toggle siniestro ──────────────────────────────────────────────────────────
+function toggleSiniestro(val) {
+    document.getElementById('campo-resp-siniestro').style.display = val === 'SI' ? '' : 'none';
+}
+
+// ── Modal Picker (Tipología / Área de Origen) ─────────────────────────────────
+let _pickerActivo = null;
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && _pickerActivo) cerrarDropdown(_pickerActivo);
+});
+
+function abrirDropdown(id) {
+    _pickerActivo = id;
+    const titulos = {
+        tipologia: '⚖️ Tipología Disciplinaria',
+        entidad:   '🏛 Área de Origen del Investigado',
+    };
+    document.getElementById('picker-titulo').textContent = titulos[id] || 'Seleccionar';
+    document.getElementById('picker-search').value = '';
+    document.getElementById('picker-tree').innerHTML  = '';
+    document.getElementById('picker-results').innerHTML = '';
+    document.getElementById('picker-results').style.display = 'none';
+    if (id === 'tipologia') renderTipologiaTree('');
+    else {
+        const raiz = (ENTIDADES && ENTIDADES[0] && ENTIDADES[0].hijos) ? ENTIDADES[0].hijos : ENTIDADES;
+        renderEntidadTree(raiz, document.getElementById('picker-tree'), 0);
+    }
+    document.getElementById('modal-picker').style.display = 'flex';
+    setTimeout(() => document.getElementById('picker-search').focus(), 80);
+}
+function cerrarDropdown(id) {
+    document.getElementById('modal-picker').style.display = 'none';
+    _pickerActivo = null;
+}
+function limpiarDropdown(id) {
+    document.getElementById(id + '-val').value = '';
+    document.getElementById(id + '-display').value = '';
+    cerrarDropdown(id);
+}
+function seleccionar(id, valor) {
+    document.getElementById(id + '-val').value = valor;
+    document.getElementById(id + '-display').value = valor;
+    cerrarDropdown(id);
+}
+function pickerFiltrar(q) {
+    if (_pickerActivo === 'tipologia') renderTipologiaTree(q);
+    else filtrarEntidades(q);
+}
+
+// ── TIPOLOGÍA – árbol + búsqueda ──────────────────────────────────────────────
+function renderTipologiaTree(filtro) {
+    const tree = document.getElementById('picker-tree');
+    const results = document.getElementById('picker-results');
+    tree.innerHTML = '';
+    results.innerHTML = '';
+    if (filtro.trim()) {
+        // modo búsqueda: mostrar resultados planos
+        const q = filtro.trim().toUpperCase();
+        let html = '';
+        TIPOLOGIAS.forEach(cat => {
+            const catMatch = cat.nombre.toUpperCase().includes(q);
+            if (catMatch) {
+                html += `<div class="res-item" onclick="seleccionar('tipologia','${escHtml(cat.nombre)}')">${escHtml(cat.nombre)}</div>`;
+            }
+            (cat.subconductas || []).forEach(sub => {
+                if (sub.nombre.toUpperCase().includes(q) || catMatch) {
+                    html += `<div class="res-item" onclick="seleccionar('tipologia','${escHtml(sub.nombre)}')">
+                        <span class="cat-tag">${escHtml(cat.nombre)}</span>${escHtml(sub.nombre)}</div>`;
+                }
+            });
+        });
+        results.innerHTML = html || '<div style="padding:12px;color:#9ca3af;font-size:12px">Sin resultados</div>';
+        tree.style.display = 'none';
+        results.style.flex = '1';
+    } else {
+        // modo árbol: árbol ocupa todo el ancho; panel derecho aparece solo al expandir categoría
+        tree.style.display = '';
+        results.style.display = 'none';
+        results.innerHTML = '';
+        TIPOLOGIAS.forEach((cat, ci) => {
+            const hasSubs = (cat.subconductas || []).length > 0;
+            const catDiv = document.createElement('div');
+            const hdr = document.createElement('div');
+            hdr.className = 'cat-header';
+            if (hasSubs) {
+                hdr.innerHTML = `<span>▶</span> ${escHtml(cat.nombre)}`;
+                const children = document.createElement('div');
+                children.className = 'cat-children';
+                cat.subconductas.forEach(sub => {
+                    const leaf = document.createElement('div');
+                    leaf.className = 'leaf-item';
+                    leaf.textContent = sub.nombre;
+                    leaf.onclick = () => seleccionar('tipologia', sub.nombre);
+                    children.appendChild(leaf);
+                });
+                hdr.onclick = () => {
+                    const open = children.classList.toggle('open');
+                    hdr.querySelector('span').textContent = open ? '▼' : '▶';
+                    if (open) {
+                        results.style.display = '';
+                        results.innerHTML = '';
+                        cat.subconductas.forEach(sub => {
+                            const item = document.createElement('div');
+                            item.className = 'res-item';
+                            item.innerHTML = `<span class="cat-tag">${escHtml(cat.nombre)}</span>${escHtml(sub.nombre)}`;
+                            item.onclick = () => seleccionar('tipologia', sub.nombre);
+                            results.appendChild(item);
+                        });
+                    } else {
+                        results.style.display = 'none';
+                        results.innerHTML = '';
+                    }
+                };
+                catDiv.appendChild(hdr);
+                catDiv.appendChild(children);
+            } else {
+                hdr.innerHTML = `<span>·</span> ${escHtml(cat.nombre)}`;
+                hdr.onclick = () => seleccionar('tipologia', cat.nombre);
+                catDiv.appendChild(hdr);
+            }
+            tree.appendChild(catDiv);
+        });
+    }
+}
+function filtrarTipologias(q) {
+    renderTipologiaTree(q);
+}
+
+// ── ENTIDADES – árbol recursivo + búsqueda ────────────────────────────────────
+function _flattenEntidades(nodes, padre, result) {
+    nodes.forEach(n => {
+        result.push({ nombre: n.nombre, tipo: n.tipo, padre: padre });
+        if (n.hijos && n.hijos.length) _flattenEntidades(n.hijos, n.nombre, result);
     });
+}
+let _entidadesFlat = null;
+function getEntidadesFlat() {
+    if (!_entidadesFlat) {
+        _entidadesFlat = [];
+        const raiz = (ENTIDADES && ENTIDADES[0] && ENTIDADES[0].hijos) ? ENTIDADES[0].hijos : ENTIDADES;
+        _flattenEntidades(raiz, '', _entidadesFlat);
+    }
+    return _entidadesFlat;
+}
+function renderEntidadTree(nodes, container, level) {
+    container.innerHTML = '';
+    nodes.forEach(n => {
+        const wrap = document.createElement('div');
+        wrap.style.paddingLeft = (level * 14) + 'px';
+        const lbl = document.createElement('div');
+        lbl.className = 'cat-header';
+        lbl.style.paddingLeft = '8px';
+        lbl.style.fontSize = Math.max(11, 13 - level * 0.4) + 'px';
+        const hasHijos = n.hijos && n.hijos.length > 0;
+        lbl.innerHTML = `<span>${hasHijos ? '▶' : '·'}</span> ${escHtml(n.nombre)}`;
+        if (hasHijos) {
+            lbl.onclick = () => {
+                const ch = wrap.querySelector('.ent-children');
+                if (ch) {
+                    const open = ch.classList.toggle('open');
+                    ch.style.display = open ? 'block' : 'none';
+                    lbl.querySelector('span').textContent = open ? '▼' : '▶';
+                }
+            };
+        } else {
+            lbl.onclick = () => seleccionar('entidad', n.nombre);
+            lbl.style.color = '#1B4F8A';
+            lbl.style.fontWeight = '600';
+        }
+        wrap.appendChild(lbl);
+        if (hasHijos) {
+            const ch = document.createElement('div');
+            ch.className = 'ent-children';
+            ch.style.display = 'none';
+            renderEntidadTree(n.hijos, ch, level + 1);
+            wrap.appendChild(ch);
+        }
+        container.appendChild(wrap);
+    });
+}
+function filtrarEntidades(q) {
+    const tree    = document.getElementById('picker-tree');
+    const results = document.getElementById('picker-results');
+    if (!q.trim()) {
+        const raiz = (ENTIDADES && ENTIDADES[0] && ENTIDADES[0].hijos) ? ENTIDADES[0].hijos : ENTIDADES;
+        renderEntidadTree(raiz, tree, 0);
+        tree.style.display = '';
+        results.innerHTML = '';
+        results.style.display = 'none';
+        return;
+    }
+    tree.style.display = 'none';
+    results.style.display = '';
+    const upper = q.trim().toUpperCase();
+    const flat  = getEntidadesFlat();
+    const hits  = flat.filter(e => e.nombre.toUpperCase().includes(upper));
+    results.innerHTML = hits.length
+        ? hits.map(e => `<div class="res-item" onclick="seleccionar('entidad','${escHtml(e.nombre)}')">
+            ${e.padre ? `<span class="cat-tag">${escHtml(e.padre)}</span>` : ''}${escHtml(e.nombre)}</div>`).join('')
+        : '<div style="padding:16px;color:#9ca3af;font-size:12px">Sin resultados</div>';
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
+// ── Redimensionado del modal picker ───────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const handle = document.getElementById('picker-resize');
+    const box    = document.getElementById('picker-box');
+    if (!handle || !box) return;
+    let sx, sy, sw, sh;
+    handle.addEventListener('mousedown', function(e) {
+        sx = e.clientX; sy = e.clientY;
+        sw = box.offsetWidth; sh = box.offsetHeight;
+        function mv(e) {
+            const nw = Math.max(420, Math.min(sw + (e.clientX - sx), window.innerWidth  * 0.98));
+            const nh = Math.max(300, Math.min(sh + (e.clientY - sy), window.innerHeight * 0.96));
+            box.style.width     = nw + 'px';
+            box.style.height    = nh + 'px';
+            box.style.maxHeight = nh + 'px';
+        }
+        function up() {
+            document.removeEventListener('mousemove', mv);
+            document.removeEventListener('mouseup',   up);
+        }
+        document.addEventListener('mousemove', mv);
+        document.addEventListener('mouseup',   up);
+        e.preventDefault();
+    });
+});
 </script>
 {% endblock %}

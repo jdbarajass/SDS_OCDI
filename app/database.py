@@ -6,92 +6,58 @@ DB_PATH = Path(__file__).parent.parent / "data" / "ocdi.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS expedientes (
-    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    -- Bloque 1: Identificacion
-    n_expediente                TEXT NOT NULL,
-    anio                        INTEGER,
-    mes                         TEXT,
-    origen_proceso              TEXT,
-    n_radicado                  TEXT,
-    fecha_radicado              TEXT,
-    fecha_siias                 TEXT,
-    ingreso_siias               TEXT DEFAULT 'NO',
-    ingreso_siad                TEXT DEFAULT 'NO',
-    fecha_ingreso_siad          TEXT,
-    ingreso_sid4                TEXT DEFAULT 'NO',
-
-    -- Bloque 2: Asignacion y partes
-    nombre_abogado              TEXT,
-    impedimento                 TEXT DEFAULT 'NO',
-    investigado                 TEXT,
-    perfil_indagado             TEXT,
-    entidad_origen              TEXT,
-    quejoso                     TEXT,
-
-    -- Bloque 3: Asunto y tipologia
-    asunto                      TEXT,
-    tipologia                   TEXT,
-    descripcion_tipologia       TEXT,
-    relacionado_siniestro       TEXT DEFAULT 'NO',
-    responsable_siniestro       TEXT,
-    relacionado_acoso           TEXT DEFAULT 'NO',
-    responsable_acoso           TEXT,
-    relacionado_corrupcion      TEXT DEFAULT 'NO',
-    valores_institucionales     TEXT,
-    fecha_hechos                TEXT,
-
-    -- Bloque 4: Indagacion Previa
-    fecha_apertura_indagacion   TEXT,
-    numero_auto_apertura_ind    TEXT,
-    fecha_auto_apertura_ind     TEXT,
-    plazo_ind                   INTEGER DEFAULT 180,
-    fecha_vencimiento_ind       TEXT,
-    numero_auto_traslado_ind    TEXT,
-    fecha_auto_traslado_ind     TEXT,
-    numero_auto_archivo_ind     TEXT,
-    fecha_auto_archivo_ind      TEXT,
-
-    -- Bloque 5: Investigacion Disciplinaria (condicional)
-    fecha_apertura_investigacion TEXT,
-    numero_auto_apertura_inv    TEXT,
-    fecha_auto_apertura_inv     TEXT,
-    plazo_inv                   INTEGER DEFAULT 180,
-    fecha_vencimiento_inv       TEXT,
-    numero_auto_traslado_inv    TEXT,
-    fecha_auto_traslado_inv     TEXT,
-    numero_auto_archivo_inv     TEXT,
-    fecha_auto_archivo_inv      TEXT,
-
-    -- Bloque 6: Cierre
-    etapa                       TEXT,
-    estado_proceso              TEXT,
-    observaciones_finales       TEXT,
-
-    -- Metadata
-    created_at                  TEXT DEFAULT (datetime('now', 'localtime')),
-    updated_at                  TEXT DEFAULT (datetime('now', 'localtime')),
-    created_by                  TEXT
-);
-
-CREATE TABLE IF NOT EXISTS escaneos (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    expediente_id   INTEGER NOT NULL,
-    fecha_escaner   TEXT,
-    folio           TEXT,
-    responsable     TEXT,
-    FOREIGN KEY (expediente_id) REFERENCES expedientes(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS actuaciones (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    expediente_id   INTEGER NOT NULL,
-    mes             TEXT,
-    anio            INTEGER,
-    descripcion     TEXT,
-    created_at      TEXT DEFAULT (datetime('now', 'localtime')),
-    created_by      TEXT,
-    FOREIGN KEY (expediente_id) REFERENCES expedientes(id) ON DELETE CASCADE
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    n_expediente                    TEXT NOT NULL,
+    anio                            INTEGER,
+    mes                             TEXT,
+    medio_ingreso                   TEXT,
+    n_radicado                      TEXT,
+    fecha_radicado                  TEXT,
+    abogado_asignado                TEXT,
+    entidad_origen                  TEXT,
+    quejoso                         TEXT,
+    asunto                          TEXT,
+    impedimento                     TEXT DEFAULT 'NO',
+    fecha_apertura_expediente       TEXT,
+    numero_auto_apertura_ind        TEXT,
+    fecha_auto_apertura_ind         TEXT,
+    tipo_expediente                 TEXT,
+    tipologia                       TEXT,
+    relacionado_siniestro           TEXT DEFAULT 'NO',
+    responsable_siniestro           TEXT,
+    relacionado_maltrato            TEXT DEFAULT 'NO',
+    relacionado_corrupcion          TEXT DEFAULT 'NO',
+    valores_institucionales         TEXT,
+    fecha_hechos_obs                TEXT,
+    fecha_hechos                    TEXT,
+    fecha_ultima_act_indagacion     TEXT,
+    numero_auto_ultima_act_ind      TEXT,
+    fecha_apertura_investigacion    TEXT,
+    numero_auto_apertura_inv        TEXT,
+    nombre_investigado              TEXT,
+    cedula                          TEXT,
+    perfil_investigado              TEXT,
+    area_origen_investigado         TEXT,
+    fecha_prorroga                  TEXT,
+    numero_auto_prorroga            TEXT,
+    tiempo_prorroga                 TEXT,
+    fecha_ultima_act_investigacion  TEXT,
+    numero_auto_ultima_act_inv      TEXT,
+    numero_auto_traslado            TEXT,
+    fecha_auto_traslado             TEXT,
+    numero_auto_acumulacion         TEXT,
+    fecha_auto_acumulacion          TEXT,
+    expediente_acumula              TEXT,
+    fecha_auto_archivo              TEXT,
+    numero_auto_archivo             TEXT,
+    fecha_auto_pliego_cargos        TEXT,
+    numero_auto_pliego_cargos       TEXT,
+    etapa_actual                    TEXT,
+    estado_proceso                  TEXT,
+    observaciones                   TEXT,
+    created_at                      TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at                      TEXT DEFAULT (datetime('now', 'localtime')),
+    created_by                      TEXT
 );
 
 -- ── ABOGADOS DIGITALES ────────────────────────────────────────────────────────
@@ -201,6 +167,19 @@ CREATE TABLE IF NOT EXISTS logs_actividad (
     created_at      TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
+-- ── SEGUIMIENTO MENSUAL DE EXPEDIENTES ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS seguimiento_mensual (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    expediente_id   INTEGER NOT NULL REFERENCES expedientes(id) ON DELETE CASCADE,
+    anio            INTEGER NOT NULL,
+    mes             TEXT NOT NULL,
+    descripcion     TEXT,
+    created_by      TEXT,
+    created_at      TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at      TEXT DEFAULT (datetime('now', 'localtime')),
+    UNIQUE(expediente_id, anio, mes)
+);
+
 -- ── CORRESPONDENCIA / LISTA DE REPARTO DE ABOGADOS ───────────────────────────
 CREATE TABLE IF NOT EXISTS correspondencia (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -255,6 +234,15 @@ def get_db():
 
 def init_db():
     conn = get_db()
+
+    # Migración v4: reemplazar tabla expedientes si tiene el schema antiguo
+    old_cols = [r[1] for r in conn.execute("PRAGMA table_info(expedientes)").fetchall()]
+    if old_cols and "ingreso_siias" in old_cols:
+        conn.execute("DROP TABLE IF EXISTS escaneos")
+        conn.execute("DROP TABLE IF EXISTS actuaciones")
+        conn.execute("DROP TABLE IF EXISTS expedientes")
+        conn.commit()
+
     conn.executescript(SCHEMA)
     # Migraciones: agregar columnas nuevas a tablas existentes
     try:
@@ -385,6 +373,10 @@ def init_db():
     if conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:
         _seed_usuarios(conn)
 
+    # Datos demo (solo si la tabla de expedientes está vacía)
+    if conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0] == 0:
+        _seed_expedientes_demo(conn)
+
     conn.commit()
     conn.close()
 
@@ -439,6 +431,139 @@ def _seed_usuarios(conn):
                 "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,0,1)",
                 (uid, modulo),
             )
+
+
+def _seed_expedientes_demo(conn):
+    """Inserta 3 expedientes de ejemplo para mostrar el formato de datos."""
+    registros = [
+        {
+            "n_expediente": "001",
+            "anio": 2024,
+            "mes": "ENERO",
+            "medio_ingreso": "RADICADO",
+            "n_radicado": "2024-001-SDS",
+            "fecha_radicado": "2024-01-15",
+            "abogado_asignado": "MABEL GICELLA HURTADO SANCHEZ",
+            "impedimento": "NO",
+            "tipo_expediente": "DISCIPLINARIO",
+            "nombre_investigado": "JUAN CARLOS PÉREZ LÓPEZ",
+            "cedula": "12345678",
+            "perfil_investigado": "SERVIDOR PÚBLICO",
+            "area_origen_investigado": "SECRETARÍA DE SALUD",
+            "entidad_origen": "SECRETARÍA DE SALUD DISTRITAL",
+            "quejoso": "ANÓNIMO",
+            "asunto": "INCUMPLIMIENTO DE FUNCIONES Y RESPONSABILIDADES EN EL CARGO DE ENFERMERO JEFE",
+            "tipologia": "INCUMPLIMIENTO DE DEBERES",
+            "relacionado_siniestro": "NO",
+            "relacionado_maltrato": "NO",
+            "relacionado_corrupcion": "NO",
+            "valores_institucionales": "RESPONSABILIDAD",
+            "fecha_hechos_obs": "2023-11-20",
+            "fecha_hechos": "2023-11-20",
+            "fecha_apertura_expediente": "2024-01-15",
+            "numero_auto_apertura_ind": "AUTO-001-2024",
+            "fecha_auto_apertura_ind": "2024-01-15",
+            "etapa_actual": "INDAGACIÓN PREVIA",
+            "estado_proceso": "ABIERTO",
+            "observaciones": "Expediente de ejemplo — indagación en curso.",
+            "created_by": "SISTEMA",
+        },
+        {
+            "n_expediente": "002",
+            "anio": 2024,
+            "mes": "MARZO",
+            "medio_ingreso": "CORREO ELECTRÓNICO",
+            "n_radicado": "2024-025-SDS",
+            "fecha_radicado": "2024-03-10",
+            "abogado_asignado": "CARLOS ALFONSO PARRA MALAVER",
+            "impedimento": "NO",
+            "tipo_expediente": "DISCIPLINARIO",
+            "nombre_investigado": "MARÍA ELENA GARCÍA RODRÍGUEZ",
+            "cedula": "87654321",
+            "perfil_investigado": "SERVIDOR PÚBLICO",
+            "area_origen_investigado": "HOSPITAL SANTA CLARA",
+            "entidad_origen": "HOSPITAL SANTA CLARA E.S.E.",
+            "quejoso": "PEDRO RUIZ MARTÍNEZ",
+            "asunto": "TRATO INDEBIDO Y MALTRATO A USUARIOS DEL SERVICIO DE URGENCIAS",
+            "tipologia": "MALTRATO",
+            "relacionado_siniestro": "NO",
+            "relacionado_maltrato": "SI",
+            "relacionado_corrupcion": "NO",
+            "valores_institucionales": "RESPETO",
+            "fecha_hechos_obs": "2024-02-15",
+            "fecha_hechos": "2024-02-15",
+            "fecha_apertura_expediente": "2024-03-10",
+            "numero_auto_apertura_ind": "AUTO-025-2024",
+            "fecha_auto_apertura_ind": "2024-03-10",
+            "fecha_ultima_act_indagacion": "2024-05-20",
+            "numero_auto_ultima_act_ind": "AUTO-025-A-2024",
+            "fecha_apertura_investigacion": "2024-06-01",
+            "numero_auto_apertura_inv": "AUTO-025-INV-2024",
+            "etapa_actual": "INVESTIGACIÓN DISCIPLINARIA",
+            "estado_proceso": "ABIERTO",
+            "observaciones": "Expediente de ejemplo — investigación abierta por maltrato.",
+            "created_by": "SISTEMA",
+        },
+        {
+            "n_expediente": "003",
+            "anio": 2023,
+            "mes": "JULIO",
+            "medio_ingreso": "SDQS",
+            "n_radicado": "2023-089-SDS",
+            "fecha_radicado": "2023-07-05",
+            "abogado_asignado": "DAVID FELIPE MORALES NOGUERA",
+            "impedimento": "NO",
+            "tipo_expediente": "DISCIPLINARIO",
+            "nombre_investigado": "CARLOS AUGUSTO MÉNDEZ TORRES",
+            "cedula": "11223344",
+            "perfil_investigado": "CONTRATISTA",
+            "area_origen_investigado": "SUBSECRETARÍA ADMINISTRATIVA",
+            "entidad_origen": "SECRETARÍA DE SALUD DISTRITAL",
+            "quejoso": "AUDITORÍA INTERNA",
+            "asunto": "IRREGULARIDADES EN CONTRATACIÓN Y POSIBLE CORRUPCIÓN EN PROCESO DE SELECCIÓN DE PROVEEDORES",
+            "tipologia": "CORRUPCIÓN",
+            "relacionado_siniestro": "NO",
+            "relacionado_maltrato": "NO",
+            "relacionado_corrupcion": "SI",
+            "valores_institucionales": "TRANSPARENCIA, INTEGRIDAD",
+            "fecha_hechos_obs": "2023-05-10",
+            "fecha_hechos": "2023-05-10",
+            "fecha_apertura_expediente": "2023-07-05",
+            "numero_auto_apertura_ind": "AUTO-089-2023",
+            "fecha_auto_apertura_ind": "2023-07-05",
+            "fecha_ultima_act_indagacion": "2023-09-15",
+            "numero_auto_ultima_act_ind": "AUTO-089-A-2023",
+            "fecha_apertura_investigacion": "2023-10-01",
+            "numero_auto_apertura_inv": "AUTO-089-INV-2023",
+            "fecha_ultima_act_investigacion": "2024-01-20",
+            "numero_auto_ultima_act_inv": "AUTO-089-INV-A-2023",
+            "fecha_auto_archivo": "2024-02-01",
+            "numero_auto_archivo": "AUTO-089-ARCH-2024",
+            "etapa_actual": "ARCHIVO",
+            "estado_proceso": "AUTO DE ARCHIVO",
+            "observaciones": "Expediente de ejemplo — archivado por prescripción de la acción disciplinaria.",
+            "created_by": "SISTEMA",
+        },
+    ]
+
+    campos = [
+        "n_expediente", "anio", "mes", "medio_ingreso", "n_radicado", "fecha_radicado",
+        "abogado_asignado", "impedimento", "tipo_expediente", "nombre_investigado", "cedula",
+        "perfil_investigado", "area_origen_investigado", "entidad_origen", "quejoso", "asunto",
+        "tipologia", "relacionado_siniestro", "relacionado_maltrato", "relacionado_corrupcion",
+        "valores_institucionales", "fecha_hechos_obs", "fecha_hechos", "fecha_apertura_expediente",
+        "numero_auto_apertura_ind", "fecha_auto_apertura_ind", "fecha_ultima_act_indagacion",
+        "numero_auto_ultima_act_ind", "fecha_apertura_investigacion", "numero_auto_apertura_inv",
+        "fecha_ultima_act_investigacion", "numero_auto_ultima_act_inv",
+        "fecha_auto_archivo", "numero_auto_archivo",
+        "etapa_actual", "estado_proceso", "observaciones", "created_by",
+    ]
+    placeholders = ", ".join("?" * len(campos))
+    cols = ", ".join(campos)
+    sql = f"INSERT INTO expedientes ({cols}) VALUES ({placeholders})"
+    for r in registros:
+        vals = [r.get(c) for c in campos]
+        conn.execute(sql, vals)
 
 
 def calcular_alerta(fecha_vencimiento: str | None) -> dict:

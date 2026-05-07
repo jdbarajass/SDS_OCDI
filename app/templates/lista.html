@@ -1,212 +1,228 @@
 {% extends "base.html" %}
-{% block title %}Expedientes{% endblock %}
-{% block heading %}Expedientes <span class="badge-count">{{ total }}</span>{% endblock %}
+{% block title %}Base Expedientes{% endblock %}
+{% block heading %}📁 Base Expedientes{% endblock %}
 
 {% block header_actions %}
 <a href="/expediente/nuevo" class="btn btn-primary">➕ Nuevo Expediente</a>
-<a href="/exportar" class="btn btn-outline">📤 Exportar Excel</a>
+<a href="/exportar-filtrado/descargar?q={{ q }}&anio={{ anio }}&mes={{ mes }}&abogado={{ abogado }}&etapa={{ etapa }}&estado={{ estado }}" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
+<a href="/importar" class="btn btn-secondary" style="margin-left:8px">📥 Importar</a>
 {% endblock %}
 
 {% block content %}
+<style>
+.exp-table { width:100%; border-collapse:collapse; min-width:900px; font-size:13px; }
+.exp-table thead tr { background:#1B4F8A; }
+.exp-table th { color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:10px 10px; text-align:left; border-right:1px solid rgba(255,255,255,.15); white-space:nowrap; }
+.exp-table th:last-child { border-right:none; }
+.exp-table td { padding:8px 10px; border-bottom:1px solid #e9ecef; border-right:1px solid #e9ecef; vertical-align:middle; }
+.exp-table td:last-child { border-right:none; }
+.exp-table tbody tr:hover td { background:#f0f7ff; }
+.exp-table tbody tr:nth-child(even) td { background:#f8fafc; }
+.exp-table tbody tr:nth-child(even):hover td { background:#f0f7ff; }
+.semaforo { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:700; white-space:nowrap; }
+.sem-vigente  { background:#d1fae5; color:#065f46; }
+.sem-proximo  { background:#fef3c7; color:#92400e; }
+.sem-vencido  { background:#fee2e2; color:#991b1b; }
+.sem-sin-plazo{ background:#f1f5f9; color:#64748b; }
+</style>
 
-<!-- FILTROS -->
-<form method="get" action="/expedientes" class="filtros-card">
-    <!-- Fila 1: búsqueda + campos base -->
-    <div class="filtros-grid">
-        <div class="field-group" style="flex:2;min-width:220px">
-            <label>Buscar (N° exp., investigado, asunto, radicado, quejoso)</label>
-            <input type="text" name="q" value="{{ q }}" placeholder="Escriba para buscar…">
+<!-- Filtros -->
+<form method="get" action="/expedientes" style="margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Buscar</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Expediente, investigado, asunto, radicado..."
+                   class="form-control" style="font-size:13px">
         </div>
-        <div class="field-group">
-            <label>Año</label>
-            <select name="anio">
-                <option value="">Todos</option>
-                {% for a in anios %}
-                <option value="{{ a }}" {% if anio_filtro == a|string %}selected{% endif %}>{{ a }}</option>
+        <div style="min-width:120px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Abogado</label>
+            <select name="abogado" class="form-control" style="font-size:12px">
+                <option value="">— Todos —</option>
+                {% for a in abogados_list %}
+                <option value="{{ a }}" {% if a == abogado %}selected{% endif %}>{{ a }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="field-group">
-            <label>Etapa</label>
-            <select name="etapa">
-                <option value="">Todas</option>
+        <div style="min-width:80px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Año</label>
+            <select name="anio" class="form-control" style="font-size:13px">
+                <option value="">— Todos —</option>
+                {% for a in anios_list %}
+                <option value="{{ a }}" {% if a|string == anio %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:110px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Mes</label>
+            <select name="mes" class="form-control" style="font-size:13px">
+                <option value="">— Todos —</option>
+                {% for m in meses %}
+                <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:155px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Etapa</label>
+            <select name="etapa" class="form-control" style="font-size:12px">
+                <option value="">— Todas —</option>
                 {% for e in etapas %}
-                <option value="{{ e }}" {% if etapa_filtro == e %}selected{% endif %}>{{ e }}</option>
+                <option value="{{ e }}" {% if e == etapa %}selected{% endif %}>{{ e }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="field-group">
-            <label>Abogado</label>
-            <select name="abogado">
-                <option value="">Todos</option>
-                {% for ab in abogados %}
-                <option value="{{ ab }}" {% if abogado_filtro == ab %}selected{% endif %}>{{ ab }}</option>
+        <div style="min-width:155px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Estado</label>
+            <select name="estado" class="form-control" style="font-size:12px">
+                <option value="">— Todos —</option>
+                {% for e in estados %}
+                <option value="{{ e }}" {% if e == estado %}selected{% endif %}>{{ e }}</option>
                 {% endfor %}
             </select>
         </div>
-    </div>
-    <!-- Fila 2: filtros adicionales -->
-    <div class="filtros-grid" style="margin-top:8px">
-        <div class="field-group">
-            <label>Origen del proceso</label>
-            <select name="origen">
-                <option value="">Todos</option>
-                {% for o in origenes %}
-                <option value="{{ o }}" {% if origen_filtro == o %}selected{% endif %}>{{ o }}</option>
-                {% endfor %}
+        <div style="min-width:110px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Alerta</label>
+            <select name="alerta" class="form-control" style="font-size:12px">
+                <option value="">— Todas —</option>
+                <option value="vencido" {% if alerta=='vencido' %}selected{% endif %}>🔴 Vencidos</option>
+                <option value="proximo" {% if alerta=='proximo' %}selected{% endif %}>🟡 Próximos</option>
+                <option value="vigente"  {% if alerta=='vigente'  %}selected{% endif %}>🟢 Vigentes</option>
             </select>
         </div>
-        <div class="field-group">
-            <label>Alerta vencimiento</label>
-            <select name="alerta">
-                <option value="" {% if alerta_filtro == '' %}selected{% endif %}>Todos</option>
-                <option value="vencido"   {% if alerta_filtro == 'vencido' %}selected{% endif %}>🔴 Vencidos</option>
-                <option value="proximo30" {% if alerta_filtro == 'proximo30' %}selected{% endif %}>🟡 Vencen en 30 días</option>
-                <option value="proximo60" {% if alerta_filtro == 'proximo60' %}selected{% endif %}>🔵 Vencen en 31–60 días</option>
-            </select>
-        </div>
-        <div class="field-group">
-            <label>Radicado desde</label>
-            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
-        </div>
-        <div class="field-group">
-            <label>Radicado hasta</label>
-            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
-        </div>
-        <div class="field-group">
-            <label>Mostrar</label>
-            <select name="por_pagina" onchange="this.form.submit()">
-                <option value="25"  {% if por_pagina == 25 %}selected{% endif %}>25 por página</option>
-                <option value="50"  {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
-                <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
-                <option value="0"   {% if por_pagina == 0 %}selected{% endif %}>Todos</option>
-            </select>
-        </div>
-        <input type="hidden" name="orden" value="{{ orden }}">
-        <input type="hidden" name="dir_orden" value="{{ dir_orden }}">
-        <div class="filtros-actions">
-            <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
-            <a href="/expedientes" class="btn btn-outline">✖ Limpiar</a>
-            {% if total > 0 %}
-            <a href="/exportar-filtrado?{% if q %}q={{ q }}&{% endif %}{% if anio_filtro %}anio={{ anio_filtro }}&{% endif %}{% if etapa_filtro %}etapa={{ etapa_filtro }}&{% endif %}{% if abogado_filtro %}abogado={{ abogado_filtro }}&{% endif %}{% if origen_filtro %}origen={{ origen_filtro }}&{% endif %}{% if alerta_filtro == 'vencido' %}solo_vencidos=1{% elif alerta_filtro == 'proximo30' %}proximos_30=1{% elif alerta_filtro == 'proximo60' %}proximos_60=1{% endif %}" class="btn btn-outline">📥 Exportar filtro</a>
-            {% endif %}
+        <div style="display:flex;gap:8px;align-items:flex-end">
+            <button type="submit" class="btn btn-primary" style="height:36px">🔍 Filtrar</button>
+            <a href="/expedientes" class="btn btn-secondary" style="height:36px;display:flex;align-items:center">✕ Limpiar</a>
         </div>
     </div>
 </form>
 
-<!-- TABLA -->
-{% if expedientes %}
+<!-- Badges filtros activos -->
+{% if q or abogado or anio or mes or etapa or estado or alerta %}
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    {% if q %}<span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🔍 "{{ q }}"</span>{% endif %}
+    {% if abogado %}<span style="background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">👤 {{ abogado }}</span>{% endif %}
+    {% if anio %}<span style="background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">📅 {{ anio }}</span>{% endif %}
+    {% if mes %}<span style="background:#fef9c3;color:#854d0e;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🗓️ {{ mes }}</span>{% endif %}
+    {% if etapa %}<span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">⚖️ {{ etapa }}</span>{% endif %}
+    {% if estado %}<span style="background:#fce7f3;color:#9d174d;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">📌 {{ estado }}</span>{% endif %}
+    {% if alerta == 'vencido' %}<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🔴 Vencidos</span>{% endif %}
+    {% if alerta == 'proximo' %}<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🟡 Próximos</span>{% endif %}
+    {% if alerta == 'vigente'  %}<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">🟢 Vigentes</span>{% endif %}
+</div>
+{% endif %}
 
-{# Macro para construir URL de orden manteniendo otros filtros #}
-{% macro url_orden(col) %}/expedientes?q={{ q }}&anio={{ anio_filtro }}&etapa={{ etapa_filtro }}&abogado={{ abogado_filtro }}&origen={{ origen_filtro }}&alerta={{ alerta_filtro }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&por_pagina={{ por_pagina }}&orden={{ col }}&dir_orden={% if orden == col and dir_orden == 'asc' %}desc{% else %}asc{% endif %}&page=1{% endmacro %}
-
-{% macro flecha(col) %}{% if orden == col %}{% if dir_orden == 'asc' %} ↑{% else %} ↓{% endif %}{% else %} ⇅{% endif %}{% endmacro %}
-
-<div class="table-wrapper">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th><a href="{{ url_orden('exp') }}" class="sort-link">N° Exp.{{ flecha('exp') }}</a></th>
-                <th><a href="{{ url_orden('anio') }}" class="sort-link">Año{{ flecha('anio') }}</a></th>
-                <th><a href="{{ url_orden('investigado') }}" class="sort-link">Investigado{{ flecha('investigado') }}</a></th>
-                <th><a href="{{ url_orden('abogado') }}" class="sort-link">Abogado{{ flecha('abogado') }}</a></th>
-                <th><a href="{{ url_orden('etapa') }}" class="sort-link">Etapa{{ flecha('etapa') }}</a></th>
-                <th><a href="{{ url_orden('estado') }}" class="sort-link">Estado{{ flecha('estado') }}</a></th>
-                <th><a href="{{ url_orden('venc_ind') }}" class="sort-link">Venc. Ind.{{ flecha('venc_ind') }}</a></th>
-                <th><a href="{{ url_orden('venc_inv') }}" class="sort-link">Venc. Inv.{{ flecha('venc_inv') }}</a></th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for exp in expedientes %}
-            <tr>
-                <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
-                <td>{{ exp.anio }}</td>
-                <td class="td-texto">{{ exp.investigado or '—' }}</td>
-                <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
-                <td>
-                    {% if exp.etapa %}
-                    <span class="etapa-badge etapa-{{ exp.etapa | lower | replace(' ','_') | replace('á','a') | replace('é','e') | replace('ó','o') | replace('ú','u') | replace('ñ','n') | truncate(15, True, '') }}">
-                        {{ exp.etapa }}
-                    </span>
-                    {% else %}—{% endif %}
-                </td>
-                <td>{{ exp.estado_proceso or '—' }}</td>
-                <td>
-                    {% if exp.fecha_vencimiento_ind %}
-                    <span class="alerta-badge alerta-{{ exp.alerta_ind.clase }}">
-                        {{ exp.fecha_vencimiento_ind | fmt_fecha }}<br>
-                        <small>{{ exp.alerta_ind.texto }}</small>
-                    </span>
-                    {% else %}—{% endif %}
-                </td>
-                <td>
-                    {% if exp.fecha_vencimiento_inv %}
-                    <span class="alerta-badge alerta-{{ exp.alerta_inv.clase }}">
-                        {{ exp.fecha_vencimiento_inv | fmt_fecha }}<br>
-                        <small>{{ exp.alerta_inv.texto }}</small>
-                    </span>
-                    {% else %}—{% endif %}
-                </td>
-                <td class="td-acciones">
-                    <a href="/expediente/{{ exp.id }}" class="btn-sm btn-ver">👁 Ver</a>
-                    <a href="/expediente/{{ exp.id }}/editar" class="btn-sm btn-editar">✏️ Editar</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Contador -->
+<div style="font-size:13px;color:#6c757d;margin-bottom:10px">
+    <strong>{{ total }}</strong> expediente{{ 's' if total != 1 else '' }} encontrado{{ 's' if total != 1 else '' }}
+    {% if total > 0 %}· página {{ page }} de {{ total_pages }}{% endif %}
 </div>
 
-<!-- PAGINACIÓN -->
-{% if por_pagina > 0 and total_paginas > 1 %}
-{# URL base sin page ni dir_orden para reusar #}
-{% set url_base %}/expedientes?q={{ q }}&anio={{ anio_filtro }}&etapa={{ etapa_filtro }}&abogado={{ abogado_filtro }}&origen={{ origen_filtro }}&alerta={{ alerta_filtro }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&por_pagina={{ por_pagina }}&orden={{ orden }}&dir_orden={{ dir_orden }}{% endset %}
-<div class="pagination">
-    <span class="pag-info">
-        Mostrando {{ ((page-1)*por_pagina)+1 }}–{{ [page*por_pagina, total]|min }} de {{ total }}
-    </span>
-    <div class="pag-btns">
-        {% if page > 1 %}
-        <a href="{{ url_base }}&page=1" class="pag-btn">«</a>
-        <a href="{{ url_base }}&page={{ page - 1 }}" class="pag-btn">‹ Anterior</a>
-        {% else %}
-        <span class="pag-btn disabled">«</span>
-        <span class="pag-btn disabled">‹ Anterior</span>
-        {% endif %}
-
-        {% for p in range([1, page-2]|max, [total_paginas+1, page+3]|min) %}
-        <a href="{{ url_base }}&page={{ p }}" class="pag-btn {% if p == page %}active{% endif %}">{{ p }}</a>
-        {% endfor %}
-
-        {% if page < total_paginas %}
-        <a href="{{ url_base }}&page={{ page + 1 }}" class="pag-btn">Siguiente ›</a>
-        <a href="{{ url_base }}&page={{ total_paginas }}" class="pag-btn">»</a>
-        {% else %}
-        <span class="pag-btn disabled">Siguiente ›</span>
-        <span class="pag-btn disabled">»</span>
-        {% endif %}
-    </div>
+{% if rows %}
+<div style="overflow-x:auto;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+<table class="exp-table">
+    <thead>
+        <tr>
+            <th style="width:32px;text-align:center">#</th>
+            <th style="min-width:60px;text-align:center">N. EXP.</th>
+            <th style="min-width:55px;text-align:center">AÑO</th>
+            <th style="min-width:150px">ABOGADO</th>
+            <th style="min-width:220px">ASUNTO</th>
+            <th style="min-width:160px">INVESTIGADO</th>
+            <th style="min-width:140px;text-align:center">ETAPA ACTUAL</th>
+            <th style="min-width:130px;text-align:center">ESTADO</th>
+            <th style="min-width:96px;text-align:center">VENC. IND.</th>
+            <th style="min-width:96px;text-align:center">VENC. INV.</th>
+            <th style="min-width:96px;text-align:center">PRESCRIPCIÓN</th>
+            <th style="width:72px;text-align:center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td style="text-align:center;color:#9ca3af;font-size:11px">{{ loop.index + (page-1)*50 }}</td>
+        <td style="text-align:center;font-weight:800;color:#0d3060;font-size:15px">{{ r.n_expediente or '—' }}</td>
+        <td style="text-align:center;color:#374151">{{ r.anio or '—' }}</td>
+        <td style="font-size:12px;font-weight:600;color:#0d3060">{{ r.abogado_asignado or '—' }}</td>
+        <td style="font-size:12px;color:#1e293b;line-height:1.4">
+            {% if r.asunto %}{{ r.asunto[:80] }}{% if r.asunto|length > 80 %}…{% endif %}{% else %}—{% endif %}
+        </td>
+        <td style="font-size:12px;color:#374151">{{ r.nombre_investigado or '—' }}</td>
+        <td style="text-align:center">
+            {% if r.etapa_actual %}
+            <span style="background:#ede9fe;color:#5b21b6;padding:2px 7px;border-radius:9px;font-size:11px;font-weight:700">{{ r.etapa_actual }}</span>
+            {% else %}—{% endif %}
+        </td>
+        <td style="text-align:center;font-size:11px;font-weight:600;color:#374151">
+            {% if r.estado_proceso %}{{ r.estado_proceso[:22] }}{% if r.estado_proceso|length > 22 %}…{% endif %}{% else %}—{% endif %}
+        </td>
+        <td style="text-align:center">
+            {% set a = r.alerta_ind %}
+            {% if a.dias is not none %}
+            <span class="semaforo sem-{{ a.clase }}" title="{{ a.texto }}">
+                {% if a.clase == 'vencido' %}🔴{% elif a.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+                {{ a.dias }}d
+            </span>
+            {% else %}<span class="semaforo sem-sin-plazo">—</span>{% endif %}
+        </td>
+        <td style="text-align:center">
+            {% set a = r.alerta_inv %}
+            {% if a.dias is not none %}
+            <span class="semaforo sem-{{ a.clase }}" title="{{ a.texto }}">
+                {% if a.clase == 'vencido' %}🔴{% elif a.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+                {{ a.dias }}d
+            </span>
+            {% else %}<span class="semaforo sem-sin-plazo">—</span>{% endif %}
+        </td>
+        <td style="text-align:center">
+            {% set a = r.alerta_prescripcion %}
+            {% if a.dias is not none %}
+            <span class="semaforo sem-{{ a.clase }}" title="{{ a.texto }}">
+                {% if a.clase == 'vencido' %}🔴{% elif a.clase == 'proximo' %}🟡{% else %}🟢{% endif %}
+                {{ a.dias }}d
+            </span>
+            {% else %}<span class="semaforo sem-sin-plazo">—</span>{% endif %}
+        </td>
+        <td style="text-align:center;white-space:nowrap">
+            <a href="/expediente/{{ r.id }}" title="Ver detalle" style="color:#1B4F8A;margin-right:4px;font-size:16px">👁️</a>
+            <a href="/expediente/{{ r.id }}/editar" title="Editar" style="color:#d97706;font-size:16px">✏️</a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
 </div>
-{% elif por_pagina == 0 %}
-<div class="pagination">
-    <span class="pag-info">Mostrando todos: {{ total }} expedientes</span>
+
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div style="display:flex;justify-content:center;gap:6px;margin-top:20px;flex-wrap:wrap">
+    {% if page > 1 %}
+    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&etapa={{ etapa }}&estado={{ estado }}&alerta={{ alerta }}&page={{ page-1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">‹ Anterior</a>
+    {% endif %}
+    {% for p in range(1, total_pages+1) %}
+        {% if p == page %}
+        <span class="btn btn-primary" style="font-size:12px;padding:5px 12px">{{ p }}</span>
+        {% elif p <= 3 or p >= total_pages-2 or (p >= page-2 and p <= page+2) %}
+        <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&etapa={{ etapa }}&estado={{ estado }}&alerta={{ alerta }}&page={{ p }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">{{ p }}</a>
+        {% elif p == 4 or p == total_pages-3 %}
+        <span style="padding:5px 4px;color:#6c757d">…</span>
+        {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&etapa={{ etapa }}&estado={{ estado }}&alerta={{ alerta }}&page={{ page+1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">Siguiente ›</a>
+    {% endif %}
 </div>
 {% endif %}
 
 {% else %}
-<div class="empty-state">
-    <div class="empty-icon">📂</div>
-    <h3>No hay expedientes</h3>
-    {% if q or anio_filtro or etapa_filtro or abogado_filtro or origen_filtro or alerta_filtro %}
-    <p>No se encontraron resultados con los filtros aplicados.</p>
-    <a href="/expedientes" class="btn btn-outline">Ver todos</a>
-    {% else %}
-    <p>Aún no hay expedientes registrados.</p>
-    <a href="/expediente/nuevo" class="btn btn-primary">➕ Crear el primero</a>
-    <span class="separator"> o </span>
-    <a href="/importar" class="btn btn-outline">📥 Importar desde Excel</a>
-    {% endif %}
+<div style="text-align:center;padding:60px 20px;color:#9ca3af">
+    <div style="font-size:48px;margin-bottom:12px">📁</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px">Sin expedientes</div>
+    <div style="font-size:13px">
+        {% if q or abogado or anio or mes or etapa or estado or alerta %}
+        No se encontraron expedientes con los filtros aplicados. <a href="/expedientes">Ver todos</a>
+        {% else %}
+        Aún no hay expedientes registrados. <a href="/expediente/nuevo">Crear el primero</a> o <a href="/importar">importar desde Excel</a>.
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 

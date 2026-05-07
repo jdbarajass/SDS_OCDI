@@ -115,6 +115,8 @@ a:hover { text-decoration: underline; }
 }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-dark); color: #fff; text-decoration: none; }
+.btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: #f3f4f6; color: #111827; text-decoration: none; }
 .btn-outline { background: #fff; color: var(--primary); border: 1px solid var(--border); }
 .btn-outline:hover { background: var(--primary-bg); text-decoration: none; }
 .btn-danger { background: var(--danger); color: #fff; }

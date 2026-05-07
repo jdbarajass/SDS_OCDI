@@ -99,7 +99,7 @@
         {% if not permisos or permisos.get('expedientes', {}).get('puede_ver', True) %}
         <a href="/dashboard" class="portal-tile">
             <div class="tile-ico">📁</div>
-            <div class="tile-title">Base Expedientes<br>2023U – Original</div>
+            <div class="tile-title">Base Expedientes</div>
             <div class="tile-desc">Gestión completa de expedientes disciplinarios: seguimiento de etapas, vencimientos, control de autos, importar/exportar Excel.</div>
             {% if total_base > 0 %}
             <span class="tile-stat">📊 {{ total_base }} expedientes registrados</span>

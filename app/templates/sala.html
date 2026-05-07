@@ -64,7 +64,11 @@
                  data-evento="{{ ev | tojson | forceescape }}"
                  onclick="abrirDetalle(this)"
                  title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}">
+              {% if ev.franja == 'TODO EL DÍA' %}
+              <span class="sala-franja-hora">🌐</span>
+              {% else %}
               <span class="sala-franja-hora">{{ ev.franja[:5] }}</span>
+              {% endif %}
               <span class="sala-franja-label">{{ ev.titulo or ev.estado }}</span>
             </div>
             {% endfor %}

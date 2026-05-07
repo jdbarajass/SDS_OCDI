@@ -8,42 +8,68 @@
 
 {% block content %}
 
-<div class="card" style="max-width:540px">
+{% set es_todo_el_dia = (ev.franja == TODO_EL_DIA) %}
+
+<div class="card" style="max-width:560px">
   <form method="post"
         action="{% if modo == 'nuevo' %}/sala/evento/nuevo{% else %}/sala/evento/{{ ev.id }}/editar{% endif %}">
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
-      <div class="form-group">
+      <!-- Fecha -->
+      <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Fecha *</label>
         <input type="date" name="fecha" class="form-input" value="{{ ev.fecha or '' }}" required>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Hora Inicio *</label>
-        <input type="time" name="hora_inicio" class="form-input"
-               value="{{ ev.hora_inicio or '' }}" required>
+      <!-- Toggle Todo el día -->
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="chk_todo_dia" name="todo_el_dia" value="1"
+                 {% if es_todo_el_dia %}checked{% endif %}
+                 style="width:18px;height:18px;cursor:pointer;accent-color:var(--primary)">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">Todo el día</span>
+          <span style="font-size:12px;color:var(--text-muted)">(sin franja horaria específica)</span>
+        </label>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Hora Fin *</label>
-        <input type="time" name="hora_fin" class="form-input"
-               value="{{ ev.hora_fin or '' }}" required>
+      <!-- Franjas horarias (ocultas si Todo el día) -->
+      <div id="bloque-horas" style="display:{% if es_todo_el_dia %}none{% else %}contents{% endif %}">
+        <div class="form-group">
+          <label class="form-label">Hora Inicio *</label>
+          <input type="time" id="inp_hora_inicio" name="hora_inicio" class="form-input"
+                 value="{{ ev.hora_inicio or '' }}"
+                 {% if not es_todo_el_dia %}required{% endif %}>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora Fin *</label>
+          <input type="time" id="inp_hora_fin" name="hora_fin" class="form-input"
+                 value="{{ ev.hora_fin or '' }}"
+                 {% if not es_todo_el_dia %}required{% endif %}>
+        </div>
       </div>
 
       <input type="hidden" name="estado" value="Ocupado">
 
+      <!-- Título -->
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Título / Referencia</label>
         <input type="text" name="titulo" class="form-input"
                value="{{ ev.titulo or '' }}" placeholder="Ej: Audiencia disciplinaria Exp. 046">
       </div>
 
-      <div class="form-group">
+      <!-- Responsable -->
+      <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Responsable</label>
-        <input type="text" name="responsable" class="form-input" value="{{ ev.responsable or '' }}">
+        <select name="responsable" class="form-input">
+          <option value="">— Sin asignar —</option>
+          {% for p in personal %}
+          <option value="{{ p }}" {% if ev.responsable == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
       </div>
 
+      <!-- Descripción -->
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Descripción / Notas</label>
         <textarea name="descripcion" class="form-textarea" rows="3"
@@ -66,4 +92,30 @@
   </form>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var chk    = document.getElementById('chk_todo_dia');
+    var bloque = document.getElementById('bloque-horas');
+    var hi     = document.getElementById('inp_hora_inicio');
+    var hf     = document.getElementById('inp_hora_fin');
+
+    function actualizar() {
+        if (chk.checked) {
+            bloque.style.display = 'none';
+            if (hi) { hi.required = false; hi.value = ''; }
+            if (hf) { hf.required = false; hf.value = ''; }
+        } else {
+            bloque.style.display = 'contents';
+            if (hi) hi.required = true;
+            if (hf) hf.required = true;
+        }
+    }
+
+    chk.addEventListener('change', actualizar);
+    actualizar();
+})();
+</script>
 {% endblock %}

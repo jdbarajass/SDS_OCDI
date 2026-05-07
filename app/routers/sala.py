@@ -15,9 +15,28 @@ templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 ESTADOS = ["Ocupado"]
 
+PERSONAL_OFICINA = [
+    "ANDRES EDUARDO SANDOVAL MAYORGA",
+    "CARLOS ALFONSO PARRA MALAVER",
+    "CESAR IVAN RODRIGUEZ DAMIAN",
+    "DAVID FELIPE MORALES NOGUERA",
+    "JANIK HERNANDO DE LA HOZ RIOS",
+    "JOSE DE JESUS BARAJAS SOTELO",
+    "LUNA GICELL GUZMAN YATE",
+    "MABEL GICELLA HURTADO SANCHEZ",
+    "MAGDA XIMENA PAREDES LIEVANO",
+    "MARA LUCIA UCROS MERLANO",
+    "MARTHA PATRICIA AÑEZ MAESTRE",
+    "RODOLFO CARRILLO QUINTERO",
+]
+
+TODO_EL_DIA = "TODO EL DÍA"
+
 
 def _parse_franja(franja: str) -> tuple[str, str]:
-    """Extrae hora_inicio y hora_fin de una cadena 'HH:MM-HH:MM'."""
+    """Extrae hora_inicio y hora_fin de una cadena 'HH:MM-HH:MM'. Devuelve vacío para TODO EL DÍA."""
+    if franja == TODO_EL_DIA:
+        return "", ""
     if franja and len(franja) >= 11 and franja[5] == "-":
         return franja[:5], franja[6:]
     return "", ""
@@ -121,6 +140,8 @@ async def evento_nuevo_form(
         active="sala",
         ev={"fecha": fecha, "franja": franja, "hora_inicio": hora_inicio, "hora_fin": hora_fin},
         estados=ESTADOS, modo="nuevo",
+        personal=PERSONAL_OFICINA,
+        TODO_EL_DIA=TODO_EL_DIA,
     ))
 
 
@@ -128,8 +149,9 @@ async def evento_nuevo_form(
 async def evento_nuevo_post(
     request: Request,
     fecha: str = Form(...),
-    hora_inicio: str = Form(...),
-    hora_fin: str = Form(...),
+    hora_inicio: str = Form(""),
+    hora_fin: str = Form(""),
+    todo_el_dia: str = Form(""),
     titulo: str = Form(""),
     descripcion: str = Form(""),
     estado: str = Form("Ocupado"),
@@ -138,7 +160,7 @@ async def evento_nuevo_post(
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
-    franja = f"{hora_inicio}-{hora_fin}"
+    franja = TODO_EL_DIA if todo_el_dia else f"{hora_inicio}-{hora_fin}"
     conn = get_db()
     conn.execute("""
         INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable)
@@ -167,6 +189,8 @@ async def evento_editar_form(request: Request, ev_id: int):
     ev_dict["hora_inicio"], ev_dict["hora_fin"] = _parse_franja(ev_dict.get("franja", ""))
     return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
         active="sala", ev=ev_dict, estados=ESTADOS, modo="editar",
+        personal=PERSONAL_OFICINA,
+        TODO_EL_DIA=TODO_EL_DIA,
     ))
 
 
@@ -175,8 +199,9 @@ async def evento_editar_post(
     request: Request,
     ev_id: int,
     fecha: str = Form(...),
-    hora_inicio: str = Form(...),
-    hora_fin: str = Form(...),
+    hora_inicio: str = Form(""),
+    hora_fin: str = Form(""),
+    todo_el_dia: str = Form(""),
     titulo: str = Form(""),
     descripcion: str = Form(""),
     estado: str = Form("Ocupado"),
@@ -185,7 +210,7 @@ async def evento_editar_post(
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
-    franja = f"{hora_inicio}-{hora_fin}"
+    franja = TODO_EL_DIA if todo_el_dia else f"{hora_inicio}-{hora_fin}"
     conn = get_db()
     conn.execute("""
         UPDATE sala_agenda SET fecha=?, franja=?, titulo=?, descripcion=?, estado=?, responsable=?

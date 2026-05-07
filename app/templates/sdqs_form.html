@@ -53,11 +53,11 @@
             </div>
 
             <div>
-                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA RADICADO <span style="color:#dc3545">*</span></label>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA ASIGNACIÓN <span style="color:#dc3545">*</span></label>
                 {% if es_ver %}
-                <div class="form-val">{{ registro.fecha_radicado or '—' }}</div>
+                <div class="form-val">{{ registro.fecha_asignacion or '—' }}</div>
                 {% else %}
-                <input type="date" name="fecha_radicado" class="form-control" value="{{ registro.fecha_radicado or '' }}" required>
+                <input type="date" name="fecha_asignacion" class="form-control" value="{{ registro.fecha_asignacion or '' }}" required>
                 {% endif %}
             </div>
 
@@ -68,6 +68,30 @@
                 {% else %}
                 <input type="text" name="sdqs" class="form-control" value="{{ registro.sdqs or '' }}" placeholder="Número SDQS" required>
                 {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA VENCIMIENTO</label>
+                {% if es_ver %}
+                <div class="form-val">{{ registro.fecha_vencimiento or '—' }}</div>
+                {% else %}
+                <input type="date" name="fecha_vencimiento" class="form-control" value="{{ registro.fecha_vencimiento or '' }}">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">ESTADO DÍAS</label>
+                <div class="form-val">
+                {% if registro.semaforo_sdqs == 'verde' %}
+                    <span style="background:#d4edda;color:#155724;padding:3px 12px;border-radius:14px;font-weight:700">🟢 {{ registro.estado_dias }} días</span>
+                {% elif registro.semaforo_sdqs == 'amarillo' %}
+                    <span style="background:#fff3cd;color:#856404;padding:3px 12px;border-radius:14px;font-weight:700">🟡 {{ registro.estado_dias }} días</span>
+                {% elif registro.semaforo_sdqs == 'rojo' %}
+                    <span style="background:#f8d7da;color:#721c24;padding:3px 12px;border-radius:14px;font-weight:700">🔴 {{ registro.estado_dias }} días</span>
+                {% else %}
+                    <span style="color:#aaa;font-size:12px">Sin fecha de vencimiento</span>
+                {% endif %}
+                </div>
             </div>
 
             <div>

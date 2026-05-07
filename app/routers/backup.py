@@ -595,6 +595,29 @@ async def backup_zip():
             ml = max((len(str(c.value or "")) for c in col), default=10)
             ws.column_dimensions[col[0].column_letter].width = min(ml + 4, 40)
         ws.freeze_panes = "A2"
+
+        # Hoja 2: Seguimiento Mensual (pertenece a Base Expedientes)
+        ws_seg = wb.create_sheet("Seguimiento Mensual")
+        fill_seg = PatternFill("solid", fgColor="0D3060")
+        seg_headers = ["AÑO", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
+        for ci, h in enumerate(seg_headers, 1):
+            cell = ws_seg.cell(row=1, column=ci, value=h)
+            cell.fill = fill_seg; cell.font = h_font; cell.alignment = center
+        ws_seg.row_dimensions[1].height = 30
+        for ri, row in enumerate(seg_rows, 2):
+            d = dict(row)
+            rf = alt_fill if ri % 2 == 0 else None
+            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
+                    d.get("abogado_asignado"), d.get("descripcion"),
+                    d.get("created_by"), d.get("created_at")]
+            for ci, v in enumerate(vals, 1):
+                cell = ws_seg.cell(row=ri, column=ci, value=v)
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 5))
+                if rf: cell.fill = rf
+        for i, w in enumerate([10, 14, 16, 28, 60, 24, 20], 1):
+            ws_seg.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws_seg.freeze_panes = "A2"
+
         buf = io.BytesIO(); wb.save(buf); buf.seek(0)
         return buf
 
@@ -627,33 +650,6 @@ async def backup_zip():
                 cell.alignment = Alignment(vertical="center", wrap_text=(ci == 6))
                 if rf: cell.fill = rf
         col_widths = [10, 14, 14, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
-        for i, w in enumerate(col_widths, 1):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-        ws.freeze_panes = "A2"
-        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
-        return buf
-
-    def make_wb_seguimiento() -> io.BytesIO:
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Seguimiento Mensual"
-        fill = PatternFill("solid", fgColor="0D3060")
-        headers = ["AÑO SEG.", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
-        for ci, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=ci, value=h)
-            cell.fill = fill; cell.font = h_font; cell.alignment = center
-        ws.row_dimensions[1].height = 30
-        for ri, row in enumerate(seg_rows, 2):
-            d = dict(row)
-            rf = alt_fill if ri % 2 == 0 else None
-            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
-                    d.get("abogado_asignado"), d.get("descripcion"),
-                    d.get("created_by"), d.get("created_at")]
-            for ci, v in enumerate(vals, 1):
-                cell = ws.cell(row=ri, column=ci, value=v)
-                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 5))
-                if rf: cell.fill = rf
-        col_widths = [10, 14, 16, 28, 60, 24, 20]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"
@@ -818,12 +814,12 @@ async def backup_zip():
             make_wb_base().read(),
         )
         zf.writestr(
-            f"OCDI/02_Seguimiento_Mensual/Seguimiento_Mensual_{hoy}.xlsx",
-            make_wb_seguimiento().read(),
+            f"OCDI/02_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
+            make_wb_correspondencia().read(),
         )
         zf.writestr(
-            f"OCDI/03_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
-            make_wb_correspondencia().read(),
+            f"OCDI/03_Control_Autos_Sustanciacion/SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx",
+            make_wb_control_autos().read(),
         )
         zf.writestr(
             f"OCDI/04_SDQS/SDQS_{hoy}.xlsx",
@@ -836,10 +832,6 @@ async def backup_zip():
         zf.writestr(
             f"OCDI/06_Sala_Audiencias/Sala_Audiencias_{hoy}.xlsx",
             make_wb_sala().read(),
-        )
-        zf.writestr(
-            f"OCDI/07_Control_Autos_Sustanciacion/SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx",
-            make_wb_control_autos().read(),
         )
     zip_buf.seek(0)
 

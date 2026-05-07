@@ -3,7 +3,7 @@
 {% block heading %}Seguimiento Mensual {{ anio_sel }}{% endblock %}
 
 {% block header_actions %}
-<a href="/seguimiento/exportar?anio={{ anio_sel }}" class="btn btn-outline">📤 Exportar</a>
+<a href="/seguimiento/exportar?anio={{ anio_sel }}&abogado={{ abogado_sel | urlencode }}&q={{ q | urlencode }}" class="btn btn-outline">📤 Exportar Excel</a>
 {% endblock %}
 
 {% block content %}
@@ -14,6 +14,7 @@
         <div class="field-group">
             <label>Año</label>
             <select name="anio">
+                <option value="0" {% if anio_sel == 0 %}selected{% endif %}>— Todos los años —</option>
                 {% for a in anios %}
                 <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
                 {% endfor %}

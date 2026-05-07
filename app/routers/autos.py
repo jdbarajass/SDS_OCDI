@@ -15,12 +15,11 @@ MESES_ORD = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
 
 # Tipos de auto y el campo de fecha correspondiente en la BD
 TIPOS_AUTO = [
-    ("APERTURA INDAGACIÓN PREVIA",    "fecha_auto_apertura_ind"),
-    ("TRASLADO INDAGACIÓN PREVIA",    "fecha_auto_traslado_ind"),
-    ("ARCHIVO INDAGACIÓN PREVIA",     "fecha_auto_archivo_ind"),
-    ("APERTURA INVESTIGACIÓN DISC.",  "fecha_auto_apertura_inv"),
-    ("TRASLADO INVESTIGACIÓN DISC.",  "fecha_auto_traslado_inv"),
-    ("ARCHIVO INVESTIGACIÓN DISC.",   "fecha_auto_archivo_inv"),
+    ("APERTURA INDAGACIÓN PREVIA",   "fecha_auto_apertura_ind"),
+    ("APERTURA INVESTIGACIÓN DISC.", "fecha_apertura_investigacion"),
+    ("TRASLADO",                     "fecha_auto_traslado"),
+    ("ARCHIVO",                      "fecha_auto_archivo"),
+    ("PLIEGO DE CARGOS",             "fecha_auto_pliego_cargos"),
 ]
 
 
@@ -52,7 +51,7 @@ async def control_autos(request: Request, anio: str = ""):
     for tipo, campo_fecha in TIPOS_AUTO:
         tabla[tipo] = {m: 0 for m in MESES_ORD}
         filas = conn.execute(
-            f"SELECT {campo_fecha}, nombre_abogado FROM expedientes "
+            f"SELECT {campo_fecha}, abogado_asignado FROM expedientes "
             f"WHERE {campo_fecha} IS NOT NULL AND {campo_fecha} LIKE '{anio_sel}-%'"
         ).fetchall()
         for fila in filas:
@@ -104,7 +103,7 @@ async def exportar_autos(request: Request, anio: str = ""):
     for tipo, campo_fecha in TIPOS_AUTO:
         tabla[tipo] = {m: 0 for m in MESES_ORD}
         filas = conn.execute(
-            f"SELECT {campo_fecha}, nombre_abogado FROM expedientes "
+            f"SELECT {campo_fecha}, abogado_asignado FROM expedientes "
             f"WHERE {campo_fecha} IS NOT NULL AND {campo_fecha} LIKE '{anio_sel}-%'"
         ).fetchall()
         for fila in filas:

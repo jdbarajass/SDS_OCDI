@@ -137,11 +137,8 @@ async def importar_form(request: Request, msg: str = ""):
 @router.post("/importar/limpiar-bd")
 async def limpiar_base_datos():
     conn = get_db()
-    conn.execute("DELETE FROM actuaciones")
-    conn.execute("DELETE FROM escaneos")
     conn.execute("DELETE FROM expedientes")
-    # Resetear los autoincrement para que los IDs empiecen desde 1
-    conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('expedientes','escaneos','actuaciones')")
+    conn.execute("DELETE FROM sqlite_sequence WHERE name = 'expedientes'")
     conn.commit()
     conn.close()
     return RedirectResponse("/importar?msg=bd_limpiada", status_code=303)

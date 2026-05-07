@@ -17,22 +17,20 @@
     <div class="import-info card">
         <h3>📋 Instrucciones</h3>
         <ol>
-            <li>Seleccione el archivo Excel (<code>.xlsx</code>) con los expedientes.</li>
-            <li>El sistema buscará la hoja <strong>ENCABEZADO</strong>. Si no existe, usará la primera hoja.</li>
+            <li>Seleccione el archivo Excel (<code>.xlsx</code>) exportado desde el sistema.</li>
+            <li>El sistema buscará la hoja <strong>Base Expedientes</strong>.</li>
             <li>La primera fila del archivo se toma como encabezado y se omite.</li>
-            <li>Los expedientes con el mismo <strong>N° Expediente + Año</strong> ya existentes <em>se omiten</em> para no duplicar datos.</li>
-            <li>Puede repetir la importación con el mismo archivo sin problemas.</li>
+            <li>La importación <strong>reemplaza</strong> todos los registros actuales con los del archivo.</li>
         </ol>
 
         <div class="info-box">
-            <strong>⚠️ Nota:</strong> Las columnas de "Alertas de vencimiento" (calculadas en Excel) no se importan.
-            El sistema las calcula automáticamente.
+            <strong>⚠️ Nota:</strong> Las columnas calculadas (vencimientos, prescripción) no están en el Excel
+            y el sistema las recalcula automáticamente al abrir cada expediente.
         </div>
 
         <div class="info-box info-box-tip" style="margin-top:10px; border-left-color:#e67e22; background:#fff8f0">
-            <strong>💡 ¿Actualizó el Excel?</strong> Si el Excel ya fue modificado y quiere que la BD refleje
-            esos cambios, primero <strong>borre la base de datos</strong> y luego importe el Excel nuevo.
-            El sistema no actualiza registros ya existentes, solo agrega los que no existen.
+            <strong>💡 Flujo recomendado:</strong> Exporte el Excel desde "Exportar Personalizado", haga los
+            cambios en Excel y luego importe de vuelta. Los datos anteriores serán reemplazados.
         </div>
     </div>
 
@@ -85,7 +83,7 @@
 
         {% if resultado.insertados > 0 %}
         <div class="result-actions">
-            <a href="/" class="btn btn-primary">📋 Ver Expedientes</a>
+            <a href="/expedientes" class="btn btn-primary">📋 Ver Expedientes</a>
         </div>
         {% endif %}
     </div>
@@ -97,7 +95,7 @@
         <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap">
             <div style="flex:1; min-width:220px">
                 <p style="margin:0 0 6px 0; color:#555">
-                    Elimina <strong>todos</strong> los expedientes, escaneos y actuaciones registradas.
+                    Elimina <strong>todos</strong> los expedientes registrados.
                     Esta acción <strong>no se puede deshacer</strong>.
                 </p>
                 <p style="margin:0; font-size:13px; color:#888">

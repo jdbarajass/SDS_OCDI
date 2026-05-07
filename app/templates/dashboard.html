@@ -99,32 +99,11 @@
 
 </div>
 
-<!-- ── ORIGEN Y TIPOLOGÍA ────────────────────────────── -->
+<!-- ── TIPOLOGÍA ─────────────────────────────────────── -->
+{% if por_tipologia %}
 <div class="dash-stats-row" style="margin-bottom:16px">
-
-    <!-- Por origen -->
-    <div class="dash-stat-card card">
-        <h3 class="stat-card-title">Por Origen del Proceso</h3>
-        {% if por_origen %}
-        {% set max_origen = por_origen[0].cantidad %}
-        {% for item in por_origen %}
-        <div class="bar-item">
-            <span class="bar-label" title="{{ item.origen }}">{{ item.origen | truncate(28) }}</span>
-            <div class="bar-track">
-                <div class="bar-fill bar-orange" style="width: {{ (item.cantidad / max_origen * 100) | int }}%"></div>
-            </div>
-            <span class="bar-count">{{ item.cantidad }}</span>
-        </div>
-        {% endfor %}
-        {% else %}
-        <p style="color:var(--text-muted);font-size:12px">Sin datos de origen registrados</p>
-        {% endif %}
-    </div>
-
-    <!-- Por tipología -->
     <div class="dash-stat-card card">
         <h3 class="stat-card-title">Top Tipologías</h3>
-        {% if por_tipologia %}
         {% set max_tip = por_tipologia[0].cantidad %}
         {% for item in por_tipologia %}
         <div class="bar-item">
@@ -135,12 +114,9 @@
             <span class="bar-count">{{ item.cantidad }}</span>
         </div>
         {% endfor %}
-        {% else %}
-        <p style="color:var(--text-muted);font-size:12px">Sin datos de tipología registrados</p>
-        {% endif %}
     </div>
-
 </div>
+{% endif %}
 
 <!-- ── TENDENCIA MENSUAL ───────────────────────────── -->
 {% if tendencia %}
@@ -173,7 +149,7 @@
                 <div class="abogado-bar-fill"
                      style="width: {{ (item.cantidad / por_abogado[0].cantidad * 100) | int }}%"></div>
             </div>
-            <a href="/?abogado={{ item.abogado | urlencode }}" class="abogado-link">Ver →</a>
+            <a href="/expedientes?abogado={{ item.abogado | urlencode }}" class="abogado-link">Ver →</a>
         </div>
         {% endfor %}
     </div>
@@ -202,9 +178,9 @@
                 <tr>
                     <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
                     <td>{{ exp.anio }}</td>
-                    <td class="td-texto">{{ exp.investigado or '—' }}</td>
-                    <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
-                    <td><span class="etapa-badge">{{ exp.etapa or '—' }}</span></td>
+                    <td class="td-texto">{{ exp.nombre_investigado or '—' }}</td>
+                    <td class="td-texto">{{ exp.abogado_asignado or '—' }}</td>
+                    <td><span class="etapa-badge">{{ exp.etapa_actual or '—' }}</span></td>
                     <td>
                         {% if exp.fecha_vencimiento_ind %}
                         <span class="alerta-badge alerta-{{ exp.alerta_ind.clase }}">
@@ -245,8 +221,8 @@
                 <tr>
                     <td class="exp-num"><strong>{{ exp.n_expediente }}</strong></td>
                     <td>{{ exp.anio }}</td>
-                    <td class="td-texto">{{ exp.investigado or '—' }}</td>
-                    <td class="td-texto">{{ exp.nombre_abogado or '—' }}</td>
+                    <td class="td-texto">{{ exp.nombre_investigado or '—' }}</td>
+                    <td class="td-texto">{{ exp.abogado_asignado or '—' }}</td>
                     <td>{{ exp.estado_proceso or '—' }}</td>
                     <td style="font-size:11px; color:var(--text-muted)">{{ exp.created_at or '—' }}</td>
                     <td><a href="/expediente/{{ exp.id }}" class="btn-sm btn-ver">👁 Ver</a></td>

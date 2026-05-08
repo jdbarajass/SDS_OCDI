@@ -5,7 +5,7 @@ from app.template_utils import make_templates
 from datetime import date, datetime
 import io
 
-from app.database import get_db, row_to_dict
+from app.database import get_db, row_to_dict, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "sdqs"
@@ -158,11 +158,14 @@ async def lista(
 
 @router.get("/nuevo", response_class=HTMLResponse)
 async def nuevo_get(request: Request):
+    conn = get_db()
+    abogados = get_personal_oficina(conn)
+    conn.close()
     return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
         modo="nuevo",
         registro={},
         meses=MESES,
-        abogados=ABOGADOS,
+        abogados=abogados,
         estados=ESTADOS_PROCESO,
     ))
 
@@ -365,6 +368,7 @@ async def limpiar(request: Request):
 async def ver(request: Request, id: int):
     conn = get_db()
     row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
+    abogados = get_personal_oficina(conn)
     conn.close()
     if not row:
         return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
@@ -373,7 +377,7 @@ async def ver(request: Request, id: int):
         modo="ver",
         registro=registro,
         meses=MESES,
-        abogados=ABOGADOS,
+        abogados=abogados,
         estados=ESTADOS_PROCESO,
     ))
 
@@ -384,6 +388,7 @@ async def ver(request: Request, id: int):
 async def editar_get(request: Request, id: int):
     conn = get_db()
     row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
+    abogados = get_personal_oficina(conn)
     conn.close()
     if not row:
         return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
@@ -391,7 +396,7 @@ async def editar_get(request: Request, id: int):
         modo="editar",
         registro=row_to_dict(row),
         meses=MESES,
-        abogados=ABOGADOS,
+        abogados=abogados,
         estados=ESTADOS_PROCESO,
     ))
 

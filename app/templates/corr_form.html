@@ -149,14 +149,16 @@
         <input type="date" name="fecha_radicado_salida" value="{{ reg.fecha_radicado_salida[:10] if reg.fecha_radicado_salida else '' }}">
       </div>
       <div class="field-group">
-        <label>Tipo de Respuesta <span style="font-size:11px;color:var(--text-muted)">(seleccione o escriba)</span></label>
-        <input type="text" name="tipo_respuesta" list="tipos-respuesta-list"
-               value="{{ reg.tipo_respuesta or '' }}" placeholder="Seleccione o escriba...">
-        <datalist id="tipos-respuesta-list">
+        <label>Tipo de Respuesta</label>
+        <select name="tipo_respuesta">
+          <option value="">-- Seleccione --</option>
           {% for t in tipos_respuesta %}
-          <option value="{{ t }}">
+          <option value="{{ t }}" {% if reg.tipo_respuesta == t %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
-        </datalist>
+          {% if reg.tipo_respuesta and reg.tipo_respuesta not in tipos_respuesta %}
+          <option value="{{ reg.tipo_respuesta }}" selected>{{ reg.tipo_respuesta }}</option>
+          {% endif %}
+        </select>
       </div>
       <div class="field-group field-full">
         <label>Observaciones</label>

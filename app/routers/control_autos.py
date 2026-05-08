@@ -5,7 +5,7 @@ from app.template_utils import make_templates
 from datetime import date, datetime
 import io
 
-from app.database import get_db
+from app.database import get_db, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "control_autos"
@@ -131,6 +131,7 @@ async def ca_lista(
     anios = conn.execute(
         "SELECT DISTINCT strftime('%Y', fecha_auto) AS a FROM control_autos_sustanciacion WHERE fecha_auto IS NOT NULL ORDER BY a DESC"
     ).fetchall()
+    abogados = get_personal_oficina(conn)
     conn.close()
 
     total_pages = max(1, (total + POR_PAGINA - 1) // POR_PAGINA)
@@ -138,7 +139,7 @@ async def ca_lista(
         rows=[dict(r) for r in rows], total=total, page=page,
         total_pages=total_pages, q=q, abogado=abogado, anio=anio, mes=mes,
         asunto_auto=asunto_auto, tipo_contrato=tipo_contrato,
-        abogados=ABOGADOS_RESPONSABLES, asuntos=ASUNTOS_COMUNES,
+        abogados=abogados, asuntos=ASUNTOS_COMUNES,
         anios=[r[0] for r in anios if r[0]],
         msg=msg, active="ca_lista",
     ))
@@ -151,8 +152,11 @@ async def ca_nuevo_form(request: Request):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    abogados = get_personal_oficina(conn)
+    conn.close()
     return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
-        reg=None, abogados=ABOGADOS_RESPONSABLES,
+        reg=None, abogados=abogados,
         asuntos=ASUNTOS_COMUNES, active="ca_nuevo",
     ))
 
@@ -438,11 +442,12 @@ async def ca_editar_form(request: Request, reg_id: int):
     reg = conn.execute(
         "SELECT * FROM control_autos_sustanciacion WHERE id = ?", (reg_id,)
     ).fetchone()
+    abogados = get_personal_oficina(conn)
     conn.close()
     if not reg:
         return RedirectResponse("/control-autos/?msg=no_encontrado")
     return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
-        reg=dict(reg), abogados=ABOGADOS_RESPONSABLES,
+        reg=dict(reg), abogados=abogados,
         asuntos=ASUNTOS_COMUNES, active="ca_lista",
     ))
 

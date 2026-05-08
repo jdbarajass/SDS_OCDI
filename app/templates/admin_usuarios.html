@@ -118,6 +118,61 @@
     </tbody>
 </table>
 
+<!-- ── Personal de la Oficina ────────────────────────────────────────────── -->
+<div class="section-title" id="personal-oficina">👥 Personal de la Oficina</div>
+<p style="font-size:13px;color:#64748b;margin-bottom:16px">
+    Esta lista es la fuente central que alimenta los selectores de <strong>Responsable</strong> en
+    Lista de Reparto de Abogados, SDQS y Sala de Audiencias. Cualquier cambio aquí se refleja
+    inmediatamente en todos esos módulos.
+</p>
+
+{% if msg == 'personal_ok' %}
+<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#065f46">✓ Personal actualizado correctamente.</div>
+{% elif msg == 'duplicado' %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Ese nombre ya existe en la lista.</div>
+{% endif %}
+
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin-bottom:28px">
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+    {% for p in personal %}
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+      <span style="flex:1;font-size:13px;font-weight:600;{% if not p.activo %}color:#94a3b8;text-decoration:line-through{% endif %}">
+        {{ p.nombre }}
+      </span>
+      {% if not p.activo %}
+      <span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:999px;font-weight:700">Inactivo</span>
+      {% endif %}
+      {% if current_user.rol == 'admin' %}
+      <form method="post" action="/admin/personal/{{ p.id }}/editar" style="display:flex;gap:6px">
+        <input type="text" name="nombre" value="{{ p.nombre }}"
+               style="width:220px;border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:12px">
+        <button type="submit" class="btn-sm btn-primary" style="white-space:nowrap">💾 Actualizar</button>
+      </form>
+      <form method="post" action="/admin/personal/{{ p.id }}/toggle-activo" style="display:inline">
+        <button type="submit" class="btn-sm {% if p.activo %}btn-secondary{% else %}btn-success{% endif %}" style="white-space:nowrap">
+          {% if p.activo %}⏸ Inactivar{% else %}▶ Activar{% endif %}
+        </button>
+      </form>
+      <form method="post" action="/admin/personal/{{ p.id }}/eliminar" style="display:inline"
+            onsubmit="return confirm('¿Eliminar a {{ p.nombre }}? Los registros históricos conservarán el nombre.')">
+        <button type="submit" class="btn-sm btn-danger">✕</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p style="color:#94a3b8;font-size:13px">Sin personas registradas.</p>
+    {% endfor %}
+  </div>
+
+  {% if current_user.rol == 'admin' %}
+  <form method="post" action="/admin/personal/nuevo" style="display:flex;gap:8px">
+    <input type="text" name="nombre" placeholder="Nombre completo en MAYÚSCULAS..."
+           required style="flex:1;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+    <button type="submit" class="btn-sm btn-primary" style="white-space:nowrap;padding:7px 14px">➕ Agregar</button>
+  </form>
+  {% endif %}
+</div>
+
 <!-- ── Permisos por módulo ──────────────────────────────────────────────── -->
 <div class="section-title">🔐 Permisos por Módulo</div>
 <p style="font-size:13px;color:#64748b;margin-bottom:16px">

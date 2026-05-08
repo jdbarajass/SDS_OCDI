@@ -34,6 +34,9 @@ async def admin_usuarios(request: Request, msg: str = ""):
     permisos_rows = conn.execute(
         "SELECT user_id, modulo, puede_ver, puede_escribir, puede_importar FROM permisos_modulo"
     ).fetchall()
+    personal = conn.execute(
+        "SELECT id, nombre, activo FROM personal_oficina ORDER BY nombre"
+    ).fetchall()
     conn.close()
 
     permisos: dict = {}
@@ -53,6 +56,7 @@ async def admin_usuarios(request: Request, msg: str = ""):
         "usuarios": [dict(u) for u in usuarios],
         "permisos": permisos,
         "modulos": MODULOS_SISTEMA,
+        "personal": [dict(p) for p in personal],
         "msg": msg,
         "active": "admin_usuarios",
     })
@@ -171,6 +175,78 @@ async def cambiar_tipo_contrato(
                       request.client.host if request.client else None)
     conn.close()
     return RedirectResponse("/admin/usuarios?msg=actualizado", status_code=303)
+
+
+# ── Personal de la Oficina ────────────────────────────────────────────────────
+
+@router.post("/personal/nuevo")
+async def personal_nuevo(request: Request, nombre: str = Form(...)):
+    user = _require_superuser(request)
+    if not user:
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/admin/usuarios?msg=vacio", status_code=303)
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO personal_oficina (nombre, activo) VALUES (?, 1)", (nombre,))
+        conn.commit()
+        registrar_log(user, "personal_nuevo", "admin", f"Persona agregada: '{nombre}'",
+                      request.client.host if request.client else None)
+    except Exception:
+        conn.close()
+        return RedirectResponse("/admin/usuarios?msg=duplicado", status_code=303)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=personal_ok#personal-oficina", status_code=303)
+
+
+@router.post("/personal/{pid}/editar")
+async def personal_editar(request: Request, pid: int, nombre: str = Form(...)):
+    user = _require_superuser(request)
+    if not user:
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/admin/usuarios?msg=vacio", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE personal_oficina SET nombre=? WHERE id=?", (nombre, pid))
+    conn.commit()
+    registrar_log(user, "personal_editar", "admin", f"Persona actualizada id={pid}: '{nombre}'",
+                  request.client.host if request.client else None)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=personal_ok#personal-oficina", status_code=303)
+
+
+@router.post("/personal/{pid}/eliminar")
+async def personal_eliminar(request: Request, pid: int):
+    user = _require_superuser(request)
+    if not user:
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM personal_oficina WHERE id=?", (pid,))
+    conn.commit()
+    registrar_log(user, "personal_eliminar", "admin", f"Persona eliminada id={pid}",
+                  request.client.host if request.client else None)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=personal_ok#personal-oficina", status_code=303)
+
+
+@router.post("/personal/{pid}/toggle-activo")
+async def personal_toggle_activo(request: Request, pid: int):
+    user = _require_superuser(request)
+    if not user:
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    row = conn.execute("SELECT nombre, activo FROM personal_oficina WHERE id=?", (pid,)).fetchone()
+    if row:
+        new_val = 0 if row["activo"] else 1
+        conn.execute("UPDATE personal_oficina SET activo=? WHERE id=?", (new_val, pid))
+        conn.commit()
+        registrar_log(user, "personal_toggle", "admin",
+                      f"'{row['nombre']}' activo → {new_val}",
+                      request.client.host if request.client else None)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=personal_ok#personal-oficina", status_code=303)
 
 
 # ── Registro de actividad ─────────────────────────────────────────────────────

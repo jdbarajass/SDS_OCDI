@@ -247,6 +247,22 @@ CREATE TABLE IF NOT EXISTS corr_tipos_documento (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre  TEXT NOT NULL UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS corr_tipos_respuesta (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS corr_tipos_requerimiento (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS personal_oficina (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre  TEXT NOT NULL UNIQUE,
+    activo  INTEGER DEFAULT 1
+);
 """
 
 
@@ -257,6 +273,13 @@ def get_db():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def get_personal_oficina(conn):
+    """Devuelve lista de nombres activos de personal_oficina, ordenados alfabéticamente."""
+    return [r[0] for r in conn.execute(
+        "SELECT nombre FROM personal_oficina WHERE activo=1 ORDER BY nombre"
+    ).fetchall()]
 
 
 def init_db():
@@ -422,6 +445,50 @@ def init_db():
             conn.execute("INSERT INTO corr_tipos_documento (nombre) VALUES (?)", (nombre,))
         except Exception:
             pass
+
+    # Seed corr_tipos_respuesta (solo si está vacía)
+    if conn.execute("SELECT COUNT(*) FROM corr_tipos_respuesta").fetchone()[0] == 0:
+        for nombre in [
+            "RESPUESTA", "TRASLADO", "ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE",
+            "DEVOLUCION", "INFORMATIVO", "REUNION", "APERTURA EXPEDIENTE",
+            "AUTO INHIBITORIO", "ANTECEDENTES", "RESPUESTA CORREO ELECTRONICO",
+        ]:
+            try:
+                conn.execute("INSERT INTO corr_tipos_respuesta (nombre) VALUES (?)", (nombre,))
+            except Exception:
+                pass
+
+    # Seed corr_tipos_requerimiento (solo si está vacía)
+    if conn.execute("SELECT COUNT(*) FROM corr_tipos_requerimiento").fetchone()[0] == 0:
+        for nombre in [
+            "DERECHO DE PETICION", "TUTELA", "PROPOSICION DEL CONSEJO",
+            "REQUERIMIENTO ENTES DE CONTROL", "COMUNICACION INTERNA", "COMUNICACION EXTERNA",
+        ]:
+            try:
+                conn.execute("INSERT INTO corr_tipos_requerimiento (nombre) VALUES (?)", (nombre,))
+            except Exception:
+                pass
+
+    # Seed personal_oficina (solo si está vacía)
+    if conn.execute("SELECT COUNT(*) FROM personal_oficina").fetchone()[0] == 0:
+        for nombre in [
+            "ANDRES EDUARDO SANDOVAL MAYORGA",
+            "CARLOS ALFONSO PARRA MALAVER",
+            "CESAR IVAN RODRIGUEZ DAMIAN",
+            "DAVID FELIPE MORALES NOGUERA",
+            "JANIK HERNANDO DE LA HOZ RIOS",
+            "JOSE DE JESUS BARAJAS SOTELO",
+            "LUNA GICELL GUZMAN YATE",
+            "MABEL GICELLA HURTADO SANCHEZ",
+            "MAGDA XIMENA PAREDES LIEVANO",
+            "MARA LUCIA UCROS MERLANO",
+            "MARTHA PATRICIA AÑEZ MAESTRE",
+            "RODOLFO CARRILLO QUINTERO",
+        ]:
+            try:
+                conn.execute("INSERT INTO personal_oficina (nombre, activo) VALUES (?, 1)", (nombre,))
+            except Exception:
+                pass
 
     # Seed inicial de usuarios (solo si la tabla está vacía)
     if conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:

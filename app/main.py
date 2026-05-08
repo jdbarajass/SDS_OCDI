@@ -75,17 +75,18 @@ async def auth_middleware(request: Request, call_next):
             user = dict(row)
             modulos = [m for m, _ in MODULOS_SISTEMA]
             if user["rol"] in ROLES_SUPERUSUARIO:
-                permisos = {m: {"puede_ver": True, "puede_escribir": True} for m in modulos}
+                permisos = {m: {"puede_ver": True, "puede_escribir": True, "puede_importar": True} for m in modulos}
             else:
                 perm_rows = conn.execute(
-                    "SELECT modulo, puede_ver, puede_escribir FROM permisos_modulo WHERE user_id = ?",
+                    "SELECT modulo, puede_ver, puede_escribir, puede_importar FROM permisos_modulo WHERE user_id = ?",
                     (user["id"],)
                 ).fetchall()
-                permisos = {m: {"puede_ver": True, "puede_escribir": False} for m in modulos}
+                permisos = {m: {"puede_ver": True, "puede_escribir": False, "puede_importar": False} for m in modulos}
                 for pr in perm_rows:
                     permisos[pr["modulo"]] = {
                         "puede_ver": pr["puede_ver"] != 0,
                         "puede_escribir": bool(pr["puede_escribir"]),
+                        "puede_importar": bool(pr["puede_importar"]),
                     }
         conn.commit()
         conn.close()

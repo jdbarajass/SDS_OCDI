@@ -8,7 +8,7 @@ import io
 from urllib.parse import quote_plus as _quote_plus
 
 from app.database import get_db
-from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "correspondencia"
 
@@ -588,6 +588,9 @@ async def exportar():
 
 @router.get("/importar", response_class=HTMLResponse)
 async def importar_form(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
     total = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
     conn.close()
@@ -602,8 +605,8 @@ async def importar_form(request: Request, msg: str = ""):
 @router.post("/importar")
 async def importar_post(request: Request, archivo: UploadFile = File(...)):
     user = getattr(request.state, "user", None)
-    if not _pw(user, _MOD):
-        return RedirectResponse("/correspondencia/importar?msg=sin_permiso", status_code=303)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:
@@ -928,6 +931,9 @@ _MES_NOMBRES = {
 
 @router.get("/importar-agilsalud", response_class=HTMLResponse)
 async def importar_agilsalud_form(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     return templates.TemplateResponse("corr_importar_agilsalud.html", {
         "request": request,
         "active": "corr_importar_agilsalud",
@@ -938,6 +944,9 @@ async def importar_agilsalud_form(request: Request, msg: str = ""):
 
 @router.post("/importar-agilsalud/preview", response_class=HTMLResponse)
 async def importar_agilsalud_preview(request: Request, archivo: UploadFile = File(...)):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:
@@ -1025,6 +1034,9 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
 
 @router.post("/importar-agilsalud/confirmar")
 async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(...)):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     import json
     try:
         filas = json.loads(datos_json)

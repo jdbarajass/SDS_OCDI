@@ -6,7 +6,7 @@ from datetime import date, datetime
 import io
 
 from app.database import get_db
-from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "control_autos"
 
@@ -317,6 +317,9 @@ async def ca_exportar():
 
 @router.get("/importar", response_class=HTMLResponse)
 async def ca_importar_form(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     return templates.TemplateResponse("ca_importar.html", {
         "request": request,
         "msg": msg,
@@ -327,8 +330,8 @@ async def ca_importar_form(request: Request, msg: str = ""):
 @router.post("/importar")
 async def ca_importar_post(request: Request, archivo: UploadFile = File(...)):
     user = getattr(request.state, "user", None)
-    if not _pw(user, _MOD):
-        return RedirectResponse("/control-autos/importar?msg=sin_permiso", status_code=303)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
     except ImportError:

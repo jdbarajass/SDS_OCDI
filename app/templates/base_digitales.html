@@ -42,10 +42,12 @@
                 <span class="nav-ico">👤</span>
                 <span>Abogados</span>
             </a>
+            {% if request.state.permisos.get('digitales', {}).get('puede_importar', False) %}
             <a href="/digitales/importar" class="nav-link {% if active == 'digitales_importar' %}active{% endif %}">
                 <span class="nav-ico">📥</span>
                 <span>Importar Excel</span>
             </a>
+            {% endif %}
             <a href="/digitales/exportar" class="nav-link {% if active == 'digitales_exportar' %}active{% endif %}">
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>

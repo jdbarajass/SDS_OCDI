@@ -32,7 +32,7 @@ async def admin_usuarios(request: Request, msg: str = ""):
         "SELECT id, username, nombre_completo, rol, activo, tipo_contrato FROM usuarios ORDER BY rol, nombre_completo"
     ).fetchall()
     permisos_rows = conn.execute(
-        "SELECT user_id, modulo, puede_ver, puede_escribir FROM permisos_modulo"
+        "SELECT user_id, modulo, puede_ver, puede_escribir, puede_importar FROM permisos_modulo"
     ).fetchall()
     conn.close()
 
@@ -44,6 +44,7 @@ async def admin_usuarios(request: Request, msg: str = ""):
         permisos[uid][row["modulo"]] = {
             "puede_ver": row["puede_ver"] != 0,
             "puede_escribir": bool(row["puede_escribir"]),
+            "puede_importar": bool(row["puede_importar"]),
         }
 
     return templates.TemplateResponse("admin_usuarios.html", {
@@ -128,13 +129,15 @@ async def actualizar_permisos(request: Request, user_id: int):
     for modulo, _ in MODULOS_SISTEMA:
         puede_e = 1 if form.get(f"pw_{user_id}_{modulo}") else 0
         puede_v = 1 if form.get(f"pv_{user_id}_{modulo}") else 0
+        puede_i = 1 if form.get(f"pi_{user_id}_{modulo}") else 0
         conn.execute("""
-            INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver, puede_importar)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(user_id, modulo) DO UPDATE SET
                 puede_escribir = excluded.puede_escribir,
-                puede_ver = excluded.puede_ver
-        """, (user_id, modulo, puede_e, puede_v))
+                puede_ver = excluded.puede_ver,
+                puede_importar = excluded.puede_importar
+        """, (user_id, modulo, puede_e, puede_v, puede_i))
 
     conn.commit()
     registrar_log(user, "actualizar_permisos", "usuarios",

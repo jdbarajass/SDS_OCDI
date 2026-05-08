@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS permisos_modulo (
     user_id         INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     modulo          TEXT NOT NULL,
     puede_escribir  INTEGER DEFAULT 0,
+    puede_importar  INTEGER DEFAULT 0,
     UNIQUE(user_id, modulo)
 );
 
@@ -297,6 +298,10 @@ def init_db():
         pass
     try:
         conn.execute("ALTER TABLE permisos_modulo ADD COLUMN puede_ver INTEGER DEFAULT 1")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE permisos_modulo ADD COLUMN puede_importar INTEGER DEFAULT 0")
     except Exception:
         pass
     # Migrar corr_responsables a nombres completos oficiales

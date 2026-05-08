@@ -6,7 +6,7 @@ from datetime import date, datetime
 import io
 
 from app.database import get_db, row_to_dict
-from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "sdqs"
 
@@ -320,6 +320,9 @@ async def exportar(
 
 @router.get("/importar", response_class=HTMLResponse)
 async def importar_get(request: Request, msg: str = ""):
+    user = request.state.user
+    if not _pi(user, _MOD):
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
     conn = get_db()
     total_bd = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
     conn.close()
@@ -332,8 +335,8 @@ async def importar_get(request: Request, msg: str = ""):
 @router.post("/importar")
 async def importar_post(request: Request, archivo: UploadFile = File(...)):
     user = request.state.user
-    if not _pw(user, _MOD):
-        return RedirectResponse("/sdqs/importar?msg=sin_permiso", status_code=303)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
 
     contenido = await archivo.read()
     count, errors = _importar_excel_sdqs(contenido)
@@ -346,8 +349,8 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
 @router.post("/limpiar")
 async def limpiar(request: Request):
     user = request.state.user
-    if not _pw(user, _MOD):
-        return RedirectResponse("/sdqs/importar?msg=sin_permiso", status_code=303)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM sdqs")
     conn.commit()

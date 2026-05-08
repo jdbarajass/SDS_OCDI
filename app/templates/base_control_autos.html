@@ -35,10 +35,12 @@
             </a>
 
             <div class="nav-section-label">📁 ARCHIVOS</div>
+            {% if request.state.permisos.get('control_autos', {}).get('puede_importar', False) %}
             <a href="/control-autos/importar" class="nav-link {% if active == 'ca_importar' %}active{% endif %}">
                 <span class="nav-ico">📥</span>
                 <span>Importar Excel</span>
             </a>
+            {% endif %}
             <a href="/control-autos/exportar" class="nav-link {% if active == 'ca_exportar' %}active{% endif %}">
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>

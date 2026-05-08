@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pathlib import Path
 from app.template_utils import make_templates
+from app.auth_utils import ROLES_SUPERUSUARIO
 from datetime import datetime
 import io
 
@@ -120,8 +121,19 @@ def _mapear_fila(row) -> dict:
     }
 
 
+def _puede_importar_exp(request: Request) -> bool:
+    user = getattr(request.state, "user", None)
+    if not user:
+        return False
+    if user["rol"] in ROLES_SUPERUSUARIO:
+        return True
+    return getattr(request.state, "permisos", {}).get("expedientes", {}).get("puede_importar", False)
+
+
 @router.get("/importar", response_class=HTMLResponse)
 async def importar_form(request: Request, msg: str = ""):
+    if not _puede_importar_exp(request):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     conn = get_db()
     total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     conn.close()
@@ -135,7 +147,9 @@ async def importar_form(request: Request, msg: str = ""):
 
 
 @router.post("/importar/limpiar-bd")
-async def limpiar_base_datos():
+async def limpiar_base_datos(request: Request):
+    if not _puede_importar_exp(request):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM expedientes")
     conn.execute("DELETE FROM sqlite_sequence WHERE name = 'expedientes'")
@@ -146,6 +160,9 @@ async def limpiar_base_datos():
 
 @router.post("/importar", response_class=HTMLResponse)
 async def importar_excel(request: Request, archivo: UploadFile = File(...)):
+    if not _puede_importar_exp(request):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
+
     import openpyxl
 
     resultado = {

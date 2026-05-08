@@ -102,7 +102,32 @@
 #tabla-corr tbody tr:hover td { background: #f0f7ff !important; }
 .td-clip { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-asunto { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-dup { display:inline-block; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;
+  font-size:9px; font-weight:700; padding:1px 5px; border-radius:4px; margin-left:4px;
+  vertical-align:middle; white-space:nowrap; cursor:default; }
+.dup-banner { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px;
+  padding:10px 16px; margin-bottom:10px; font-size:12px; color:#78350f; }
 </style>
+
+{% if duplicados_info %}
+<div class="dup-banner" id="dup-banner">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    <div>
+      <strong>⚠ {{ duplicados_info|length }} N. Radicado{{ 's duplicados detectados' if duplicados_info|length > 1 else ' duplicado detectado' }}:</strong>
+      <span style="margin-left:6px">
+        {% for d in duplicados_info %}
+        <a href="/correspondencia/?q={{ d.n_radicado }}"
+           style="color:#92400e;font-weight:700;text-decoration:underline" title="Filtrar por este radicado">{{ d.n_radicado }}</a>
+        <span style="font-size:10px;background:#fcd34d;color:#78350f;border-radius:3px;padding:0 4px;font-weight:700">×{{ d.cantidad }}</span>
+        {% if not loop.last %} &nbsp;·&nbsp; {% endif %}
+        {% endfor %}
+      </span>
+    </div>
+    <button onclick="document.getElementById('dup-banner').style.display='none'"
+            style="background:none;border:none;color:#92400e;cursor:pointer;font-size:16px;line-height:1;padding:0;flex-shrink:0">✕</button>
+  </div>
+</div>
+{% endif %}
 
 <div style="font-size:11px;color:#64748b;margin-bottom:4px;display:flex;align-items:center;gap:5px">
   <span>◀ ▶</span> <span>Desliza horizontalmente para ver todas las columnas</span>
@@ -169,7 +194,12 @@
 
         <td style="white-space:nowrap">{{ r.mes or '—' }}</td>
         <td style="white-space:nowrap">{{ r.fecha_ingreso | fmt_fecha or '—' }}</td>
-        <td style="font-weight:600;white-space:nowrap">{{ r.n_radicado or '—' }}</td>
+        <td style="font-weight:600;white-space:nowrap">
+          {{ r.n_radicado or '—' }}
+          {% if r.n_radicado and (r.n_radicado|upper|trim) in radicados_duplicados %}
+          <span class="badge-dup" title="Este N. Radicado está duplicado — haz clic en el banner para filtrar">⚠ DUP</span>
+          {% endif %}
+        </td>
         <td class="td-clip" title="{{ r.origen or '' }}">{{ r.origen or '—' }}</td>
         <td class="td-clip" title="{{ r.correo_remitente or '' }}" style="font-size:11px">{{ r.correo_remitente or '—' }}</td>
         <td class="td-asunto" title="{{ r.asunto or '' }}">{{ r.asunto or '—' }}</td>

@@ -217,107 +217,6 @@ async def nuevo_post(
     return RedirectResponse("/sdqs/?msg=creado", status_code=303)
 
 
-# ── Ver ───────────────────────────────────────────────────────────────────────
-
-@router.get("/{id}", response_class=HTMLResponse)
-async def ver(request: Request, id: int):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
-    conn.close()
-    if not row:
-        return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
-    registro = _calcular_semaforo_sdqs(row_to_dict(row))
-    return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
-        modo="ver",
-        registro=registro,
-        meses=MESES,
-        abogados=ABOGADOS,
-        estados=ESTADOS_PROCESO,
-    ))
-
-
-# ── Editar ────────────────────────────────────────────────────────────────────
-
-@router.get("/{id}/editar", response_class=HTMLResponse)
-async def editar_get(request: Request, id: int):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
-    conn.close()
-    if not row:
-        return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
-    return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
-        modo="editar",
-        registro=row_to_dict(row),
-        meses=MESES,
-        abogados=ABOGADOS,
-        estados=ESTADOS_PROCESO,
-    ))
-
-
-@router.post("/{id}/editar")
-async def editar_post(
-    request: Request,
-    id: int,
-    mes: str = Form(""),
-    fecha_asignacion: str = Form(""),
-    sdqs_num: str = Form("", alias="sdqs"),
-    fecha_vencimiento: str = Form(""),
-    quejoso: str = Form(""),
-    correo: str = Form(""),
-    tema: str = Form(""),
-    competencia_ocdi: str = Form("NO"),
-    bpm: str = Form(""),
-    responsable: str = Form(""),
-    rad_salida: str = Form(""),
-    fecha_respuesta: str = Form(""),
-    observaciones: str = Form(""),
-    estado_proceso: str = Form(""),
-    hecho_corrupto: str = Form(""),
-    valor_institucional: str = Form(""),
-    tipologia: str = Form(""),
-):
-    user = request.state.user
-    if not _pw(user, _MOD):
-        return RedirectResponse(f"/sdqs/?msg=sin_permiso", status_code=303)
-
-    conn = get_db()
-    conn.execute(
-        """UPDATE sdqs SET
-           mes=?, fecha_asignacion=?, sdqs=?, fecha_vencimiento=?,
-           quejoso=?, correo=?, tema=?, competencia_ocdi=?,
-           bpm=?, responsable=?, rad_salida=?, fecha_respuesta=?,
-           observaciones=?, estado_proceso=?, hecho_corrupto=?,
-           valor_institucional=?, tipologia=?,
-           updated_at=datetime('now','localtime')
-           WHERE id=?""",
-        (mes.upper(), fecha_asignacion, sdqs_num.upper(),
-         fecha_vencimiento or None,
-         quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
-         bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
-         observaciones, estado_proceso or None, hecho_corrupto or None,
-         valor_institucional or None, tipologia or None, id),
-    )
-    conn.commit()
-    conn.close()
-    registrar_log(user, "editar", _MOD, f"ID: {id}")
-    return RedirectResponse(f"/sdqs/{id}?msg=actualizado", status_code=303)
-
-
-# ── Eliminar ──────────────────────────────────────────────────────────────────
-
-@router.post("/{id}/eliminar")
-async def eliminar(request: Request, id: int):
-    user = request.state.user
-    if not _pw(user, _MOD):
-        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
-    conn = get_db()
-    conn.execute("DELETE FROM sdqs WHERE id = ?", (id,))
-    conn.commit()
-    conn.close()
-    registrar_log(user, "eliminar", _MOD, f"ID: {id}")
-    return RedirectResponse("/sdqs/?msg=eliminado", status_code=303)
-
-
 # ── Exportar Excel ────────────────────────────────────────────────────────────
 
 @router.get("/exportar")
@@ -446,6 +345,107 @@ async def limpiar(request: Request):
     conn.close()
     registrar_log(user, "limpiar", _MOD, "Tabla SDQS borrada")
     return RedirectResponse("/sdqs/importar?msg=importado_0", status_code=303)
+
+
+# ── Ver ───────────────────────────────────────────────────────────────────────
+
+@router.get("/{id}", response_class=HTMLResponse)
+async def ver(request: Request, id: int):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
+    conn.close()
+    if not row:
+        return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
+    registro = _calcular_semaforo_sdqs(row_to_dict(row))
+    return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
+        modo="ver",
+        registro=registro,
+        meses=MESES,
+        abogados=ABOGADOS,
+        estados=ESTADOS_PROCESO,
+    ))
+
+
+# ── Editar ────────────────────────────────────────────────────────────────────
+
+@router.get("/{id}/editar", response_class=HTMLResponse)
+async def editar_get(request: Request, id: int):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
+    conn.close()
+    if not row:
+        return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
+    return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
+        modo="editar",
+        registro=row_to_dict(row),
+        meses=MESES,
+        abogados=ABOGADOS,
+        estados=ESTADOS_PROCESO,
+    ))
+
+
+@router.post("/{id}/editar")
+async def editar_post(
+    request: Request,
+    id: int,
+    mes: str = Form(""),
+    fecha_asignacion: str = Form(""),
+    sdqs_num: str = Form("", alias="sdqs"),
+    fecha_vencimiento: str = Form(""),
+    quejoso: str = Form(""),
+    correo: str = Form(""),
+    tema: str = Form(""),
+    competencia_ocdi: str = Form("NO"),
+    bpm: str = Form(""),
+    responsable: str = Form(""),
+    rad_salida: str = Form(""),
+    fecha_respuesta: str = Form(""),
+    observaciones: str = Form(""),
+    estado_proceso: str = Form(""),
+    hecho_corrupto: str = Form(""),
+    valor_institucional: str = Form(""),
+    tipologia: str = Form(""),
+):
+    user = request.state.user
+    if not _pw(user, _MOD):
+        return RedirectResponse(f"/sdqs/?msg=sin_permiso", status_code=303)
+
+    conn = get_db()
+    conn.execute(
+        """UPDATE sdqs SET
+           mes=?, fecha_asignacion=?, sdqs=?, fecha_vencimiento=?,
+           quejoso=?, correo=?, tema=?, competencia_ocdi=?,
+           bpm=?, responsable=?, rad_salida=?, fecha_respuesta=?,
+           observaciones=?, estado_proceso=?, hecho_corrupto=?,
+           valor_institucional=?, tipologia=?,
+           updated_at=datetime('now','localtime')
+           WHERE id=?""",
+        (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+         fecha_vencimiento or None,
+         quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
+         bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
+         observaciones, estado_proceso or None, hecho_corrupto or None,
+         valor_institucional or None, tipologia or None, id),
+    )
+    conn.commit()
+    conn.close()
+    registrar_log(user, "editar", _MOD, f"ID: {id}")
+    return RedirectResponse(f"/sdqs/{id}?msg=actualizado", status_code=303)
+
+
+# ── Eliminar ──────────────────────────────────────────────────────────────────
+
+@router.post("/{id}/eliminar")
+async def eliminar(request: Request, id: int):
+    user = request.state.user
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM sdqs WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "eliminar", _MOD, f"ID: {id}")
+    return RedirectResponse("/sdqs/?msg=eliminado", status_code=303)
 
 
 # ── Helper de importación Excel ───────────────────────────────────────────────

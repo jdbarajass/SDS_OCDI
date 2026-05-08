@@ -181,6 +181,7 @@ async def nuevo_post(
     bpm: str = Form(""),
     responsable: str = Form(""),
     rad_salida: str = Form(""),
+    url_rad_salida: str = Form(""),
     fecha_respuesta: str = Form(""),
     observaciones: str = Form(""),
     estado_proceso: str = Form(""),
@@ -200,13 +201,15 @@ async def nuevo_post(
     conn.execute(
         """INSERT INTO sdqs
            (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
-            competencia_ocdi, bpm, responsable, rad_salida, fecha_respuesta, observaciones,
+            competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
+            fecha_respuesta, observaciones,
             estado_proceso, hecho_corrupto, valor_institucional, tipologia, created_by)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (mes.upper(), fecha_asignacion, sdqs_num.upper(),
          fecha_vencimiento or None,
          quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
-         bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
+         bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
+         fecha_respuesta or None,
          observaciones, estado_proceso or None, hecho_corrupto or None,
          valor_institucional or None, tipologia or None,
          user.get("nombre_completo") if user else None),
@@ -275,6 +278,7 @@ async def exportar(
         cell.alignment = Alignment(horizontal="center")
 
     SEM_COLORS = {"verde": "D4EDDA", "amarillo": "FFF3CD", "rojo": "F8D7DA"}
+    link_font = Font(color="0563C1", underline="single")
 
     for r in rows:
         d = _calcular_semaforo_sdqs(row_to_dict(r))
@@ -287,10 +291,15 @@ async def exportar(
             d.get("estado_proceso"), d.get("hecho_corrupto"),
             d.get("valor_institucional"), d.get("tipologia"),
         ])
+        ri = ws.max_row
         sem = d.get("semaforo_sdqs")
         if sem and sem in SEM_COLORS:
-            fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
-            ws.cell(ws.max_row, 5).fill = fill
+            ws.cell(ri, 5).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+        url = d.get("url_rad_salida")
+        if url and d.get("rad_salida"):
+            rad_cell = ws.cell(ri, 12)
+            rad_cell.hyperlink = url
+            rad_cell.font = link_font
 
     col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20]
     for i, w in enumerate(col_widths, 1):
@@ -399,6 +408,7 @@ async def editar_post(
     bpm: str = Form(""),
     responsable: str = Form(""),
     rad_salida: str = Form(""),
+    url_rad_salida: str = Form(""),
     fecha_respuesta: str = Form(""),
     observaciones: str = Form(""),
     estado_proceso: str = Form(""),
@@ -415,7 +425,8 @@ async def editar_post(
         """UPDATE sdqs SET
            mes=?, fecha_asignacion=?, sdqs=?, fecha_vencimiento=?,
            quejoso=?, correo=?, tema=?, competencia_ocdi=?,
-           bpm=?, responsable=?, rad_salida=?, fecha_respuesta=?,
+           bpm=?, responsable=?, rad_salida=?, url_rad_salida=?,
+           fecha_respuesta=?,
            observaciones=?, estado_proceso=?, hecho_corrupto=?,
            valor_institucional=?, tipologia=?,
            updated_at=datetime('now','localtime')
@@ -423,7 +434,8 @@ async def editar_post(
         (mes.upper(), fecha_asignacion, sdqs_num.upper(),
          fecha_vencimiento or None,
          quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
-         bpm or None, responsable or None, rad_salida or None, fecha_respuesta or None,
+         bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
+         fecha_respuesta or None,
          observaciones, estado_proceso or None, hecho_corrupto or None,
          valor_institucional or None, tipologia or None, id),
     )
@@ -478,7 +490,7 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
         return 0, ["openpyxl no instalado"]
 
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(archivo_bytes), data_only=True)
+        wb = openpyxl.load_workbook(io.BytesIO(archivo_bytes), data_only=True, keep_links=True)
         ws = wb.active
     except Exception as e:
         return 0, [str(e)]
@@ -540,7 +552,8 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
     count = 0
     errors = []
 
-    for row in ws.iter_rows(min_row=2, values_only=True):
+    for row_cells in ws.iter_rows(min_row=2, values_only=False):
+        row = [c.value for c in row_cells]
         if all(v is None for v in row):
             continue
         try:
@@ -570,13 +583,21 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
             if responsable == "":
                 responsable = None
 
+            # Leer hipervínculo de la celda RAD SALIDA
+            url_rad_sal = None
+            if i_rsal is not None and i_rsal < len(row_cells):
+                hl = row_cells[i_rsal].hyperlink
+                if hl:
+                    url_rad_sal = getattr(hl, "target", None)
+
             conn.execute(
                 """INSERT INTO sdqs
                    (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
-                    competencia_ocdi, bpm, responsable, rad_salida, fecha_respuesta,
+                    competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
+                    fecha_respuesta,
                     observaciones, estado_proceso, hecho_corrupto, valor_institucional,
                     tipologia, created_by)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(sdqs) DO UPDATE SET
                        mes=excluded.mes,
                        fecha_asignacion=excluded.fecha_asignacion,
@@ -584,14 +605,16 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
                        quejoso=excluded.quejoso, correo=excluded.correo,
                        tema=excluded.tema, competencia_ocdi=excluded.competencia_ocdi,
                        bpm=excluded.bpm, responsable=excluded.responsable,
-                       rad_salida=excluded.rad_salida, fecha_respuesta=excluded.fecha_respuesta,
+                       rad_salida=excluded.rad_salida,
+                       url_rad_salida=excluded.url_rad_salida,
+                       fecha_respuesta=excluded.fecha_respuesta,
                        observaciones=excluded.observaciones, estado_proceso=excluded.estado_proceso,
                        hecho_corrupto=excluded.hecho_corrupto,
                        valor_institucional=excluded.valor_institucional,
                        tipologia=excluded.tipologia,
                        updated_at=datetime('now','localtime')""",
                 (mes, fa, sdqs_num, fv, quejoso, correo, tema, comp,
-                 bpm, responsable, rad_sal, f_resp, obs,
+                 bpm, responsable, rad_sal, url_rad_sal, f_resp, obs,
                  estado if estado else None, hecho, valor_inst, tipologia, "IMPORTACION"),
             )
             count += 1

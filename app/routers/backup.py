@@ -627,6 +627,7 @@ async def backup_zip():
         ws = wb.active
         ws.title = "SDQS"
         fill = PatternFill("solid", fgColor="7B3F00")
+        link_font_sdqs = Font(color="0563C1", underline="single", size=10)
         headers = [
             "MES","FECHA ASIGNACION","SDQS","FECHA VENCIMIENTO","ESTADO DIAS",
             "QUEJOSO","CORREO","TEMA",
@@ -656,6 +657,11 @@ async def backup_zip():
             sem = d.get("semaforo_sdqs")
             if sem and sem in SEM_COLORS:
                 ws.cell(ri, 5).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+            url = d.get("url_rad_salida")
+            if url and d.get("rad_salida"):
+                rad_cell = ws.cell(ri, 12)
+                rad_cell.hyperlink = url
+                rad_cell.font = link_font_sdqs
         col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w

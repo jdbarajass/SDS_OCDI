@@ -199,9 +199,33 @@
             <div>
                 <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">RAD SALIDA</label>
                 {% if es_ver %}
-                <div class="form-val">{{ registro.rad_salida or '—' }}</div>
+                <div class="form-val">
+                    {% if registro.url_rad_salida and registro.rad_salida %}
+                    <a href="{{ registro.url_rad_salida }}" target="_blank" rel="noopener"
+                       style="color:var(--primary);font-weight:600;text-decoration:underline">{{ registro.rad_salida }}</a>
+                    {% else %}
+                    {{ registro.rad_salida or '—' }}
+                    {% endif %}
+                </div>
                 {% else %}
-                <input type="text" name="rad_salida" class="form-control" value="{{ registro.rad_salida or '' }}">
+                <input type="text" name="rad_salida" class="form-control" value="{{ registro.rad_salida or '' }}"
+                       placeholder="Ej: 2026-EE-09015">
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">URL RAD SALIDA</label>
+                {% if es_ver %}
+                <div class="form-val">
+                    {% if registro.url_rad_salida %}
+                    <a href="{{ registro.url_rad_salida }}" target="_blank" rel="noopener"
+                       style="color:var(--primary);font-size:11px;word-break:break-all">{{ registro.url_rad_salida[:60] }}{% if registro.url_rad_salida|length > 60 %}…{% endif %}</a>
+                    {% else %}—{% endif %}
+                </div>
+                {% else %}
+                <input type="url" name="url_rad_salida" class="form-control"
+                       value="{{ registro.url_rad_salida or '' }}"
+                       placeholder="https://...">
                 {% endif %}
             </div>
 

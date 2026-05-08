@@ -5,7 +5,7 @@ from app.template_utils import make_templates
 from datetime import date, timedelta
 import calendar
 
-from app.database import get_db
+from app.database import get_db, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, registrar_log
 
 _MOD = "sala"
@@ -136,11 +136,14 @@ async def evento_nuevo_form(
     if not fecha:
         fecha = date.today().isoformat()
     hora_inicio, hora_fin = _parse_franja(franja)
+    conn = get_db()
+    personal = get_personal_oficina(conn)
+    conn.close()
     return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
         active="sala",
         ev={"fecha": fecha, "franja": franja, "hora_inicio": hora_inicio, "hora_fin": hora_fin},
         estados=ESTADOS, modo="nuevo",
-        personal=PERSONAL_OFICINA,
+        personal=personal,
         TODO_EL_DIA=TODO_EL_DIA,
     ))
 
@@ -182,6 +185,7 @@ async def evento_editar_form(request: Request, ev_id: int):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     conn = get_db()
     ev = conn.execute("SELECT * FROM sala_agenda WHERE id = ?", (ev_id,)).fetchone()
+    personal = get_personal_oficina(conn)
     conn.close()
     if not ev:
         return RedirectResponse("/sala/?msg=no_encontrado")
@@ -189,7 +193,7 @@ async def evento_editar_form(request: Request, ev_id: int):
     ev_dict["hora_inicio"], ev_dict["hora_fin"] = _parse_franja(ev_dict.get("franja", ""))
     return templates.TemplateResponse("sala_form.html", tpl(request, _MOD,
         active="sala", ev=ev_dict, estados=ESTADOS, modo="editar",
-        personal=PERSONAL_OFICINA,
+        personal=personal,
         TODO_EL_DIA=TODO_EL_DIA,
     ))
 

@@ -7,7 +7,7 @@ import io
 
 from urllib.parse import quote_plus as _quote_plus
 
-from app.database import get_db
+from app.database import get_db, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "correspondencia"
@@ -117,10 +117,23 @@ def _anios_disponibles():
 
 
 def _get_catalogos(conn):
+    responsables = get_personal_oficina(conn)
     tipos_doc = [r[0] for r in conn.execute(
         "SELECT nombre FROM corr_tipos_documento ORDER BY nombre"
     ).fetchall()]
-    return ABOGADOS_RESPONSABLES, tipos_doc
+    return responsables, tipos_doc
+
+
+def _get_tipos_respuesta(conn):
+    return [r[0] for r in conn.execute(
+        "SELECT nombre FROM corr_tipos_respuesta ORDER BY rowid"
+    ).fetchall()]
+
+
+def _get_tipos_requerimiento(conn):
+    return [r[0] for r in conn.execute(
+        "SELECT nombre FROM corr_tipos_requerimiento ORDER BY rowid"
+    ).fetchall()]
 
 
 # ── Días hábiles Colombia ──────────────────────────────────────────────────────
@@ -432,12 +445,14 @@ async def nuevo_form(request: Request):
         return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
     responsables, tipos_doc = _get_catalogos(conn)
+    tipos_respuesta = _get_tipos_respuesta(conn)
+    tipos_requerimiento = _get_tipos_requerimiento(conn)
     conn.close()
     return templates.TemplateResponse("corr_form.html", tpl(request, _MOD,
         active="corr_nuevo", modo="nuevo", reg={}, radicados_salida=[],
         responsables=responsables, tipos_doc=tipos_doc,
-        tipos_respuesta=TIPOS_RESPUESTA, terminos_dias=TERMINOS_DIAS,
-        tipos_requerimiento=TIPOS_REQUERIMIENTO, meses=MESES,
+        tipos_respuesta=tipos_respuesta, terminos_dias=TERMINOS_DIAS,
+        tipos_requerimiento=tipos_requerimiento, meses=MESES,
         anios=_anios_disponibles(),
     ))
 
@@ -839,19 +854,24 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
 @router.get("/configurar", response_class=HTMLResponse)
 async def configurar(request: Request, msg: str = ""):
     conn = get_db()
-    responsables = conn.execute(
-        "SELECT id, nombre FROM corr_responsables ORDER BY nombre"
-    ).fetchall()
+    responsables = get_personal_oficina(conn)
     tipos_doc = conn.execute(
         "SELECT id, nombre FROM corr_tipos_documento ORDER BY nombre"
+    ).fetchall()
+    tipos_respuesta = conn.execute(
+        "SELECT id, nombre FROM corr_tipos_respuesta ORDER BY rowid"
+    ).fetchall()
+    tipos_requerimiento = conn.execute(
+        "SELECT id, nombre FROM corr_tipos_requerimiento ORDER BY rowid"
     ).fetchall()
     conn.close()
     return templates.TemplateResponse("corr_configurar.html", {
         "request": request,
         "active": "corr_configurar",
-        "responsables": [dict(r) for r in responsables],
+        "responsables": responsables,
         "tipos_doc": [dict(r) for r in tipos_doc],
-        "tipos_respuesta": TIPOS_RESPUESTA,
+        "tipos_respuesta": [dict(r) for r in tipos_respuesta],
+        "tipos_requerimiento": [dict(r) for r in tipos_requerimiento],
         "msg": msg,
     })
 
@@ -923,6 +943,80 @@ async def tipo_doc_editar(tid: int, nombre: str = Form(...)):
 async def tipo_doc_eliminar(tid: int):
     conn = get_db()
     conn.execute("DELETE FROM corr_tipos_documento WHERE id=?", (tid,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_respuesta/nuevo")
+async def tipo_respuesta_nuevo(nombre: str = Form(...)):
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/correspondencia/configurar?msg=vacio", status_code=303)
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO corr_tipos_respuesta (nombre) VALUES (?)", (nombre,))
+        conn.commit()
+    except Exception:
+        conn.close()
+        return RedirectResponse("/correspondencia/configurar?msg=duplicado", status_code=303)
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_respuesta/{tid}/editar")
+async def tipo_respuesta_editar(tid: int, nombre: str = Form(...)):
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/correspondencia/configurar?msg=vacio", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE corr_tipos_respuesta SET nombre=? WHERE id=?", (nombre, tid))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_respuesta/{tid}/eliminar")
+async def tipo_respuesta_eliminar(tid: int):
+    conn = get_db()
+    conn.execute("DELETE FROM corr_tipos_respuesta WHERE id=?", (tid,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_requerimiento/nuevo")
+async def tipo_requerimiento_nuevo(nombre: str = Form(...)):
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/correspondencia/configurar?msg=vacio", status_code=303)
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO corr_tipos_requerimiento (nombre) VALUES (?)", (nombre,))
+        conn.commit()
+    except Exception:
+        conn.close()
+        return RedirectResponse("/correspondencia/configurar?msg=duplicado", status_code=303)
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_requerimiento/{tid}/editar")
+async def tipo_requerimiento_editar(tid: int, nombre: str = Form(...)):
+    nombre = nombre.strip().upper()
+    if not nombre:
+        return RedirectResponse("/correspondencia/configurar?msg=vacio", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE corr_tipos_requerimiento SET nombre=? WHERE id=?", (nombre, tid))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
+
+
+@router.post("/configurar/tipo_requerimiento/{tid}/eliminar")
+async def tipo_requerimiento_eliminar(tid: int):
+    conn = get_db()
+    conn.execute("DELETE FROM corr_tipos_requerimiento WHERE id=?", (tid,))
     conn.commit()
     conn.close()
     return RedirectResponse("/correspondencia/configurar?msg=ok", status_code=303)
@@ -1156,13 +1250,15 @@ async def editar_form(request: Request, reg_id: int, msg: str = "", back: str = 
         (reg_id,),
     ).fetchall()
     responsables, tipos_doc = _get_catalogos(conn)
+    tipos_respuesta = _get_tipos_respuesta(conn)
+    tipos_requerimiento = _get_tipos_requerimiento(conn)
     conn.close()
     return templates.TemplateResponse("corr_form.html", tpl(request, _MOD,
         active="corr_lista", modo="editar", reg=dict(row),
         radicados_salida=[dict(r) for r in radicados],
         responsables=responsables, tipos_doc=tipos_doc,
-        tipos_respuesta=TIPOS_RESPUESTA, terminos_dias=TERMINOS_DIAS,
-        tipos_requerimiento=TIPOS_REQUERIMIENTO, meses=MESES,
+        tipos_respuesta=tipos_respuesta, terminos_dias=TERMINOS_DIAS,
+        tipos_requerimiento=tipos_requerimiento, meses=MESES,
         anios=_anios_disponibles(), msg=msg,
         back=back or "/correspondencia/",
     ))

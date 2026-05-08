@@ -24,31 +24,21 @@
 <!-- Responsables -->
 <div class="cfg-section">
   <div class="cfg-title">👤 Responsables</div>
-  <div class="cfg-desc">Nombres que aparecen en el campo "Responsable" del formulario.</div>
-
-  <div class="cfg-list">
+  <div class="cfg-desc">
+    La lista de responsables es compartida con los módulos SDQS y Sala de Audiencias.
+    Se administra desde el panel de administración.
+  </div>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1e40af">
+    ℹ️ Para agregar, editar o inactivar personas ve a
+    <a href="/admin/usuarios#personal-oficina" style="font-weight:700;color:#1d4ed8">Admin → Usuarios → Personal de la Oficina</a>
+  </div>
+  <div class="readonly-list">
     {% for r in responsables %}
-    <div class="cfg-item">
-      <span class="cfg-item-name">{{ r.nombre }}</span>
-      <form method="post" action="/correspondencia/configurar/responsable/{{ r.id }}/editar"
-            style="display:inline;display:flex;gap:6px">
-        <input type="text" name="nombre" value="{{ r.nombre }}" style="width:200px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
-        <button type="submit" class="btn-sm btn-edit" style="white-space:nowrap">💾 Actualizar</button>
-      </form>
-      <form method="post" action="/correspondencia/configurar/responsable/{{ r.id }}/eliminar" style="display:inline">
-        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
-                onclick="return confirm('¿Eliminar a {{ r.nombre }}?')">✕</button>
-      </form>
-    </div>
+    <div class="readonly-item">{{ r }}</div>
     {% else %}
-    <p style="color:var(--text-muted);font-size:13px">Sin responsables registrados.</p>
+    <p style="color:var(--text-muted);font-size:13px">Sin responsables activos.</p>
     {% endfor %}
   </div>
-
-  <form method="post" action="/correspondencia/configurar/responsable/nuevo" class="cfg-add-form">
-    <input type="text" name="nombre" placeholder="Nombre del nuevo responsable..." required>
-    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
-  </form>
 </div>
 
 <!-- Tipos de Documento -->
@@ -81,18 +71,64 @@
   </form>
 </div>
 
-<!-- Tipos de Respuesta (solo lectura - se editan en el código) -->
+<!-- Tipos de Respuesta -->
 <div class="cfg-section">
   <div class="cfg-title">💬 Tipos de Respuesta (sugerencias predefinidas)</div>
-  <div class="cfg-desc">
-    Estas opciones aparecen como sugerencias en el campo "Tipo de Respuesta".
-    El usuario también puede escribir libremente cualquier valor en ese campo.
-  </div>
-  <div class="readonly-list">
+  <div class="cfg-desc">Estas opciones aparecen como sugerencias en el campo "Tipo de Respuesta". El usuario también puede escribir libremente cualquier valor en ese campo.</div>
+
+  <div class="cfg-list">
     {% for t in tipos_respuesta %}
-    <div class="readonly-item">{{ t }}</div>
+    <div class="cfg-item">
+      <span class="cfg-item-name">{{ t.nombre }}</span>
+      <form method="post" action="/correspondencia/configurar/tipo_respuesta/{{ t.id }}/editar"
+            style="display:flex;gap:6px">
+        <input type="text" name="nombre" value="{{ t.nombre }}" style="width:200px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
+        <button type="submit" class="btn-sm btn-edit">💾 Actualizar</button>
+      </form>
+      <form method="post" action="/correspondencia/configurar/tipo_respuesta/{{ t.id }}/eliminar" style="display:inline">
+        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
+                onclick="return confirm('¿Eliminar este tipo de respuesta?')">✕</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:13px">Sin tipos de respuesta registrados.</p>
     {% endfor %}
   </div>
+
+  <form method="post" action="/correspondencia/configurar/tipo_respuesta/nuevo" class="cfg-add-form">
+    <input type="text" name="nombre" placeholder="Nuevo tipo de respuesta..." required>
+    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
+  </form>
+</div>
+
+<!-- Tipos de Requerimiento -->
+<div class="cfg-section">
+  <div class="cfg-title">📋 Tipos de Requerimiento</div>
+  <div class="cfg-desc">Opciones para el campo "Tipo de Requerimiento" del formulario.</div>
+
+  <div class="cfg-list">
+    {% for t in tipos_requerimiento %}
+    <div class="cfg-item">
+      <span class="cfg-item-name">{{ t.nombre }}</span>
+      <form method="post" action="/correspondencia/configurar/tipo_requerimiento/{{ t.id }}/editar"
+            style="display:flex;gap:6px">
+        <input type="text" name="nombre" value="{{ t.nombre }}" style="width:260px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px">
+        <button type="submit" class="btn-sm btn-edit">💾 Actualizar</button>
+      </form>
+      <form method="post" action="/correspondencia/configurar/tipo_requerimiento/{{ t.id }}/eliminar" style="display:inline">
+        <button type="submit" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer"
+                onclick="return confirm('¿Eliminar este tipo de requerimiento?')">✕</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:13px">Sin tipos de requerimiento registrados.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="/correspondencia/configurar/tipo_requerimiento/nuevo" class="cfg-add-form">
+    <input type="text" name="nombre" placeholder="Nuevo tipo de requerimiento..." required>
+    <button type="submit" class="btn btn-primary" style="white-space:nowrap">➕ Agregar</button>
+  </form>
 </div>
 
 {% endblock %}

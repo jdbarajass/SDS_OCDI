@@ -37,6 +37,7 @@
 .perm-check input { cursor:pointer; width:15px; height:15px; }
 .perm-row-e .perm-check.checked { background:#eff6ff; border-color:#3b82f6; }
 .perm-row-v .perm-check.checked { background:#f0fdf4; border-color:#22c55e; }
+.perm-row-i .perm-check.checked { background:#fff7ed; border-color:#f97316; }
 .perm-divider { height:1px; background:#f1f5f9; margin:10px 0; }
 .section-title { font-size:16px; font-weight:700; color:#1e293b; margin:28px 0 14px; border-bottom:2px solid #e2e8f0; padding-bottom:8px; }
 </style>
@@ -122,7 +123,8 @@
 <p style="font-size:13px;color:#64748b;margin-bottom:16px">
     Admin y Jefe tienen acceso total permanente. Los permisos aplican al resto de usuarios.<br>
     <strong style="color:#065f46">👁️ VISIBILIDAD</strong> — el usuario puede ver el módulo en el portal y acceder a él.<br>
-    <strong style="color:#1d4ed8">✏️ ESCRITURA</strong> — el usuario puede crear, editar y eliminar registros (requiere visibilidad activa).
+    <strong style="color:#1d4ed8">✏️ ESCRITURA</strong> — el usuario puede crear, editar y eliminar registros (requiere visibilidad activa).<br>
+    <strong style="color:#c2410c">📥 IMPORTAR</strong> — el usuario puede subir archivos Excel y modificar datos masivamente (requiere escritura activa).
 </p>
 <div class="perm-section">
     {% for u in usuarios %}
@@ -162,6 +164,23 @@
                            name="pw_{{ u.id }}_{{ mod_id }}"
                            {% if pe %}checked{% endif %}
                            onchange="updateLabel('e', '{{ u.id }}', '{{ mod_id }}', this.checked)">
+                    {{ mod_label }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <div class="perm-divider"></div>
+
+            <!-- Fila IMPORTAR -->
+            <div class="perm-row-label" style="color:#c2410c">📥 IMPORTAR — ¿Puede subir archivos y modificar datos masivamente?</div>
+            <div class="perm-grid perm-row-i">
+                {% for mod_id, mod_label in modulos %}
+                {% set pim = permisos.get(u.id, {}).get(mod_id, {}).get('puede_importar', False) %}
+                <label class="perm-check {% if pim %}checked{% endif %}" id="label-i-{{ u.id }}-{{ mod_id }}">
+                    <input type="checkbox"
+                           name="pi_{{ u.id }}_{{ mod_id }}"
+                           {% if pim %}checked{% endif %}
+                           onchange="updateLabel('i', '{{ u.id }}', '{{ mod_id }}', this.checked)">
                     {{ mod_label }}
                 </label>
                 {% endfor %}

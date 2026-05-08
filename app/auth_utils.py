@@ -91,6 +91,22 @@ def puede_escribir(user: dict | None, modulo: str) -> bool:
     return bool(row and row["puede_escribir"])
 
 
+def puede_importar(user: dict | None, modulo: str) -> bool:
+    """True si el usuario tiene permiso de importación masiva en el módulo dado."""
+    if not user:
+        return False
+    if user["rol"] in ROLES_SUPERUSUARIO:
+        return True
+    from app.database import get_db
+    conn = get_db()
+    row = conn.execute(
+        "SELECT puede_importar FROM permisos_modulo WHERE user_id = ? AND modulo = ?",
+        (user["id"], modulo)
+    ).fetchone()
+    conn.close()
+    return bool(row and row["puede_importar"])
+
+
 def puede_ver(user: dict | None, modulo: str) -> bool:
     """True si el usuario tiene visibilidad del módulo dado (puede ver el tile/acceder)."""
     if not user:
@@ -110,11 +126,11 @@ def puede_ver(user: dict | None, modulo: str) -> bool:
 
 
 def get_permisos_usuario(user_id: int) -> dict:
-    """Retorna dict {modulo: {puede_ver, puede_escribir}} para el usuario dado."""
+    """Retorna dict {modulo: {puede_ver, puede_escribir, puede_importar}} para el usuario dado."""
     from app.database import get_db
     conn = get_db()
     rows = conn.execute(
-        "SELECT modulo, puede_ver, puede_escribir FROM permisos_modulo WHERE user_id = ?",
+        "SELECT modulo, puede_ver, puede_escribir, puede_importar FROM permisos_modulo WHERE user_id = ?",
         (user_id,)
     ).fetchall()
     conn.close()
@@ -122,6 +138,7 @@ def get_permisos_usuario(user_id: int) -> dict:
         r["modulo"]: {
             "puede_ver": r["puede_ver"] != 0,
             "puede_escribir": bool(r["puede_escribir"]),
+            "puede_importar": bool(r["puede_importar"]),
         }
         for r in rows
     }
@@ -139,14 +156,18 @@ def tpl(request: Request, modulo: str | None = None, **kwargs) -> dict:
     if modulo:
         if user and user["rol"] in ROLES_SUPERUSUARIO:
             pw = True
+            pi = True
         else:
             pw = permisos.get(modulo, {}).get("puede_escribir", False)
+            pi = permisos.get(modulo, {}).get("puede_importar", False)
     else:
         pw = False
+        pi = False
     return {
         "request": request,
         "current_user": user,
         "puede_escribir": pw,
+        "puede_importar": pi,
         "permisos": permisos,
         **kwargs,
     }

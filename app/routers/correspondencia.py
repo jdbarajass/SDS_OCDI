@@ -377,6 +377,17 @@ async def lista(
     anios_bd = [r[0] for r in conn.execute(
         "SELECT DISTINCT anio FROM correspondencia WHERE anio IS NOT NULL ORDER BY anio DESC"
     ).fetchall()]
+
+    dupl_rows = conn.execute("""
+        SELECT UPPER(TRIM(n_radicado)) AS nr, COUNT(*) AS cnt
+        FROM correspondencia
+        WHERE n_radicado IS NOT NULL AND TRIM(n_radicado) != ''
+        GROUP BY UPPER(TRIM(n_radicado))
+        HAVING COUNT(*) > 1
+        ORDER BY cnt DESC, nr
+    """).fetchall()
+    radicados_duplicados = {r["nr"] for r in dupl_rows}
+    duplicados_info = [{"n_radicado": r["nr"], "cantidad": r["cnt"]} for r in dupl_rows]
     conn.close()
 
     # Compute semaphore and extract first radicado URL for list display
@@ -406,6 +417,8 @@ async def lista(
         mes=mes, anio=anio, tipo_contrato=tipo_contrato,
         responsables=responsables, meses=MESES,
         anios=anios_bd, msg=msg,
+        radicados_duplicados=radicados_duplicados,
+        duplicados_info=duplicados_info,
         back_url=request.url.path + ("?" + str(request.url.query) if request.url.query else ""),
     ))
 
@@ -1065,6 +1078,45 @@ async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(
         return RedirectResponse("/correspondencia/importar-agilsalud?msg=error_import", status_code=303)
     conn.close()
     return RedirectResponse(f"/correspondencia/importar-agilsalud?msg=ok_{insertados}", status_code=303)
+
+
+# ── Verificar duplicado de N. Radicado (API JSON) ─────────────────────────────
+
+@router.get("/verificar-radicado")
+async def verificar_radicado(
+    request: Request,
+    n_radicado: str = "",
+    exclude_id: int = 0,
+):
+    from fastapi.responses import JSONResponse
+    val = n_radicado.strip().upper()
+    if not val:
+        return JSONResponse({"existe": False, "registros": []})
+    conn = get_db()
+    if exclude_id:
+        rows = conn.execute(
+            "SELECT id, n_radicado, responsable, fecha_ingreso, mes, anio "
+            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ? AND id != ?",
+            (val, exclude_id),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, n_radicado, responsable, fecha_ingreso, mes, anio "
+            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ?",
+            (val,),
+        ).fetchall()
+    conn.close()
+    registros = [
+        {
+            "id": r["id"],
+            "responsable": r["responsable"] or "Sin asignar",
+            "fecha_ingreso": (r["fecha_ingreso"] or "")[:10],
+            "mes": r["mes"] or "",
+            "anio": r["anio"] or "",
+        }
+        for r in rows
+    ]
+    return JSONResponse({"existe": len(registros) > 0, "registros": registros})
 
 
 # ── VER / EDITAR / ELIMINAR ────────────────────────────────────────────────────

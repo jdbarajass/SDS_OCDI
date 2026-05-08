@@ -54,7 +54,10 @@
       </div>
       <div class="field-group">
         <label>N. Radicados *</label>
-        <input type="text" name="n_radicado" value="{{ reg.n_radicado or '' }}" placeholder="Ej: 2026-IE-00245" required>
+        <input type="text" id="inp-n-radicado" name="n_radicado"
+               value="{{ reg.n_radicado or '' }}" placeholder="Ej: 2026-IE-00245" required
+               autocomplete="off">
+        <div id="rad-feedback" style="font-size:11px;margin-top:3px;min-height:16px"></div>
       </div>
       <div class="field-group">
         <label>Tipo de Documento</label>
@@ -163,7 +166,7 @@
   </div>
 
   <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">
-    <button type="submit" class="btn btn-primary">💾 Guardar</button>
+    <button type="submit" id="btn-guardar-oficio" class="btn btn-primary">💾 Guardar</button>
     <a href="{{ back or '/correspondencia/' }}" class="btn btn-outline">Cancelar</a>
     {% if modo == 'editar' %}
     <span style="font-size:12px;color:var(--text-muted);margin-left:auto">
@@ -243,4 +246,55 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var inp   = document.getElementById('inp-n-radicado');
+    var fb    = document.getElementById('rad-feedback');
+    var btn   = document.getElementById('btn-guardar-oficio');
+    if (!inp || !fb || !btn) return;
+
+    var excludeId = {{ reg.id if modo == 'editar' else 0 }};
+    var timer = null;
+
+    function setFeedback(html, ok) {
+        fb.innerHTML = html;
+        btn.disabled = (ok === false);
+        btn.style.opacity = (ok === false) ? '0.55' : '';
+        btn.title = (ok === false) ? 'No se puede guardar: el N. Radicado ya existe' : '';
+        inp.style.borderColor = ok === true ? '#16a34a' : ok === false ? '#dc2626' : '';
+    }
+
+    function verificar(valor) {
+        if (!valor.trim()) { setFeedback('', null); return; }
+        setFeedback('<span style="color:#64748b">Verificando…</span>', null);
+        fetch('/correspondencia/verificar-radicado?n_radicado=' + encodeURIComponent(valor)
+              + '&exclude_id=' + excludeId)
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+                if (!data.existe) {
+                    setFeedback('<span style="color:#16a34a;font-weight:600">✓ Radicado disponible</span>', true);
+                } else {
+                    var info = data.registros.map(function(r) {
+                        return '<a href="/correspondencia/' + r.id + '" target="_blank" '
+                             + 'style="color:#dc2626;font-weight:700">#' + r.id + '</a> — '
+                             + (r.responsable || '—') + ' · ' + (r.mes || '') + ' ' + (r.anio || '')
+                             + (r.fecha_ingreso ? ' (' + r.fecha_ingreso + ')' : '');
+                    }).join(' &nbsp;|&nbsp; ');
+                    setFeedback('<span style="color:#dc2626;font-weight:600">⚠ Ya existe en: </span>' + info, false);
+                }
+            })
+            .catch(function() { setFeedback('', null); });
+    }
+
+    inp.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function(){ verificar(inp.value); }, 400);
+    });
+
+    if (inp.value.trim()) { verificar(inp.value); }
+})();
+</script>
 {% endblock %}

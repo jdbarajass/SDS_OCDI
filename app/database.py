@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS sdqs (
     bpm                 TEXT,
     responsable         TEXT,
     rad_salida          TEXT,
+    url_rad_salida      TEXT,
     fecha_respuesta     TEXT,
     observaciones       TEXT,
     estado_proceso      TEXT,
@@ -376,6 +377,11 @@ def init_db():
     if "fecha_vencimiento" not in sdqs_cols:
         try:
             conn.execute("ALTER TABLE sdqs ADD COLUMN fecha_vencimiento TEXT")
+        except Exception:
+            pass
+    if "url_rad_salida" not in sdqs_cols:
+        try:
+            conn.execute("ALTER TABLE sdqs ADD COLUMN url_rad_salida TEXT")
         except Exception:
             pass
 

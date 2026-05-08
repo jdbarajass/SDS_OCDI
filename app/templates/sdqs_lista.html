@@ -79,6 +79,7 @@
             <th style="padding:9px 10px">TEMA</th>
             <th style="padding:9px 10px;text-align:center;white-space:nowrap">COMP. OCDI</th>
             <th style="padding:9px 10px;white-space:nowrap">RESPONSABLE</th>
+            <th style="padding:9px 10px;white-space:nowrap">RAD. SALIDA</th>
             <th style="padding:9px 10px;white-space:nowrap">ESTADO</th>
             <th style="padding:9px 10px;text-align:center;white-space:nowrap">ACCIONES</th>
         </tr>
@@ -122,6 +123,15 @@
             {% endif %}
         </td>
         <td style="padding:8px 10px;font-size:12px">{{ reg.responsable or '—' }}</td>
+        <td style="padding:8px 10px;white-space:nowrap;font-size:12px">
+            {% if reg.url_rad_salida and reg.rad_salida %}
+            <a href="{{ reg.url_rad_salida }}" target="_blank" rel="noopener"
+               style="color:var(--primary);font-weight:600;text-decoration:underline"
+               title="Abrir enlace: {{ reg.url_rad_salida }}">{{ reg.rad_salida }}</a>
+            {% elif reg.rad_salida %}
+            {{ reg.rad_salida }}
+            {% else %}—{% endif %}
+        </td>
         <td style="padding:8px 10px;white-space:nowrap">
             {% if reg.estado_proceso == 'INDAGACION PREVIA' %}
             <span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">INDAGACIÓN</span>
@@ -145,7 +155,7 @@
     </tr>
     {% else %}
     <tr>
-        <td colspan="12" style="padding:32px;text-align:center;color:#aaa;font-style:italic">No se encontraron registros.</td>
+        <td colspan="13" style="padding:32px;text-align:center;color:#aaa;font-style:italic">No se encontraron registros.</td>
     </tr>
     {% endfor %}
     </tbody>

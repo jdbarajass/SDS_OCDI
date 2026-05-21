@@ -64,9 +64,32 @@
             <div>
                 <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">SDQS <span style="color:#dc3545">*</span></label>
                 {% if es_ver %}
-                <div class="form-val">{{ registro.sdqs or '—' }}</div>
+                <div class="form-val">
+                    {% if registro.url_sdqs and registro.sdqs %}
+                    <a href="{{ registro.url_sdqs }}" target="_blank" rel="noopener"
+                       style="color:var(--primary);font-weight:600;text-decoration:underline">{{ registro.sdqs }}</a>
+                    {% else %}
+                    {{ registro.sdqs or '—' }}
+                    {% endif %}
+                </div>
                 {% else %}
                 <input type="text" name="sdqs" class="form-control" value="{{ registro.sdqs or '' }}" placeholder="Número SDQS" required>
+                {% endif %}
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">URL SDQS</label>
+                {% if es_ver %}
+                <div class="form-val">
+                    {% if registro.url_sdqs %}
+                    <a href="{{ registro.url_sdqs }}" target="_blank" rel="noopener"
+                       style="color:var(--primary);font-size:11px;word-break:break-all">{{ registro.url_sdqs[:60] }}{% if registro.url_sdqs|length > 60 %}…{% endif %}</a>
+                    {% else %}—{% endif %}
+                </div>
+                {% else %}
+                <input type="url" name="url_sdqs" class="form-control"
+                       value="{{ registro.url_sdqs or '' }}"
+                       placeholder="https://...">
                 {% endif %}
             </div>
 

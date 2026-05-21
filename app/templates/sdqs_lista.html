@@ -90,7 +90,15 @@
         <td style="padding:8px 10px;text-align:center;color:#888;font-size:12px">{{ reg.id }}</td>
         <td style="padding:8px 10px;white-space:nowrap;font-size:12px">{{ reg.mes or '—' }}</td>
         <td style="padding:8px 10px;white-space:nowrap;font-size:12px">{{ reg.fecha_asignacion or '—' }}</td>
-        <td style="padding:8px 10px;white-space:nowrap;font-weight:600;color:#0d3060">{{ reg.sdqs or '—' }}</td>
+        <td style="padding:8px 10px;white-space:nowrap;font-weight:600;color:#0d3060">
+            {% if reg.url_sdqs and reg.sdqs %}
+            <a href="{{ reg.url_sdqs }}" target="_blank" rel="noopener"
+               style="color:#0d3060;font-weight:600;text-decoration:underline"
+               title="Abrir enlace: {{ reg.url_sdqs }}">{{ reg.sdqs }}</a>
+            {% else %}
+            {{ reg.sdqs or '—' }}
+            {% endif %}
+        </td>
         <td style="padding:8px 10px;white-space:nowrap;font-size:12px">{{ reg.fecha_vencimiento or '—' }}</td>
         <td style="padding:8px 10px;text-align:center">
             {% if reg.semaforo_sdqs == 'verde' %}

@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS sdqs (
     mes                 TEXT NOT NULL,
     fecha_asignacion    TEXT NOT NULL,
     sdqs                TEXT NOT NULL UNIQUE,
+    url_sdqs            TEXT,
     fecha_vencimiento   TEXT,
     quejoso             TEXT NOT NULL,
     correo              TEXT,
@@ -410,6 +411,11 @@ def init_db():
     if "url_rad_salida" not in sdqs_cols:
         try:
             conn.execute("ALTER TABLE sdqs ADD COLUMN url_rad_salida TEXT")
+        except Exception:
+            pass
+    if "url_sdqs" not in sdqs_cols:
+        try:
+            conn.execute("ALTER TABLE sdqs ADD COLUMN url_sdqs TEXT")
         except Exception:
             pass
 

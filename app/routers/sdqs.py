@@ -176,6 +176,7 @@ async def nuevo_post(
     mes: str = Form(""),
     fecha_asignacion: str = Form(""),
     sdqs_num: str = Form("", alias="sdqs"),
+    url_sdqs: str = Form(""),
     fecha_vencimiento: str = Form(""),
     quejoso: str = Form(""),
     correo: str = Form(""),
@@ -203,12 +204,13 @@ async def nuevo_post(
     conn = get_db()
     conn.execute(
         """INSERT INTO sdqs
-           (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
+           (mes, fecha_asignacion, sdqs, url_sdqs, fecha_vencimiento, quejoso, correo, tema,
             competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
             fecha_respuesta, observaciones,
             estado_proceso, hecho_corrupto, valor_institucional, tipologia, created_by)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+         url_sdqs or None,
          fecha_vencimiento or None,
          quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
          bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
@@ -270,7 +272,7 @@ async def exportar(
         "QUEJOSO", "CORREO", "TEMA",
         "COMPETENCIA OCDI", "BPM", "RESPONSABLE", "RAD SALIDA",
         "FECHA RESPUESTA", "OBSERVACIONES", "ESTADO PROCESO",
-        "HECHO CORRUPTO", "VALOR INSTITUCIONAL", "TIPOLOGIA",
+        "HECHO CORRUPTO", "VALOR INSTITUCIONAL", "TIPOLOGIA", "URL SDQS",
     ]
     header_fill = PatternFill("solid", fgColor="1B4F8A")
     header_font = Font(bold=True, color="FFFFFF")
@@ -292,19 +294,26 @@ async def exportar(
             d.get("competencia_ocdi"), d.get("bpm"), d.get("responsable"),
             d.get("rad_salida"), d.get("fecha_respuesta"), d.get("observaciones"),
             d.get("estado_proceso"), d.get("hecho_corrupto"),
-            d.get("valor_institucional"), d.get("tipologia"),
+            d.get("valor_institucional"), d.get("tipologia"), d.get("url_sdqs"),
         ])
         ri = ws.max_row
         sem = d.get("semaforo_sdqs")
         if sem and sem in SEM_COLORS:
             ws.cell(ri, 5).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+        # Hipervínculo en columna SDQS (col 3)
+        url_sdqs = d.get("url_sdqs")
+        if url_sdqs and d.get("sdqs"):
+            sdqs_cell = ws.cell(ri, 3)
+            sdqs_cell.hyperlink = url_sdqs
+            sdqs_cell.font = link_font
+        # Hipervínculo en columna RAD SALIDA (col 12)
         url = d.get("url_rad_salida")
         if url and d.get("rad_salida"):
             rad_cell = ws.cell(ri, 12)
             rad_cell.hyperlink = url
             rad_cell.font = link_font
 
-    col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20]
+    col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 40]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -408,6 +417,7 @@ async def editar_post(
     mes: str = Form(""),
     fecha_asignacion: str = Form(""),
     sdqs_num: str = Form("", alias="sdqs"),
+    url_sdqs: str = Form(""),
     fecha_vencimiento: str = Form(""),
     quejoso: str = Form(""),
     correo: str = Form(""),
@@ -431,7 +441,7 @@ async def editar_post(
     conn = get_db()
     conn.execute(
         """UPDATE sdqs SET
-           mes=?, fecha_asignacion=?, sdqs=?, fecha_vencimiento=?,
+           mes=?, fecha_asignacion=?, sdqs=?, url_sdqs=?, fecha_vencimiento=?,
            quejoso=?, correo=?, tema=?, competencia_ocdi=?,
            bpm=?, responsable=?, rad_salida=?, url_rad_salida=?,
            fecha_respuesta=?,
@@ -440,6 +450,7 @@ async def editar_post(
            updated_at=datetime('now','localtime')
            WHERE id=?""",
         (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+         url_sdqs or None,
          fecha_vencimiento or None,
          quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
          bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
@@ -516,6 +527,7 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
     i_mes    = _ci(["MES"])
     i_fasig  = _ci(["FECHA ASIGNACION", "FECHA ASIGNACIÓN", "FECHA RADICADO"])
     i_sdqs   = _ci(["SDQS"])
+    i_urlsdqs = _ci(["URL SDQS"])
     i_fvenc  = _ci(["FECHA VENCIMINETO", "FECHA VENCIMIENTO"])
     i_quej   = _ci(["QUEJOSO"])
     i_correo = _ci(["CORREO"])
@@ -591,6 +603,16 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
             if responsable == "":
                 responsable = None
 
+            # Leer hipervínculo de la celda SDQS
+            url_sdqs_val = None
+            if i_sdqs is not None and i_sdqs < len(row_cells):
+                hl = row_cells[i_sdqs].hyperlink
+                if hl:
+                    url_sdqs_val = getattr(hl, "target", None)
+            # Leer columna URL SDQS (texto plano) si existe y no se obtuvo de hipervínculo
+            if not url_sdqs_val:
+                url_sdqs_val = _v(row, i_urlsdqs) if i_urlsdqs is not None else None
+
             # Leer hipervínculo de la celda RAD SALIDA
             url_rad_sal = None
             if i_rsal is not None and i_rsal < len(row_cells):
@@ -600,15 +622,16 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
 
             conn.execute(
                 """INSERT INTO sdqs
-                   (mes, fecha_asignacion, sdqs, fecha_vencimiento, quejoso, correo, tema,
+                   (mes, fecha_asignacion, sdqs, url_sdqs, fecha_vencimiento, quejoso, correo, tema,
                     competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
                     fecha_respuesta,
                     observaciones, estado_proceso, hecho_corrupto, valor_institucional,
                     tipologia, created_by)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(sdqs) DO UPDATE SET
                        mes=excluded.mes,
                        fecha_asignacion=excluded.fecha_asignacion,
+                       url_sdqs=excluded.url_sdqs,
                        fecha_vencimiento=excluded.fecha_vencimiento,
                        quejoso=excluded.quejoso, correo=excluded.correo,
                        tema=excluded.tema, competencia_ocdi=excluded.competencia_ocdi,
@@ -621,7 +644,7 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
                        valor_institucional=excluded.valor_institucional,
                        tipologia=excluded.tipologia,
                        updated_at=datetime('now','localtime')""",
-                (mes, fa, sdqs_num, fv, quejoso, correo, tema, comp,
+                (mes, fa, sdqs_num, url_sdqs_val, fv, quejoso, correo, tema, comp,
                  bpm, responsable, rad_sal, url_rad_sal, f_resp, obs,
                  estado if estado else None, hecho, valor_inst, tipologia, "IMPORTACION"),
             )

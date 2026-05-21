@@ -75,6 +75,22 @@ async def backup_exportar():
     ctrl_autos  = conn.execute(
         "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
     ).fetchall()
+    sdqs_rows   = conn.execute("SELECT * FROM sdqs ORDER BY fecha_asignacion, id").fetchall()
+    corr_rows   = conn.execute("""
+        SELECT c.*,
+               GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
+               GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
+        FROM correspondencia c
+        LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        GROUP BY c.id
+        ORDER BY c.fecha_ingreso DESC
+    """).fetchall()
+    seg_rows    = conn.execute("""
+        SELECT s.anio, s.mes, e.n_expediente, e.abogado_asignado, s.descripcion, s.created_by, s.created_at
+        FROM seguimiento_mensual s
+        JOIN expedientes e ON e.id = s.expediente_id
+        ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER)
+    """).fetchall()
     conn.close()
 
     ultima_rev = {r["exp_digital_id"]: r["ultima_revision"] for r in dig_revs}
@@ -260,6 +276,130 @@ async def backup_exportar():
         ws4.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws4.freeze_panes = "A2"
 
+    # ── Hoja 5: SDQS ─────────────────────────────────────────────────────────
+    ws5 = wb.create_sheet("SDQS")
+    fill_sdqs = PatternFill("solid", fgColor="7B3F00")
+    link_font = Font(color="0563C1", underline="single")
+
+    headers5 = [
+        "MES", "FECHA ASIGNACION", "SDQS", "URL SDQS", "FECHA VENCIMIENTO",
+        "QUEJOSO", "CORREO", "TEMA", "COMPETENCIA OCDI", "BPM", "RESPONSABLE",
+        "RAD SALIDA", "URL RAD SALIDA", "FECHA RESPUESTA", "OBSERVACIONES",
+        "ESTADO PROCESO", "HECHO CORRUPTO", "VALOR INSTITUCIONAL", "TIPOLOGIA",
+        "CREADO POR", "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN",
+    ]
+    campos5 = [
+        "mes", "fecha_asignacion", "sdqs", "url_sdqs", "fecha_vencimiento",
+        "quejoso", "correo", "tema", "competencia_ocdi", "bpm", "responsable",
+        "rad_salida", "url_rad_salida", "fecha_respuesta", "observaciones",
+        "estado_proceso", "hecho_corrupto", "valor_institucional", "tipologia",
+        "created_by", "created_at", "updated_at",
+    ]
+    for col_idx, h in enumerate(headers5, 1):
+        cell = ws5.cell(row=1, column=col_idx, value=h)
+        cell.fill = fill_sdqs
+        cell.font = h_font
+        cell.alignment = center
+    ws5.row_dimensions[1].height = 30
+
+    for row_idx, row in enumerate(sdqs_rows, 2):
+        d = dict(row)
+        fill = alt_fill if row_idx % 2 == 0 else None
+        for col_idx, campo in enumerate(campos5, 1):
+            cell = ws5.cell(row=row_idx, column=col_idx, value=d.get(campo))
+            cell.alignment = Alignment(vertical="center")
+            if fill:
+                cell.fill = fill
+        if d.get("url_sdqs") and d.get("sdqs"):
+            c = ws5.cell(row_idx, 3)
+            c.hyperlink = d["url_sdqs"]
+            c.font = link_font
+        if d.get("url_rad_salida") and d.get("rad_salida"):
+            c = ws5.cell(row_idx, 12)
+            c.hyperlink = d["url_rad_salida"]
+            c.font = link_font
+
+    col_widths5 = [10, 16, 14, 40, 16, 28, 28, 50, 14, 14, 28, 16, 40, 16, 40, 22, 22, 22, 20, 20, 20, 20]
+    for i, w in enumerate(col_widths5, 1):
+        ws5.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws5.freeze_panes = "A2"
+
+    # ── Hoja 6: Correspondencia ───────────────────────────────────────────────
+    ws6 = wb.create_sheet("Correspondencia")
+    fill_corr6 = PatternFill("solid", fgColor="1B4F8A")
+
+    headers6 = [
+        "AÑO", "MES", "FECHA INGRESO", "N. RADICADO", "ENTIDAD",
+        "CORREO REMITENTE", "ASUNTO", "SINPROC PERSONERÍA",
+        "TIPO REQUERIMIENTO", "TÉRMINO (DÍAS)", "TIPO DOCUMENTO",
+        "RESPONSABLE", "CASO BMP",
+        "N. RADICADOS SALIDA", "URLS RAD SALIDA", "FECHA RAD SALIDA",
+        "TIPO RESPUESTA", "OBSERVACIONES",
+        "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN",
+    ]
+    for col_idx, h in enumerate(headers6, 1):
+        cell = ws6.cell(row=1, column=col_idx, value=h)
+        cell.fill = fill_corr6
+        cell.font = h_font
+        cell.alignment = center
+    ws6.row_dimensions[1].height = 30
+
+    for row_idx, row in enumerate(corr_rows, 2):
+        d = dict(row)
+        fill = alt_fill if row_idx % 2 == 0 else None
+        vals6 = [
+            d.get("anio"), d.get("mes"),
+            d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
+            d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
+            d.get("sinproc_personeria"), d.get("tipo_requerimiento"), d.get("termino_dias"),
+            d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
+            d.get("radicados_salida"),
+            d.get("radicados_urls"),
+            d.get("fecha_radicado_salida"),
+            d.get("tipo_respuesta"), d.get("tramite_salida"),
+            d.get("created_at")[:16] if d.get("created_at") else None,
+            d.get("updated_at")[:16] if d.get("updated_at") else None,
+        ]
+        for col_idx, v in enumerate(vals6, 1):
+            cell = ws6.cell(row=row_idx, column=col_idx, value=v)
+            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx in (5, 7)))
+            if fill:
+                cell.fill = fill
+
+    col_widths6 = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 30, 50, 20, 25, 30, 20, 20]
+    for i, w in enumerate(col_widths6, 1):
+        ws6.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws6.freeze_panes = "A2"
+
+    # ── Hoja 7: Seguimiento Mensual ───────────────────────────────────────────
+    ws7 = wb.create_sheet("Seguimiento Mensual")
+    fill_seg7 = PatternFill("solid", fgColor="0D3060")
+
+    headers7 = ["AÑO", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
+    for col_idx, h in enumerate(headers7, 1):
+        cell = ws7.cell(row=1, column=col_idx, value=h)
+        cell.fill = fill_seg7
+        cell.font = h_font
+        cell.alignment = center
+    ws7.row_dimensions[1].height = 30
+
+    for row_idx, row in enumerate(seg_rows, 2):
+        d = dict(row)
+        fill = alt_fill if row_idx % 2 == 0 else None
+        vals7 = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
+                 d.get("abogado_asignado"), d.get("descripcion"),
+                 d.get("created_by"), d.get("created_at")]
+        for col_idx, v in enumerate(vals7, 1):
+            cell = ws7.cell(row=row_idx, column=col_idx, value=v)
+            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx == 5))
+            if fill:
+                cell.fill = fill
+
+    col_widths7 = [10, 14, 16, 28, 60, 24, 20]
+    for i, w in enumerate(col_widths7, 1):
+        ws7.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws7.freeze_panes = "A2"
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -294,7 +434,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_archivo", status_code=303)
 
     conn = get_db()
-    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0, "autos": 0}
+    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0, "autos": 0, "sdqs": 0, "corr": 0, "seg": 0}
 
     try:
         # ── Hoja 1: Base Expedientes ───────────────────────────────────────────
@@ -467,6 +607,108 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 )
                 stats["autos"] += 1
 
+        # ── Hoja 5: SDQS ───────────────────────────────────────────────────────
+        if "SDQS" in wb.sheetnames:
+            ws5 = wb["SDQS"]
+            campos_sdqs = [
+                "mes", "fecha_asignacion", "sdqs", "url_sdqs", "fecha_vencimiento",
+                "quejoso", "correo", "tema", "competencia_ocdi", "bpm", "responsable",
+                "rad_salida", "url_rad_salida", "fecha_respuesta", "observaciones",
+                "estado_proceso", "hecho_corrupto", "valor_institucional", "tipologia",
+                "created_by", "created_at", "updated_at",
+            ]
+            conn.execute("DELETE FROM sdqs")
+            for row in ws5.iter_rows(min_row=2, values_only=True):
+                if not any(v for v in row if v is not None):
+                    continue
+                sdqs_num = _v(row[2]) if len(row) > 2 else None
+                if not sdqs_num:
+                    continue
+                vals = [_v(row[i]) if i < len(row) else None for i in range(len(campos_sdqs))]
+                conn.execute(
+                    f"INSERT OR IGNORE INTO sdqs ({', '.join(campos_sdqs)}) VALUES ({', '.join(['?']*len(campos_sdqs))})",
+                    vals,
+                )
+                stats["sdqs"] += 1
+
+        # ── Hoja 6: Correspondencia ────────────────────────────────────────────
+        if "Correspondencia" in wb.sheetnames:
+            ws6 = wb["Correspondencia"]
+            conn.execute("DELETE FROM correspondencia_radicados_salida")
+            conn.execute("DELETE FROM correspondencia")
+            for row in ws6.iter_rows(min_row=2, values_only=True):
+                if not any(v for v in row if v is not None):
+                    continue
+                n_rad = _v(row[3]) if len(row) > 3 else None
+                if not n_rad:
+                    continue
+                termino = None
+                termino_raw = _v(row[9]) if len(row) > 9 else None
+                if termino_raw:
+                    try:
+                        termino = int(float(termino_raw))
+                    except (ValueError, TypeError):
+                        pass
+                cur = conn.execute("""
+                    INSERT INTO correspondencia
+                    (anio, mes, fecha_ingreso, n_radicado, origen, correo_remitente, asunto,
+                     sinproc_personeria, tipo_requerimiento, termino_dias, tipo_documento,
+                     responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
+                     created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, [
+                    _v(row[0]), _v(row[1]),
+                    _v(row[2]), n_rad, _v(row[4]), _v(row[5]), _v(row[6]),
+                    _v(row[7]), _v(row[8]), termino, _v(row[10]),
+                    _v(row[11]), _v(row[12]),
+                    _v(row[15]),   # fecha_radicado_salida
+                    _v(row[16]),   # tipo_respuesta
+                    _v(row[17]),   # tramite_salida / observaciones
+                    _v(row[18]),   # created_at
+                    _v(row[19]),   # updated_at
+                ])
+                corr_id = cur.lastrowid
+                radicados_str = _v(row[13]) or ""
+                urls_str = _v(row[14]) or ""
+                if radicados_str:
+                    rads = [r.strip() for r in radicados_str.split(" | ") if r.strip()]
+                    urls = [u.strip() for u in urls_str.split(" | ")] if urls_str else []
+                    for i, rad in enumerate(rads):
+                        u = urls[i] if i < len(urls) and urls[i] else None
+                        conn.execute(
+                            "INSERT INTO correspondencia_radicados_salida (correspondencia_id, radicado, url) VALUES (?,?,?)",
+                            (corr_id, rad, u),
+                        )
+                stats["corr"] += 1
+
+        # ── Hoja 7: Seguimiento Mensual ────────────────────────────────────────
+        if "Seguimiento Mensual" in wb.sheetnames:
+            ws7 = wb["Seguimiento Mensual"]
+            conn.execute("DELETE FROM seguimiento_mensual")
+            for row in ws7.iter_rows(min_row=2, values_only=True):
+                if not any(v for v in row if v is not None):
+                    continue
+                n_exp = _v(row[2]) if len(row) > 2 else None
+                descripcion = _v(row[4]) if len(row) > 4 else None
+                if not n_exp or not descripcion:
+                    continue
+                exp_row = conn.execute(
+                    "SELECT id FROM expedientes WHERE n_expediente = ?", (n_exp,)
+                ).fetchone()
+                if not exp_row:
+                    continue
+                conn.execute("""
+                    INSERT OR IGNORE INTO seguimiento_mensual (expediente_id, anio, mes, descripcion, created_by)
+                    VALUES (?,?,?,?,?)
+                """, [
+                    exp_row[0],
+                    _v(row[0]),
+                    _v(row[1]),
+                    descripcion,
+                    _v(row[5]) if len(row) > 5 else None,
+                ])
+                stats["seg"] += 1
+
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -474,7 +716,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_import", status_code=303)
 
     conn.close()
-    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}_{stats['autos']}"
+    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}_{stats['autos']}_{stats['sdqs']}_{stats['corr']}_{stats['seg']}"
     return RedirectResponse(f"/backup/?msg={msg}", status_code=303)
 
 
@@ -514,7 +756,7 @@ async def backup_zip():
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     corr_rows = [_calcular_semaforo_row(dict(r)) for r in corr_rows_raw]
-    sdqs_rows    = conn.execute("SELECT * FROM sdqs ORDER BY fecha_radicado, id").fetchall()
+    sdqs_rows    = conn.execute("SELECT * FROM sdqs ORDER BY fecha_asignacion, id").fetchall()
     seg_rows     = conn.execute("""
         SELECT s.anio, s.mes, e.n_expediente, e.abogado_asignado, s.descripcion, s.created_by, s.created_at
         FROM seguimiento_mensual s
@@ -629,16 +871,16 @@ async def backup_zip():
         fill = PatternFill("solid", fgColor="7B3F00")
         link_font_sdqs = Font(color="0563C1", underline="single", size=10)
         headers = [
-            "MES","FECHA ASIGNACION","SDQS","FECHA VENCIMIENTO","ESTADO DIAS",
+            "MES","FECHA ASIGNACION","SDQS","URL SDQS","FECHA VENCIMIENTO","ESTADO DIAS",
             "QUEJOSO","CORREO","TEMA",
-            "COMPETENCIA OCDI","BPM","RESPONSABLE","RAD SALIDA","FECHA RESPUESTA",
+            "COMPETENCIA OCDI","BPM","RESPONSABLE","RAD SALIDA","URL RAD SALIDA","FECHA RESPUESTA",
             "OBSERVACIONES","ESTADO PROCESO","HECHO CORRUPTO","VALOR INSTITUCIONAL",
             "TIPOLOGIA","CREADO POR","FECHA CREACIÓN","ÚLTIMA ACTUALIZACIÓN",
         ]
         campos = [
-            "mes","fecha_asignacion","sdqs","fecha_vencimiento","estado_dias",
+            "mes","fecha_asignacion","sdqs","url_sdqs","fecha_vencimiento","estado_dias",
             "quejoso","correo","tema",
-            "competencia_ocdi","bpm","responsable","rad_salida","fecha_respuesta",
+            "competencia_ocdi","bpm","responsable","rad_salida","url_rad_salida","fecha_respuesta",
             "observaciones","estado_proceso","hecho_corrupto","valor_institucional",
             "tipologia","created_by","created_at","updated_at",
         ]
@@ -652,17 +894,22 @@ async def backup_zip():
             rf = alt_fill if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
                 cell = ws.cell(row=ri, column=ci, value=d.get(campo))
-                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 8))
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 9))
                 if rf: cell.fill = rf
             sem = d.get("semaforo_sdqs")
             if sem and sem in SEM_COLORS:
-                ws.cell(ri, 5).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+                ws.cell(ri, 6).fill = PatternFill("solid", fgColor=SEM_COLORS[sem])
+            url_sdqs_val = d.get("url_sdqs")
+            if url_sdqs_val and d.get("sdqs"):
+                c = ws.cell(ri, 3)
+                c.hyperlink = url_sdqs_val
+                c.font = link_font_sdqs
             url = d.get("url_rad_salida")
             if url and d.get("rad_salida"):
-                rad_cell = ws.cell(ri, 12)
-                rad_cell.hyperlink = url
-                rad_cell.font = link_font_sdqs
-        col_widths = [10, 16, 14, 16, 12, 28, 28, 50, 14, 14, 28, 16, 16, 40, 22, 22, 22, 20, 20, 20, 20]
+                c = ws.cell(ri, 13)
+                c.hyperlink = url
+                c.font = link_font_sdqs
+        col_widths = [10, 16, 14, 40, 16, 12, 28, 28, 50, 14, 14, 28, 16, 40, 16, 40, 22, 22, 22, 20, 20, 20, 20]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

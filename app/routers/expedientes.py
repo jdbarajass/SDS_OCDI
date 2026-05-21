@@ -766,26 +766,82 @@ async def importar_post(request: Request):
     except Exception:
         return RedirectResponse("/importar?msg=error_archivo", status_code=303)
 
-    campos = [
-        "n_expediente","anio","mes","medio_ingreso","n_radicado",
-        "fecha_radicado","abogado_asignado","entidad_origen",
-        "quejoso","asunto","impedimento","fecha_apertura_expediente",
-        "numero_auto_apertura_ind","fecha_auto_apertura_ind","tipo_expediente",
-        "tipologia","relacionado_siniestro","responsable_siniestro",
-        "relacionado_maltrato","relacionado_corrupcion","valores_institucionales",
-        "fecha_hechos_obs","fecha_hechos",
-        "fecha_ultima_act_indagacion","numero_auto_ultima_act_ind",
-        "fecha_apertura_investigacion","numero_auto_apertura_inv",
-        "nombre_investigado","cedula","perfil_investigado","area_origen_investigado",
-        "fecha_prorroga","numero_auto_prorroga","tiempo_prorroga",
-        "fecha_ultima_act_investigacion","numero_auto_ultima_act_inv",
-        "numero_auto_traslado","fecha_auto_traslado",
-        "numero_auto_acumulacion","fecha_auto_acumulacion","expediente_acumula",
-        "fecha_auto_archivo","numero_auto_archivo",
-        "fecha_auto_pliego_cargos","numero_auto_pliego_cargos",
-        "etapa_actual","estado_proceso","observaciones",
-        "created_by","created_at","updated_at",
-    ]
+    # Mapeo encabezado Excel → campo BD.
+    # Cubre el formato del backup general Y el del exportador individual (bloques filtrados).
+    # Los encabezados calculados (PRESCRIPCIÓN, VENCIMIENTO calc.) no están en el mapa → se ignoran.
+    HEADER_CAMPO = {
+        "N. EXPEDIENTE": "n_expediente",
+        "AÑO": "anio",
+        "MES": "mes",
+        "MEDIO DE INGRESO": "medio_ingreso",
+        "N. RADICADO": "n_radicado",
+        "FECHA RADICADO": "fecha_radicado",
+        "ABOGADO ASIGNADO": "abogado_asignado",
+        "ENTIDAD ORIGEN": "entidad_origen",
+        "QUEJOSO": "quejoso",
+        "ASUNTO": "asunto",
+        "IMPEDIMENTO": "impedimento",
+        "FECHA APERTURA EXPEDIENTE": "fecha_apertura_expediente",
+        "F. APERTURA EXPEDIENTE": "fecha_apertura_expediente",
+        "N. AUTO APERTURA INDAGACIÓN": "numero_auto_apertura_ind",
+        "N. AUTO APERTURA IND.": "numero_auto_apertura_ind",
+        "FECHA AUTO APERTURA IND.": "fecha_auto_apertura_ind",
+        "F. AUTO APERTURA IND.": "fecha_auto_apertura_ind",
+        "TIPO EXPEDIENTE": "tipo_expediente",
+        "TIPOLOGIA": "tipologia",
+        "TIPOLOGÍA": "tipologia",
+        "RELACIONADO SINIESTRO": "relacionado_siniestro",
+        "REL. SINIESTRO": "relacionado_siniestro",
+        "RESPONSABLE SINIESTRO": "responsable_siniestro",
+        "RESP. SINIESTRO": "responsable_siniestro",
+        "RELACIONADO MALTRATO": "relacionado_maltrato",
+        "REL. MALTRATO/ACOSO": "relacionado_maltrato",
+        "RELACIONADO CORRUPCIÓN": "relacionado_corrupcion",
+        "RELACIONADO CORRUPCION": "relacionado_corrupcion",
+        "REL. CORRUPCIÓN": "relacionado_corrupcion",
+        "VALORES INSTITUCIONALES": "valores_institucionales",
+        "FECHA HECHOS (OBSERVACIONES)": "fecha_hechos_obs",
+        "FECHA HECHOS (OBS.)": "fecha_hechos_obs",
+        "FECHA HECHOS": "fecha_hechos",
+        "F. ÚLTIMA ACTUACIÓN INDAGACIÓN": "fecha_ultima_act_indagacion",
+        "F. ÚLTIMA ACT. IND.": "fecha_ultima_act_indagacion",
+        "N. AUTO ÚLTIMA ACT. IND.": "numero_auto_ultima_act_ind",
+        "F. APERTURA INVESTIGACIÓN": "fecha_apertura_investigacion",
+        "F. APERTURA INV.": "fecha_apertura_investigacion",
+        "N. AUTO APERTURA INV.": "numero_auto_apertura_inv",
+        "F. ÚLTIMA ACTUACIÓN INVESTIGACIÓN": "fecha_ultima_act_investigacion",
+        "F. ÚLTIMA ACT. INV.": "fecha_ultima_act_investigacion",
+        "N. AUTO ÚLTIMA ACT. INV.": "numero_auto_ultima_act_inv",
+        "NOMBRE INVESTIGADO": "nombre_investigado",
+        "CÉDULA": "cedula",
+        "CEDULA": "cedula",
+        "PERFIL INVESTIGADO": "perfil_investigado",
+        "ÁREA ORIGEN INVESTIGADO": "area_origen_investigado",
+        "AREA ORIGEN INVESTIGADO": "area_origen_investigado",
+        "FECHA PRÓRROGA": "fecha_prorroga",
+        "F. PRÓRROGA": "fecha_prorroga",
+        "N. AUTO PRÓRROGA": "numero_auto_prorroga",
+        "TIEMPO PRÓRROGA": "tiempo_prorroga",
+        "TIEMPO PRÓRROGA (MESES)": "tiempo_prorroga",
+        "N. AUTO TRASLADO": "numero_auto_traslado",
+        "F. AUTO TRASLADO": "fecha_auto_traslado",
+        "N. AUTO ACUMULACIÓN": "numero_auto_acumulacion",
+        "F. AUTO ACUMULACIÓN": "fecha_auto_acumulacion",
+        "EXPEDIENTE ACUMULA": "expediente_acumula",
+        "EXP. ACUMULA": "expediente_acumula",
+        "F. AUTO ARCHIVO": "fecha_auto_archivo",
+        "N. AUTO ARCHIVO": "numero_auto_archivo",
+        "F. AUTO PLIEGO CARGOS": "fecha_auto_pliego_cargos",
+        "N. AUTO PLIEGO CARGOS": "numero_auto_pliego_cargos",
+        "ETAPA ACTUAL": "etapa_actual",
+        "ESTADO DEL PROCESO": "estado_proceso",
+        "OBSERVACIONES": "observaciones",
+        "CREADO POR": "created_by",
+        "FECHA CREACIÓN": "created_at",
+        "ÚLTIMA ACTUALIZACIÓN": "updated_at",
+    }
+
+    DB_CAMPOS = set(HEADER_CAMPO.values())
 
     def _v(val):
         if val is None:
@@ -798,6 +854,15 @@ async def importar_post(request: Request):
         return RedirectResponse("/importar?msg=error_hoja", status_code=303)
 
     ws = wb[ws_name]
+
+    # Construir mapa col_index → campo usando la fila de encabezados
+    header_row = [str(ws.cell(1, c).value or "").strip().upper() for c in range(1, ws.max_column + 1)]
+    col_campo = {}
+    for ci, h in enumerate(header_row):
+        campo = HEADER_CAMPO.get(h)
+        if campo and campo in DB_CAMPOS:
+            col_campo[ci] = campo
+
     conn = get_db()
     conn.execute("DELETE FROM expedientes")
     count = 0
@@ -805,13 +870,14 @@ async def importar_post(request: Request):
         for row in ws.iter_rows(min_row=2, values_only=True):
             if not any(v for v in row if v is not None):
                 continue
-            n_exp = _v(row[0]) if len(row) > 0 else None
-            if not n_exp:
+            datos = {campo: _v(row[ci]) if ci < len(row) else None
+                     for ci, campo in col_campo.items()}
+            if not datos.get("n_expediente"):
                 continue
-            vals = [_v(row[i]) if i < len(row) else None for i in range(len(campos))]
+            campos_ins = list(datos.keys())
             conn.execute(
-                f"INSERT INTO expedientes ({', '.join(campos)}) VALUES ({', '.join(['?']*len(campos))})",
-                vals,
+                f"INSERT INTO expedientes ({', '.join(campos_ins)}) VALUES ({', '.join(['?']*len(campos_ins))})",
+                [datos[c] for c in campos_ins],
             )
             count += 1
         conn.commit()

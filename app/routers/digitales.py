@@ -352,26 +352,69 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
     if hoja is None:
         hoja = wb.active
 
+    # Leer encabezados desde fila 2 del Excel (fila 0 = título, fila 1 = cabeceras)
+    # Esto hace el importador compatible con el formato heredado Y con el exportador propio de la app.
+    all_rows = list(hoja.iter_rows(values_only=True))
+    header_map: dict[str, int] = {}
+    if len(all_rows) > 1:
+        for ci, h in enumerate(all_rows[1]):
+            if h:
+                header_map[str(h).strip().upper()] = ci
+
+    def _hi(name, *alts):
+        idx = header_map.get(name)
+        if idx is None:
+            for a in alts:
+                idx = header_map.get(a)
+                if idx is not None:
+                    break
+        return idx
+
+    # Posiciones detectadas por encabezado; fallback a posiciones del formato heredado
+    I_NEXP     = _hi("N° EXPEDIENTE", "N. EXPEDIENTE") or 0
+    I_ANIO     = _hi("AÑO") if _hi("AÑO") is not None else 1
+    I_ABOGADO  = _hi("ABOGADO") if _hi("ABOGADO") is not None else 2
+    I_ETAPA    = _hi("ETAPA") if _hi("ETAPA") is not None else 3
+    I_QUEJA    = _hi("QUEJA INICIAL") if _hi("QUEJA INICIAL") is not None else 4
+    I_RAD_AUTO = _hi("RADICADO AUTO") if _hi("RADICADO AUTO") is not None else 5
+    I_NOM_AUTO = _hi("NOMBRE AUTO") if _hi("NOMBRE AUTO") is not None else 6
+    I_FEC_AUTO = _hi("FECHA AUTO") if _hi("FECHA AUTO") is not None else 7
+    I_OBS_EXP  = _hi("OBS. GENERALES")                                       # solo en export de la app
+    I_ULTREV   = _hi("ÚLTIMA REVISIÓN", "ULTIMA REVISION")                   # solo en export de la app
+    _i_rad     = _hi("RADICADO COMUNICACIÓN", "RADICADO COMUNICACION")
+    I_RAD_COM  = _i_rad if _i_rad is not None else 8
+    I_DEPEND   = _hi("DEPENDENCIA") if _hi("DEPENDENCIA") is not None else I_RAD_COM + 1
+    I_FEC_ENV  = _hi("FECHA ENVÍO", "FECHA ENVIO") if _hi("FECHA ENVÍO", "FECHA ENVIO") is not None else I_RAD_COM + 2
+    I_FEC_SEG  = _hi("FECHA SEGUIMIENTO") if _hi("FECHA SEGUIMIENTO") is not None else I_RAD_COM + 3
+    I_RAD_RESP = _hi("RADICADO RESPUESTA") if _hi("RADICADO RESPUESTA") is not None else I_RAD_COM + 4
+    I_FEC_RESP = _hi("FECHA RESPUESTA") if _hi("FECHA RESPUESTA") is not None else I_RAD_COM + 5
+    I_RESP     = _hi("RESPONSABLE") if _hi("RESPONSABLE") is not None else I_RAD_COM + 6
+    I_OBS_COM  = _hi("OBSERVACIONES") if _hi("OBSERVACIONES") is not None else I_RAD_COM + 7
+
+    min_cols = max(I_OBS_COM + 1 if I_OBS_COM is not None else 18, 18)
+
+    def _gc(col, idx):
+        if idx is None or idx >= len(col):
+            return None
+        return col[idx]
+
     conn = get_db()
     exp_insertados = 0
     exp_omitidos = 0
     coms_insertadas = 0
     ultimo_exp_id: int | None = None
 
-    for idx, row in enumerate(hoja.iter_rows(values_only=True)):
-        if idx < 2:  # fila 0 = título, fila 1 = cabeceras
-            continue
-
+    for row in all_rows[2:]:  # saltar fila 0 (título) y fila 1 (cabeceras)
         col = list(row)
-        while len(col) < 16:
+        while len(col) < min_cols:
             col.append(None)
 
-        n_exp = _texto(col[0])
-        radicado_com = _texto(col[8])
+        n_exp = _texto(_gc(col, I_NEXP))
+        radicado_com = _texto(_gc(col, I_RAD_COM))
 
         if n_exp:
             # Fila padre — expediente
-            anio_val = col[1]
+            anio_val = _gc(col, I_ANIO)
             try:
                 anio_int = int(anio_val) if anio_val else None
             except (ValueError, TypeError):
@@ -386,48 +429,69 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                 ultimo_exp_id = existing[0]
                 exp_omitidos += 1
             else:
+                obs_exp = _texto(_gc(col, I_OBS_EXP)) if I_OBS_EXP is not None else None
                 conn.execute("""
                     INSERT INTO exp_digitales
                         (n_expediente, anio, abogado, etapa, queja_inicial,
-                         radicado_auto, nombre_auto, fecha_auto)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                         radicado_auto, nombre_auto, fecha_auto, observaciones)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     n_exp, anio_int,
-                    _texto(col[2]), _texto(col[3]),
-                    _texto(col[4]) or "No",
-                    _texto(col[5]), _texto(col[6]), _fecha(col[7]),
+                    _texto(_gc(col, I_ABOGADO)),
+                    _texto(_gc(col, I_ETAPA)),
+                    _texto(_gc(col, I_QUEJA)) or "No",
+                    _texto(_gc(col, I_RAD_AUTO)),
+                    _texto(_gc(col, I_NOM_AUTO)),
+                    _fecha(_gc(col, I_FEC_AUTO)),
+                    obs_exp,
                 ))
                 ultimo_exp_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 exp_insertados += 1
 
-            # Si la fila padre también tiene comunicación
-            radicado_com_padre = _texto(col[8])
-            if radicado_com_padre and ultimo_exp_id:
+            # Restaurar última revisión si el archivo la incluye
+            if I_ULTREV is not None and ultimo_exp_id:
+                ultima_rev = _texto(_gc(col, I_ULTREV))
+                if ultima_rev:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO exp_revisiones (exp_digital_id, fecha_revision) VALUES (?, ?)",
+                        (ultimo_exp_id, ultima_rev),
+                    )
+
+            # Primera comunicación embebida en la fila padre
+            if radicado_com and ultimo_exp_id:
                 conn.execute("""
                     INSERT INTO exp_comunicaciones
                         (exp_digital_id, radicado_comunicacion, dependencia, fecha_envio,
                          fecha_seguimiento, radicado_respuesta, fecha_respuesta, responsable, observaciones)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    ultimo_exp_id,
-                    radicado_com_padre,
-                    _texto(col[9]), _fecha(col[10]), _fecha(col[11]),
-                    _texto(col[12]), _fecha(col[13]), _texto(col[14]), _texto(col[15]),
+                    ultimo_exp_id, radicado_com,
+                    _texto(_gc(col, I_DEPEND)),
+                    _fecha(_gc(col, I_FEC_ENV)),
+                    _fecha(_gc(col, I_FEC_SEG)),
+                    _texto(_gc(col, I_RAD_RESP)),
+                    _fecha(_gc(col, I_FEC_RESP)),
+                    _texto(_gc(col, I_RESP)),
+                    _texto(_gc(col, I_OBS_COM)),
                 ))
                 coms_insertadas += 1
 
         elif radicado_com and ultimo_exp_id:
-            # Fila hija — comunicación
+            # Fila hija — comunicación adicional
             conn.execute("""
                 INSERT INTO exp_comunicaciones
                     (exp_digital_id, radicado_comunicacion, dependencia, fecha_envio,
                      fecha_seguimiento, radicado_respuesta, fecha_respuesta, responsable, observaciones)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                ultimo_exp_id,
-                radicado_com,
-                _texto(col[9]), _fecha(col[10]), _fecha(col[11]),
-                _texto(col[12]), _fecha(col[13]), _texto(col[14]), _texto(col[15]),
+                ultimo_exp_id, radicado_com,
+                _texto(_gc(col, I_DEPEND)),
+                _fecha(_gc(col, I_FEC_ENV)),
+                _fecha(_gc(col, I_FEC_SEG)),
+                _texto(_gc(col, I_RAD_RESP)),
+                _fecha(_gc(col, I_FEC_RESP)),
+                _texto(_gc(col, I_RESP)),
+                _texto(_gc(col, I_OBS_COM)),
             ))
             coms_insertadas += 1
 

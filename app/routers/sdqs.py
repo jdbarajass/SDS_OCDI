@@ -483,25 +483,26 @@ async def eliminar(request: Request, id: int):
 
 def _importar_excel_sdqs(archivo_bytes: bytes):
     """
-    Columnas del Excel BASE SDQS_Actualizada.xlsx (18 cols):
+    Columnas del Excel exportado por la app (19 cols, detección por encabezado):
     0  MES
     1  FECHA ASIGNACION
-    2  SDQS
+    2  SDQS              (+ hipervínculo = url_sdqs)
     3  FECHA VENCIMIENTO
-    4  ESTADO DIAS  (ignorado — se calcula)
+    4  ESTADO DIAS       (ignorado — se calcula)
     5  QUEJOSO
     6  CORREO
     7  TEMA
     8  COMPETENCIA OCDI
     9  BPM
     10 RESPONSABLE
-    11 RAD SALIDA
+    11 RAD SALIDA        (+ hipervínculo = url_rad_salida)
     12 FECHA RESPUESTA
     13 OBSERVACIONES
     14 ESTADO PROCESO
     15 HECHO CORRUPTO
     16 VALOR INSTITUCIONAL
     17 TIPOLOGIA
+    18 URL SDQS          (texto plano; fallback si no hay hipervínculo en col 2)
     """
     try:
         import openpyxl

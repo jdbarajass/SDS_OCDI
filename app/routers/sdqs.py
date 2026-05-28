@@ -204,7 +204,7 @@ async def nuevo_post(
     if not _pw(user, _MOD):
         return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
 
-    obligatorios = [mes, fecha_asignacion, sdqs_num, quejoso, correo, tema, competencia_ocdi, observaciones]
+    obligatorios = [mes, fecha_asignacion, sdqs_num, quejoso, tema, competencia_ocdi, observaciones]
     if any(not v.strip() for v in obligatorios):
         return RedirectResponse("/sdqs/nuevo?msg=error_obligatorios", status_code=303)
 

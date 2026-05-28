@@ -124,7 +124,7 @@ async def ca_lista(
     total = conn.execute(f"SELECT COUNT(*) FROM control_autos_sustanciacion {cond}", params).fetchone()[0]
     offset = (page - 1) * POR_PAGINA
     rows = conn.execute(
-        f"SELECT * FROM control_autos_sustanciacion {cond} ORDER BY fecha_auto ASC, id ASC LIMIT ? OFFSET ?",
+        f"SELECT * FROM control_autos_sustanciacion {cond} ORDER BY fecha_auto DESC, id DESC LIMIT ? OFFSET ?",
         params + [POR_PAGINA, offset],
     ).fetchall()
 
@@ -154,10 +154,17 @@ async def ca_nuevo_form(request: Request):
         return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     conn = get_db()
     abogados = get_personal_oficina(conn)
+    row = conn.execute(
+        "SELECT MAX(CAST(numero_auto AS INTEGER)) FROM control_autos_sustanciacion "
+        "WHERE numero_auto GLOB '[0-9]*'"
+    ).fetchone()
+    max_num = row[0] or 0
+    siguiente_auto = str(max_num + 1).zfill(3)
     conn.close()
     return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
         reg=None, abogados=abogados,
         asuntos=ASUNTOS_COMUNES, active="ca_nuevo",
+        siguiente_auto=siguiente_auto,
     ))
 
 

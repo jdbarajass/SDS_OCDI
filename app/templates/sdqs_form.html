@@ -127,11 +127,11 @@
             </div>
 
             <div>
-                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">CORREO <span style="color:#dc3545">*</span></label>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">CORREO</label>
                 {% if es_ver %}
                 <div class="form-val">{{ registro.correo or '—' }}</div>
                 {% else %}
-                <input type="email" name="correo" class="form-control" value="{{ registro.correo or '' }}" required>
+                <input type="email" name="correo" class="form-control" value="{{ registro.correo or '' }}">
                 {% endif %}
             </div>
 

@@ -45,10 +45,17 @@
             <!-- NÚMERO DEL AUTO -->
             <div class="form-group">
                 <label class="form-label">NÚMERO DEL AUTO</label>
-                <input type="text" name="numero_auto" class="form-control"
-                       value="{{ reg.numero_auto if reg else '' }}"
-                       placeholder="Ej: 001 · 002 · DIGITAL">
+                <input type="text" name="numero_auto" id="numero_auto" class="form-control"
+                       value="{{ reg.numero_auto if reg else (siguiente_auto | default('')) }}"
+                       placeholder="Ej: 001 · 002 · DIGITAL"
+                       {% if not reg %}style="background:#fffbeb;border-color:#f59e0b;font-weight:700"{% endif %}>
+                {% if not reg %}
+                <small style="color:#92400e;font-size:11px;font-weight:600">
+                    💡 Siguiente consecutivo sugerido — puede editarlo si lo necesita
+                </small>
+                {% else %}
                 <small style="color:#6c757d;font-size:11px">Número consecutivo del auto o escriba DIGITAL</small>
+                {% endif %}
             </div>
 
         </div>

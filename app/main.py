@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.template_utils import make_templates
 from pathlib import Path
@@ -28,7 +28,7 @@ templates = make_templates(str(BASE_DIR / "templates"))
 
 # ── Middleware de autenticación ───────────────────────────────────────────────
 
-_RUTAS_PUBLICAS = {"/login", "/login/abogado", "/login/credencial", "/logout"}
+_RUTAS_PUBLICAS = {"/login", "/login/abogado", "/login/credencial", "/logout", "/favicon.ico"}
 
 # Mapa de prefijos de URL a módulo para verificar visibilidad
 _URL_MODULO_MAP = [
@@ -131,6 +131,11 @@ app.include_router(correspondencia.router)
 app.include_router(control_autos.router)
 app.include_router(sdqs_router.router)
 app.include_router(pdf_tools.router)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(str(BASE_DIR / "static" / "favicon.png"), media_type="image/png")
 
 
 @app.on_event("startup")

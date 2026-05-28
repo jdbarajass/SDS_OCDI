@@ -208,26 +208,32 @@ async def nuevo_post(
     if any(not v.strip() for v in obligatorios):
         return RedirectResponse("/sdqs/nuevo?msg=error_obligatorios", status_code=303)
 
+    import sqlite3 as _sqlite3
     conn = get_db()
-    conn.execute(
-        """INSERT INTO sdqs
-           (mes, fecha_asignacion, sdqs, url_sdqs, fecha_vencimiento, quejoso, correo, tema,
-            competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
-            fecha_respuesta, observaciones,
-            estado_proceso, hecho_corrupto, valor_institucional, tipologia, created_by)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (mes.upper(), fecha_asignacion, sdqs_num.upper(),
-         url_sdqs or None,
-         fecha_vencimiento or None,
-         quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
-         bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
-         fecha_respuesta or None,
-         observaciones, estado_proceso or None, hecho_corrupto or None,
-         valor_institucional or None, tipologia or None,
-         user.get("nombre_completo") if user else None),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """INSERT INTO sdqs
+               (mes, fecha_asignacion, sdqs, url_sdqs, fecha_vencimiento, quejoso, correo, tema,
+                competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
+                fecha_respuesta, observaciones,
+                estado_proceso, hecho_corrupto, valor_institucional, tipologia, created_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (mes.upper(), fecha_asignacion, sdqs_num.upper(),
+             url_sdqs or None,
+             fecha_vencimiento or None,
+             quejoso.upper(), correo, tema.upper(), competencia_ocdi.upper(),
+             bpm or None, responsable or None, rad_salida or None, url_rad_salida or None,
+             fecha_respuesta or None,
+             observaciones, estado_proceso or None, hecho_corrupto or None,
+             valor_institucional or None, tipologia or None,
+             user.get("nombre_completo") if user else None),
+        )
+        conn.commit()
+    except _sqlite3.IntegrityError:
+        conn.rollback()
+        return RedirectResponse("/sdqs/nuevo?msg=error_sdqs_duplicado", status_code=303)
+    finally:
+        conn.close()
     registrar_log(user, "crear", _MOD, f"SDQS: {sdqs_num}")
     return RedirectResponse("/sdqs/?msg=creado", status_code=303)
 

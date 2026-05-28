@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SDQS{% endblock %} — SDS</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
 </head>
 <body>
 <div class="layout">
@@ -91,6 +92,7 @@
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
             {% elif msg == 'error_archivo' %}⚠️ No se pudo leer el archivo. Verifique que sea un .xlsx válido.
             {% elif msg == 'error_obligatorios' %}⚠️ Complete todos los campos obligatorios.
+            {% elif msg == 'error_sdqs_duplicado' %}⚠️ Ya existe un registro con ese número SDQS. Verifique el campo N° SDQS.
             {% elif msg == 'no_encontrado' %}⚠️ Registro no encontrado.
             {% elif msg.startswith('importado_') %}✅ Importación completada: {{ msg.replace('importado_','') }} registros cargados.
             {% else %}{{ msg }}

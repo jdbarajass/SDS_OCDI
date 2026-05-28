@@ -36,6 +36,7 @@ env/
 *.jpg
 *.jpeg
 *.png
+!app/static/favicon.png
 *.gif
 Prompt SDS.txt
 

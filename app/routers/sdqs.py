@@ -101,6 +101,7 @@ async def lista(
     competencia_ocdi: str = "",
     responsable: str = "",
     q: str = "",
+    semaforo: str = "",
     page: int = 1,
     msg: str = "",
 ):
@@ -121,11 +122,8 @@ async def lista(
         params += [like, like, like]
 
     sql_base = f"FROM sdqs WHERE {' AND '.join(where)}"
-    total = conn.execute(f"SELECT COUNT(*) {sql_base}", params).fetchone()[0]
-    offset = (page - 1) * _PAGE_SIZE
-    rows = conn.execute(
-        f"SELECT * {sql_base} ORDER BY id DESC LIMIT ? OFFSET ?",
-        params + [_PAGE_SIZE, offset],
+    rows_raw = conn.execute(
+        f"SELECT * {sql_base} ORDER BY id DESC", params
     ).fetchall()
 
     meses_bd = [r[0] for r in conn.execute(
@@ -136,8 +134,16 @@ async def lista(
     ).fetchall()]
     conn.close()
 
+    # El semáforo se calcula en Python; se filtra aquí antes de paginar
+    todos = [_calcular_semaforo_sdqs(row_to_dict(r)) for r in rows_raw]
+    if semaforo:
+        todos = [r for r in todos if r.get("semaforo_sdqs") == semaforo]
+
+    total = len(todos)
     total_pages = max(1, (total + _PAGE_SIZE - 1) // _PAGE_SIZE)
-    registros = [_calcular_semaforo_sdqs(row_to_dict(r)) for r in rows]
+    page = max(1, min(page, total_pages))
+    offset = (page - 1) * _PAGE_SIZE
+    registros = todos[offset:offset + _PAGE_SIZE]
 
     return templates.TemplateResponse("sdqs_lista.html", tpl(request, _MOD,
         registros=registros,
@@ -150,6 +156,7 @@ async def lista(
         fil_competencia=competencia_ocdi,
         fil_responsable=responsable,
         fil_q=q,
+        fil_semaforo=semaforo,
         msg=msg,
     ))
 
@@ -234,6 +241,7 @@ async def exportar(
     competencia_ocdi: str = "",
     responsable: str = "",
     q: str = "",
+    semaforo: str = "",
 ):
     try:
         import openpyxl
@@ -257,11 +265,16 @@ async def exportar(
         like = f"%{q.upper()}%"
         params += [like, like, like]
 
-    rows = conn.execute(
+    rows_raw = conn.execute(
         f"SELECT * FROM sdqs WHERE {' AND '.join(where)} ORDER BY fecha_asignacion, id",
         params,
     ).fetchall()
     conn.close()
+
+    # Calcular semáforo y aplicar filtro si se indicó
+    rows_data = [_calcular_semaforo_sdqs(row_to_dict(r)) for r in rows_raw]
+    if semaforo:
+        rows_data = [d for d in rows_data if d.get("semaforo_sdqs") == semaforo]
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -285,8 +298,7 @@ async def exportar(
     SEM_COLORS = {"verde": "D4EDDA", "amarillo": "FFF3CD", "rojo": "F8D7DA"}
     link_font = Font(color="0563C1", underline="single")
 
-    for r in rows:
-        d = _calcular_semaforo_sdqs(row_to_dict(r))
+    for d in rows_data:
         ws.append([
             d.get("mes"), d.get("fecha_asignacion"), d.get("sdqs"),
             d.get("fecha_vencimiento"), d.get("estado_dias"),

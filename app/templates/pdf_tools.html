@@ -253,6 +253,23 @@
         </div>
         <div class="file-names" id="fn-comprimir"></div>
 
+        <div style="margin-top:16px">
+            <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:5px">Nivel de compresión</label>
+            <select id="nivel-comprimir" class="form-control" style="max-width:380px"
+                onchange="
+                    var f=this.value==='fuerte';
+                    document.getElementById('hint-normal').style.display=f?'none':'block';
+                    document.getElementById('hint-fuerte').style.display=f?'block':'none';
+                ">
+                <option value="normal">Normal — reorganiza objetos del PDF (sin pérdida)</option>
+                <option value="fuerte">Fuerte — re-renderiza páginas a 150 DPI (ideal para escaneos)</option>
+            </select>
+            <div class="pag-hint" id="hint-normal">Recomendado para PDFs digitales, informes y documentos con texto.</div>
+            <div class="pag-hint" id="hint-fuerte" style="display:none;color:#856404;font-weight:600">
+                ⚠️ Modo para escaneos: el texto no será seleccionable en el resultado. Mayor reducción de tamaño.
+            </div>
+        </div>
+
         <div style="margin-top:18px">
             <button class="btn btn-primary" onclick="procesarPDF('comprimir')" id="btn-comprimir" style="min-width:170px">
                 🗜️ Comprimir y descargar
@@ -513,8 +530,10 @@ async function procesarPDF(op) {
 
     } else if (op === 'comprimir') {
         const f = document.getElementById('file-comprimir');
+        const nivel = document.getElementById('nivel-comprimir').value;
         if (!f || !f.files || !f.files[0]) { mostrarError(resEl, 'Seleccione un archivo PDF.'); return; }
         fd.append('archivo', f.files[0]);
+        fd.append('nivel', nivel);
 
     } else if (op === 'pdf2word') {
         const f = document.getElementById('file-pdf2word');
@@ -574,6 +593,7 @@ async function procesarPDF(op) {
         const origKB  = resp.headers.get('X-Original-KB');
         const compKB  = resp.headers.get('X-Compressed-KB');
         const redPct  = resp.headers.get('X-Reduccion-Pct');
+        const aviso   = resp.headers.get('X-Aviso') || '';
 
         // Nombre de archivo desde Content-Disposition
         const disp = resp.headers.get('Content-Disposition') || '';
@@ -595,9 +615,15 @@ async function procesarPDF(op) {
         // Mensaje de éxito
         let msg = '✅ Descarga iniciada: <strong>' + fname + '</strong>';
         if (origKB && compKB) {
-            msg += '<br><span style="font-size:12px;font-weight:400">Tamaño original: ' + origKB + ' KB → Comprimido: ' + compKB + ' KB';
-            if (redPct && parseFloat(redPct) > 0) msg += ' <span style="color:#155724">(−' + redPct + '%)</span>';
-            msg += '</span>';
+            if (aviso === 'sin_mejora') {
+                msg += '<br><span style="font-size:12px;color:#856404;font-weight:400">'
+                    + '⚠️ El PDF ya estaba optimizado al máximo. Se descargó el archivo original sin cambios ('
+                    + origKB + ' KB). Pruebe el nivel <em>Fuerte</em> si el PDF es un escaneo.</span>';
+            } else {
+                msg += '<br><span style="font-size:12px;font-weight:400">Tamaño original: ' + origKB + ' KB → Comprimido: ' + compKB + ' KB';
+                if (redPct && parseFloat(redPct) > 0) msg += ' <span style="color:#155724">(−' + redPct + '%)</span>';
+                msg += '</span>';
+            }
         }
         mostrarOk(resEl, msg);
 

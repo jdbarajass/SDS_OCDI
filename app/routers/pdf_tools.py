@@ -173,13 +173,40 @@ async def pdf_eliminar_paginas(
 # ── 4. Comprimir PDF ──────────────────────────────────────────────────────────
 
 @router.post("/comprimir")
-async def pdf_comprimir(archivo: UploadFile = File(...)):
+async def pdf_comprimir(
+    archivo: UploadFile = File(...),
+    nivel: str = Form("normal"),
+):
     _require_pypdf()
     content = await archivo.read()
     original_size = len(content)
 
     compressed = None
-    if FITZ_OK:
+    aviso = ""
+
+    # Nivel "fuerte": re-renderiza cada página como JPEG 150 DPI.
+    # Efectivo para escaneos; texto deja de ser seleccionable (modo destructivo).
+    if nivel == "fuerte" and FITZ_OK:
+        try:
+            doc = fitz.open(stream=content, filetype="pdf")
+            out = fitz.open()
+            for page in doc:
+                rect = page.rect
+                mat = fitz.Matrix(150 / 72, 150 / 72)
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                if pix.n != 3:  # convertir CMYK / alpha → RGB para JPEG
+                    pix = fitz.Pixmap(fitz.csRGB, pix)
+                jpg = pix.tobytes("jpeg", jpg_quality=72)
+                new_pg = out.new_page(width=rect.width, height=rect.height)
+                new_pg.insert_image(new_pg.rect, stream=jpg)
+            compressed = out.tobytes(deflate=True)
+            out.close()
+            doc.close()
+        except Exception:
+            compressed = None
+
+    # Nivel "normal" (o fallback desde "fuerte" si falló): garbage + deflate lossless
+    if compressed is None and FITZ_OK:
         try:
             doc = fitz.open(stream=content, filetype="pdf")
             compressed = doc.tobytes(garbage=4, deflate=True,
@@ -188,7 +215,8 @@ async def pdf_comprimir(archivo: UploadFile = File(...)):
         except Exception:
             compressed = None
 
-    if not compressed:
+    # Fallback pypdf: comprime solo los content streams de texto/dibujo
+    if compressed is None:
         reader = PdfReader(io.BytesIO(content))
         writer = PdfWriter()
         for page in reader.pages:
@@ -197,6 +225,11 @@ async def pdf_comprimir(archivo: UploadFile = File(...)):
         buf = io.BytesIO()
         writer.write(buf)
         compressed = buf.getvalue()
+
+    # Si la compresión no mejoró el tamaño, devolver el original sin cambios
+    if len(compressed) >= original_size:
+        compressed = content
+        aviso = "sin_mejora"
 
     compressed_size = len(compressed)
     reduccion = round(max(0.0, (1 - compressed_size / original_size) * 100), 1) if original_size else 0.0
@@ -209,7 +242,8 @@ async def pdf_comprimir(archivo: UploadFile = File(...)):
             "X-Original-KB": str(original_size // 1024),
             "X-Compressed-KB": str(compressed_size // 1024),
             "X-Reduccion-Pct": str(reduccion),
-            "Access-Control-Expose-Headers": "X-Original-KB,X-Compressed-KB,X-Reduccion-Pct",
+            "X-Aviso": aviso,
+            "Access-Control-Expose-Headers": "X-Original-KB,X-Compressed-KB,X-Reduccion-Pct,X-Aviso",
         },
     )
 
@@ -329,16 +363,21 @@ async def pdf_sello(
         es_centro = posicion == "centro"
         fontsize = 36 if es_centro else 13
 
+        # Para posiciones "derecha": calcular x inicial restando el ancho aproximado
+        # del texto (Helvetica ≈ 0.55 del fontsize por carácter) para no salirnos del margen.
+        approx_text_w = len(texto) * fontsize * 0.55
+        right_x = max(22, r.width - 22 - approx_text_w)
+
         if posicion == "superior-izquierda":
-            punto = fitz.Point(28, 42)
+            punto = fitz.Point(22, 40)
         elif posicion == "superior-derecha":
-            punto = fitz.Point(r.width - 28, 42)
+            punto = fitz.Point(right_x, 40)
         elif posicion == "inferior-izquierda":
-            punto = fitz.Point(28, r.height - 28)
+            punto = fitz.Point(22, r.height - 20)
         elif posicion == "centro":
             punto = fitz.Point(r.width / 4, r.height / 2)
-        else:
-            punto = fitz.Point(r.width - 28, r.height - 28)
+        else:  # inferior-derecha (default)
+            punto = fitz.Point(right_x, r.height - 20)
 
         page.insert_text(
             punto, texto,

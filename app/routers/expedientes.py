@@ -78,18 +78,24 @@ _entidades_cache = None
 def _get_tipologias():
     global _tipologias_cache
     if _tipologias_cache is None:
-        path = _ROOT / "Tipologias_Json.txt"
-        with open(path, "r", encoding="utf-8") as f:
-            _tipologias_cache = json.load(f)
+        try:
+            path = _ROOT / "Tipologias_Json.txt"
+            with open(path, "r", encoding="utf-8") as f:
+                _tipologias_cache = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            _tipologias_cache = []
     return _tipologias_cache
 
 
 def _get_entidades():
     global _entidades_cache
     if _entidades_cache is None:
-        path = _ROOT / "EntidadesDependencias_Json.txt"
-        with open(path, "r", encoding="utf-8") as f:
-            _entidades_cache = json.load(f)
+        try:
+            path = _ROOT / "EntidadesDependencias_Json.txt"
+            with open(path, "r", encoding="utf-8") as f:
+                _entidades_cache = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            _entidades_cache = []
     return _entidades_cache
 
 

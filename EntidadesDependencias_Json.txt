@@ -1,0 +1,648 @@
+[
+  {
+    "id": "0",
+    "nombre": "ESTRUCTURAS ORGANICAS",
+    "tipo": "raiz",
+    "hijos": [
+      {
+        "id": "1",
+        "nombre": "BOGOTA DISTRITO CAPITAL",
+        "tipo": "categoria",
+        "hijos": [
+          {
+            "id": "2",
+            "nombre": "Salud",
+            "tipo": "categoria",
+            "hijos": [
+              {
+                "id": "12852",
+                "nombre": "Secretaria de Salud (Decreto 482 de 2010)",
+                "tipo": "entidad",
+                "hijos": [
+                  {
+                    "id": "3705",
+                    "nombre": "Plantas Anteriores",
+                    "tipo": "grupo",
+                    "hijos": [
+                      {
+                        "id": "7",
+                        "nombre": "Secretaría de Salud",
+                        "tipo": "entidad",
+                        "hijos": [
+                          {
+                            "id": "245",
+                            "nombre": "DESPACHO DEL SECRETARIO",
+                            "tipo": "dependencia",
+                            "hijos": [
+                              {
+                                "id": "280",
+                                "nombre": "Oficina de Gestión Pública Autocontrol",
+                                "tipo": "oficina",
+                                "hijos": []
+                              },
+                              {
+                                "id": "281",
+                                "nombre": "Oficina Jurídica",
+                                "tipo": "oficina",
+                                "hijos": []
+                              },
+                              {
+                                "id": "282",
+                                "nombre": "Oficina de Comunicación en Salud",
+                                "tipo": "oficina",
+                                "hijos": []
+                              },
+                              {
+                                "id": "283",
+                                "nombre": "Unidades",
+                                "tipo": "grupo",
+                                "hijos": [
+                                  {
+                                    "id": "284",
+                                    "nombre": "Laboratorio de Salud Pública",
+                                    "tipo": "unidad",
+                                    "hijos": []
+                                  },
+                                  {
+                                    "id": "285",
+                                    "nombre": "Banco de Sangre",
+                                    "tipo": "unidad",
+                                    "hijos": []
+                                  },
+                                  {
+                                    "id": "286",
+                                    "nombre": "Centro Regulador de Urgencias",
+                                    "tipo": "unidad",
+                                    "hijos": []
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "288",
+                                "nombre": "Oficina de Control Interno Disciplinario",
+                                "tipo": "oficina",
+                                "hijos": []
+                              }
+                            ]
+                          },
+                          {
+                            "id": "255",
+                            "nombre": "DESPACHO DEL SUBSECRETARIO",
+                            "tipo": "dependencia",
+                            "hijos": [
+                              {
+                                "id": "287",
+                                "nombre": "Oficina de Participación Social",
+                                "tipo": "oficina",
+                                "hijos": []
+                              },
+                              {
+                                "id": "706",
+                                "nombre": "Oficina de Atencion al Usuario",
+                                "tipo": "oficina",
+                                "hijos": []
+                              }
+                            ]
+                          },
+                          {
+                            "id": "257",
+                            "nombre": "DIRECCION DE SALUD PÚBLICA",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "258",
+                            "nombre": "DIRECCION DE DESARROLLO DE SERVICIOS DE SALUD",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "259",
+                            "nombre": "DIRECCION DE ASEGURAMIENTO DE SALUD",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "260",
+                            "nombre": "DIRECCION DE PLANEACIÓN Y SISTEMAS",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "261",
+                            "nombre": "DIRECCIÓN ADMINISTRATIVA",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "262",
+                            "nombre": "DIRECCIÓN FINANCIERA",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "263",
+                            "nombre": "DIRECCION DE DESARROLLO DEL TALENTO HUMANO",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "264",
+                            "nombre": "ORGANISMOS DE APOYO",
+                            "tipo": "grupo",
+                            "hijos": [
+                              {
+                                "id": "289",
+                                "nombre": "Consejo Distrital de Seguridad Social",
+                                "tipo": "organismo",
+                                "hijos": []
+                              },
+                              {
+                                "id": "290",
+                                "nombre": "Comité Directivo",
+                                "tipo": "organismo",
+                                "hijos": []
+                              },
+                              {
+                                "id": "292",
+                                "nombre": "Comité Técnico",
+                                "tipo": "organismo",
+                                "hijos": []
+                              }
+                            ]
+                          },
+                          {
+                            "id": "2008",
+                            "nombre": "DEPENDENCIA POR ESTABLECER",
+                            "tipo": "dependencia",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "10057",
+                        "nombre": "Secretaría Distrital de Salud (Ant Dec. 482 de 2010)",
+                        "tipo": "entidad",
+                        "hijos": [
+                          {
+                            "id": "11700",
+                            "nombre": "Despacho del Secretario",
+                            "tipo": "dependencia",
+                            "hijos": [
+                              {
+                                "id": "11701",
+                                "nombre": "Oficina de Control Interno",
+                                "tipo": "oficina",
+                                "hijos": []
+                              },
+                              {
+                                "id": "11702",
+                                "nombre": "Oficina Asesora de Comunicaciones",
+                                "tipo": "oficina",
+                                "hijos": []
+                              }
+                            ]
+                          },
+                          {
+                            "id": "11703",
+                            "nombre": "Despacho del Subsecretario",
+                            "tipo": "dependencia",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11704",
+                            "nombre": "Dirección de Salud Pública",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11705",
+                            "nombre": "Dirección de Desarrollo de Servicios de Salud",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11706",
+                            "nombre": "Dirección de Aseguramiento de Salud",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11707",
+                            "nombre": "Dirección de Planeación y Sistemas",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11708",
+                            "nombre": "Dirección Administrativa",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11709",
+                            "nombre": "Dirección Financiera",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11710",
+                            "nombre": "Dirección Centro Regulador de Urgencias y Emergencias",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11711",
+                            "nombre": "Dirección Jurídica y de Contratación",
+                            "tipo": "direccion",
+                            "hijos": [
+                              {
+                                "id": "11712",
+                                "nombre": "Subdirección de Gestión Judicial",
+                                "tipo": "subdireccion",
+                                "hijos": []
+                              },
+                              {
+                                "id": "11713",
+                                "nombre": "Subdirección de Contratación",
+                                "tipo": "subdireccion",
+                                "hijos": []
+                              }
+                            ]
+                          },
+                          {
+                            "id": "11714",
+                            "nombre": "Dirección de Participación Social y Servicio al Ciudadano",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "11715",
+                            "nombre": "Dirección de Desarrollo del Talento Humano",
+                            "tipo": "direccion",
+                            "hijos": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "12853",
+                    "nombre": "Despacho del Secretario",
+                    "tipo": "dependencia",
+                    "hijos": [
+                      {
+                        "id": "12856",
+                        "nombre": "Oficina de Control Interno",
+                        "tipo": "oficina",
+                        "hijos": []
+                      },
+                      {
+                        "id": "12857",
+                        "nombre": "Oficina de Control Disciplinario Interno",
+                        "tipo": "oficina",
+                        "hijos": []
+                      },
+                      {
+                        "id": "12858",
+                        "nombre": "Oficina Asesora de Comunicaciones",
+                        "tipo": "oficina",
+                        "hijos": []
+                      },
+                      {
+                        "id": "14315",
+                        "nombre": "Oficina de Asuntos Jurídicos",
+                        "tipo": "oficina",
+                        "hijos": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "12854",
+                    "nombre": "Subsecretaría de Salud Pública",
+                    "tipo": "subsecretaria",
+                    "hijos": [
+                      {
+                        "id": "14316",
+                        "nombre": "Dirección de Salud Colectiva",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14318",
+                            "nombre": "Subdirección de Determinantes en Salud",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14319",
+                            "nombre": "Subdirección de Acciones Colectivas",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14317",
+                        "nombre": "Dirección Epidemiología, Análisis y Gestión de Políticas de Salud Colectiva",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14320",
+                            "nombre": "Subdirección de Vigilancia en Salud Pública",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14321",
+                            "nombre": "Subdirección de Gestión y Evaluación de Políticas en SP",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14322",
+                            "nombre": "Subdirección Laboratorio de Salud Pública",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "12855",
+                    "nombre": "Direccion de Salud Publica",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12859",
+                    "nombre": "Direccion de Desarrollo de Servicios de Salud",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12860",
+                    "nombre": "Direccion de Aseguramiento de Salud",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12861",
+                    "nombre": "Direccion de Planeacion y Sistemas",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12862",
+                    "nombre": "Dirección Administrativa",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12864",
+                    "nombre": "Direccion Centro Regulador de Urgencias y Emergencias",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12865",
+                    "nombre": "Direccion Juridica y de Contratacion",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12866",
+                    "nombre": "Subdireccion de Gestion Judicial",
+                    "tipo": "subdireccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12867",
+                    "nombre": "Direccion de Participacion Social y Servicio al Ciudadano",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "12868",
+                    "nombre": "Direccion de Desarrollo del Talento Humano",
+                    "tipo": "direccion",
+                    "hijos": []
+                  },
+                  {
+                    "id": "14324",
+                    "nombre": "Subsecretaría de Servicios de Salud y Aseguramiento",
+                    "tipo": "subsecretaria",
+                    "hijos": [
+                      {
+                        "id": "14325",
+                        "nombre": "Dirección Urgencias y Emergencias en Salud",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14329",
+                            "nombre": "Subdirección Centro Regulador de Urgencias y Emergencias",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14330",
+                            "nombre": "Subdirección de Gestión de Riesgo en Emergencias y Desastres",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14326",
+                        "nombre": "Dirección de Calidad de Servicios de Salud",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14331",
+                            "nombre": "Subdirección Inspección, Vigilancia y Control de SS",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14332",
+                            "nombre": "Subdirección de Calidad y Seguridad en SS",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14327",
+                        "nombre": "Dirección Aseguramiento y Garantía del Derecho a la Salud",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14333",
+                            "nombre": "Subdirección de Administración del Aseguramiento",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14334",
+                            "nombre": "Subdirección de Garantía del Aseguramiento",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14328",
+                        "nombre": "Dirección de Provisión de Servicios de Salud",
+                        "tipo": "direccion",
+                        "hijos": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "14335",
+                    "nombre": "Subsecretaría de Gestión Territorial, Participación y Servicio a la ciudadanía",
+                    "tipo": "subsecretaria",
+                    "hijos": [
+                      {
+                        "id": "14336",
+                        "nombre": "Dirección Participación Social, Gestión Territorial y Transectorialidad",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14338",
+                            "nombre": "Subdirección Territorial RED NORTE",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14339",
+                            "nombre": "Subdirección Territorial RED CENTRO ORIENTE",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14340",
+                            "nombre": "Subdirección Territorial RED SUR",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14341",
+                            "nombre": "Subdirección Territorial RED SUR OCCIDENTE",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14337",
+                        "nombre": "Dirección Servicio a la Ciudadanía",
+                        "tipo": "direccion",
+                        "hijos": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "14342",
+                    "nombre": "Subsecretaría de Planeación y Gestión Sectorial",
+                    "tipo": "subsecretaria",
+                    "hijos": [
+                      {
+                        "id": "14344",
+                        "nombre": "Dirección de Planeación Sectorial",
+                        "tipo": "direccion",
+                        "hijos": []
+                      },
+                      {
+                        "id": "14345",
+                        "nombre": "Dirección de Análisis de Entidades Públicas Distritales del Sector Salud",
+                        "tipo": "direccion",
+                        "hijos": []
+                      },
+                      {
+                        "id": "14346",
+                        "nombre": "Dirección de Infraestructura y Tecnología",
+                        "tipo": "direccion",
+                        "hijos": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "14343",
+                    "nombre": "Subsecretaría Corporativa",
+                    "tipo": "subsecretaria",
+                    "hijos": [
+                      {
+                        "id": "14347",
+                        "nombre": "Dirección de Gestión del Talento Humano",
+                        "tipo": "direccion",
+                        "hijos": []
+                      },
+                      {
+                        "id": "14348",
+                        "nombre": "Dirección Administrativa",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "14352",
+                            "nombre": "Subdirección de Contratación",
+                            "tipo": "subdireccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14353",
+                            "nombre": "Subdirección de Bienes y Servicios",
+                            "tipo": "subdireccion",
+                            "hijos": [
+                              {
+                                "id": "14355",
+                                "nombre": "Almacén",
+                                "tipo": "dependencia",
+                                "hijos": []
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14349",
+                        "nombre": "Dirección Financiera",
+                        "tipo": "direccion",
+                        "hijos": [
+                          {
+                            "id": "12869",
+                            "nombre": "Direccion Financiera",
+                            "tipo": "direccion",
+                            "hijos": []
+                          },
+                          {
+                            "id": "14354",
+                            "nombre": "Tesorería",
+                            "tipo": "dependencia",
+                            "hijos": []
+                          }
+                        ]
+                      },
+                      {
+                        "id": "14350",
+                        "nombre": "Dirección TIC",
+                        "tipo": "direccion",
+                        "hijos": []
+                      },
+                      {
+                        "id": "14351",
+                        "nombre": "Dirección de Planeación Institucional y Calidad",
+                        "tipo": "direccion",
+                        "hijos": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

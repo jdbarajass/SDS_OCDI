@@ -1,0 +1,1164 @@
+[
+  {
+    "id": "1952",
+    "nombre": "Abandono del cargo, función o servicio.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1953",
+        "nombre": "Ausentarse del cumplimiento de la función, cargo o servicio por un término igual o superior a cinco (5) días sin justificación.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1954",
+        "nombre": "No Dedicar la totalidad del tiempo reglamentario de trabajo al desempeño de las funciones encomendadas, salvo las excepciones legales.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2127",
+    "nombre": "Abstenerse de suministrar dentro del término que señale la ley a los miembros del Congreso de la República, las informaciones y documentos necesarios para el ejercicio del control político.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2048",
+    "nombre": "Abuso de autoridad.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2120",
+    "nombre": "Actos de corrupción, existencia de inhabilidades, incompatibilidades o conflicto de intereses (Directiva Conjunta 001 de 2021).",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1439",
+    "nombre": "Amenazar a la autoridad legítimamente constituida con relación a las funciones",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2099",
+    "nombre": "Amenazar a la autoridad legítimamente constituida en ejercicio de las funciones.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2100",
+        "nombre": "Amenazar gravemente a las autoridades legítimamente constituidas en ejercicio o con relación a las funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2101",
+        "nombre": "Ejercer actividades o recibir beneficios de negocios incompatibles con la institución a la que pertenece.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1981",
+    "nombre": "Apropiación o utilización indebida de dineros o recursos públicos.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1988",
+        "nombre": "Dar lugar a que por culpa gravísima se extravíen, pierdan o dañen bienes del Estado o a cargo del mismo, o de empresas o instituciones en que este tenga parte o bienes de particulares.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1984",
+        "nombre": "No responder por la conservación de los útiles, equipos, muebles y bienes confiados a su guarda o administración y rendir cuenta oportuna de su utilización.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1983",
+        "nombre": "No vigilar y salvaguardar los bienes y valores que le han sido encomendados y cuidar que sean utilizados debida y racionalmente, de conformidad con los fines a que han sido destinados.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1986",
+        "nombre": "Ocasionar daño o dar lugar a la pérdida de bienes o elementos que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1987",
+        "nombre": "Ocasionar daño o dar lugar a la pérdida de expedientes o documentos que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1985",
+        "nombre": "Omitir explicar inmediata y satisfactoriamente al nominador, a la Procuraduría General de la Nación o a la Personería, cuando estos lo requieran, la procedencia del incremento patrimonial.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1982",
+        "nombre": "Utilizar los bienes y recursos asignados para el desempeño de su empleo, cargo o función, las facultades que le sean atribuidas, o la información reservada a que tenga acceso por razón de su función.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1440",
+    "nombre": "Conductas de amenazas a la autoridad y de actividades negóciales incompatibles",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1442",
+        "nombre": "Amenazar a la autoridad legítimamente constituida con relación a las funciones",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1441",
+        "nombre": "Amenazar a la autoridad legítimamente constituida en ejercicio de las funciones",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1443",
+        "nombre": "Ejercer actividades de negocios incompatibles con el buen nombre y prestigio de la institución a la que pertenece.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1444",
+        "nombre": "Recibir beneficio de negocios incompatibles con el buen nombre y prestigio de la institución a la que pertenece",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2085",
+    "nombre": "Conductas referidas al incremento patrimonial.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2086",
+        "nombre": "Explicar inmediata y satisfactoriamente al nominador, a la Procuraduría General de la Nación o a la Personería, cuando estos lo requieran, la procedencia del incremento patrimonial.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2102",
+    "nombre": "Conductas referidas al régimen de impedimentos.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2103",
+        "nombre": "No declararse impedido oportunamente, cuando exista la obligación de hacerlo, demorar el trámite de las recusaciones, o actuar después de separado del asunto.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2118",
+    "nombre": "Conductas relacionadas con las funciones, después de la dejación del cargo.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2119",
+        "nombre": "Prestar, a título personal o por interpuesta persona, servicios de asistencia, representación o asesoría en asuntos relacionados con las funciones propias del cargo.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2041",
+    "nombre": "Consumo de sustancias alucinógenas o embriagantes.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2043",
+        "nombre": "Asistir al trabajo en tres o más ocasiones en estado de embriaguez o bajo el efecto de estupefacientes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2042",
+        "nombre": "Consumir, en el sitio de trabajo, sustancias prohibidas que produzcan dependencia física o síquica.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2087",
+    "nombre": "Cumplimiento de funciones de manera diligente, eficiente e imparcial.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2091",
+        "nombre": "Acreditar los requisitos exigidos por la ley para la posesión y el desempeño del cargo.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2088",
+        "nombre": "Cumplir con diligencia, eficiencia e imparcialidad el servicio que le sea encomendado y abstenerse de cualquier acto u omisión que cause la suspensión o perturbación injustificada de un servicio esencial.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2090",
+        "nombre": "Desempeñar el empleo, cargo o función sin obtener o pretender beneficios adicionales a las contraprestaciones legales y convencionales cuando a ellas tenga derecho.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2097",
+        "nombre": "No cumplir con diligencia, eficiencia e imparcialidad el servicio que le sea encomendado y abstenerse de cualquier acto u omisión que cause la suspensión o perturbación injustificada.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2093",
+        "nombre": "No dedicar la totalidad del tiempo reglamentario de trabajo al desempeño de las funciones encomendadas, salvo las excepciones legales.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2094",
+        "nombre": "No motivar las decisiones que lo requieran, de conformidad con la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2095",
+        "nombre": "No permanecer en el desempeño de sus labores mientras no se haya hecho cargo de ellas quien deba reemplazarlo, salvo autorización legal, reglamentaria, o de quien deba proveer el cargo.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2092",
+        "nombre": "No realizar personalmente las tareas que le sean confiadas, responder por el ejercicio de la autoridad que se le delegue, así como por la ejecución de las órdenes que imparta.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2096",
+        "nombre": "No tratar con respeto, imparcialidad y rectitud a las personas con que tenga relación por razón del servicio.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2089",
+        "nombre": "Tratar con respeto, imparcialidad y rectitud a las personas con que tenga relación por razón del servicio.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "33",
+    "nombre": "Ejercer coacción sobre servidor público a fin de conseguir un provecho o beneficio.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1104",
+        "nombre": "Coaccionar a particular en ejercicio de funciones públicas a fin de conseguir provecho para terceros.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1103",
+        "nombre": "Coaccionar a particular en ejercicio de funciones públicas a fin de conseguir provecho personal.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1105",
+        "nombre": "Coaccionar a particular en ejercicio de funciones públicas para que proceda en determinado sentido.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1101",
+        "nombre": "Coaccionar a servidor público a fin de conseguir provecho para terceros",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1100",
+        "nombre": "Coaccionar a servidor público a fin de conseguir provecho personal",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1102",
+        "nombre": "Coaccionar a servidor público para que proceda en determinado sentido.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2113",
+    "nombre": "Ejercicio de funciones y prerrogativas de manera indebida.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2114",
+        "nombre": "Ejercer funciones propias del cargo público desempeñado, o cumplir otras en cargo diferente, a sabiendas de la existencia de decisión judicial o administrativa, de carácter cautelar o provisional, de suspensión en el ejercicio de las mismas.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2116",
+        "nombre": "Ejercer las funciones con el propósito de defraudar otra norma de carácter imperativo.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2115",
+        "nombre": "Ejercer las potestades que su empleo o función le concedan para una finalidad distinta a la prevista en la norma otorgante.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2117",
+        "nombre": "Publicar en la página web de la respectiva entidad, los informes de gestión, resultados, financieros y contables que se determinen por autoridad competente, para efectos del control social.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1955",
+    "nombre": "Extralimitación en el ejercicio de derechos y funciones.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2010",
+    "nombre": "Falsedad o adulteración de documentos.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2011",
+        "nombre": "Suministrar datos inexactos que no correspondan a la realidad que tenga incidencia en su vinculación o permanencia en el cargo o en la carrera, o en las promociones o ascensos.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2135",
+    "nombre": "Falta relacionada con la acción de repetición.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2136",
+        "nombre": "No instaurarse en forma oportuna por parte del representante legal de la entidad, en el evento de proceder, la acción de repetición contra el funcionario, exfuncionario o particular.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2053",
+    "nombre": "Faltas relacionadas con la infracción al derecho internacional de los derechos humanos y al derecho internacional humanitario.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2055",
+        "nombre": "Incurrir en graves infracciones a los Derechos Humanos o al Derecho Internacional Humanitario conforme los instrumentos internacionales suscritos y ratificados por Colombia.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2057",
+        "nombre": "Infligir a una persona dolores o sufrimientos, ya sean físicos o mentales, con el fin de obtener de ella o de un tercero información o una confesión, de castigarla por un acto que haya cometido.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2060",
+        "nombre": "No dar cumplimiento a las funciones relacionadas con la gestión del riesgo de desastre en los términos establecidos en la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2054",
+        "nombre": "Ocasionar, con el propósito de destruir total o parcialmente un grupo nacional, étnico, racial, religioso, político o colectividad con identidad propia fundada en motivos políticos.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2058",
+        "nombre": "Ocasionar, mediante violencia u otros actos coactivos que una persona o un grupo de ellas se desplace de su hogar o de su lugar de residencia, o abandone sus actividades económicas habituales.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2059",
+        "nombre": "Privar arbitrariamente a una persona de su vida.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2056",
+        "nombre": "Someter a una o más personas a arresto, detención, secuestro o cualquier privación de la libertad, seguida de la falta de información o de la negativa a reconocer dicha privación de libertad.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2030",
+    "nombre": "Faltas relacionadas con la intervención en política.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2032",
+        "nombre": "Utilizar el cargo para participar en las actividades de los partidos y movimientos políticos y en las controversias políticas, sin perjuicio de los derechos previstos en la Constitución y la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2031",
+        "nombre": "Utilizar el empleo para presionar a particulares o subalternos a respaldar una causa o campaña política o influir en procesos electorales de carácter político partidista.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2130",
+    "nombre": "Faltas relacionadas con la libertad y otros derechos fundamentales.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2131",
+        "nombre": "Privar de la libertad a una o varias personas y condicionar la vida, la seguridad y la libertad de esta o estas a la satisfacción de cualquier tipo de exigencias.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2132",
+        "nombre": "Privar ilegalmente de la libertad a una persona.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2134",
+        "nombre": "Realizar, promover, o instigar a otro servidor público a ejecutar actos de hostigamiento, acoso o persecución, contra otra persona en razón de su raza, etnia, nacionalidad, sexo, orientación sexual.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2133",
+        "nombre": "Retardar injustificadamente la conducción de persona capturada, detenida o condenada, al lugar de destino, o no ponerla a órdenes de la autoridad competente, dentro del término legal.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2049",
+    "nombre": "Faltas relacionadas con la salud pública, los recursos naturales y el medio ambiente.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2051",
+        "nombre": "Omitir o retardar injustificadamente el ejercicio de las funciones propias de su cargo, permitiendo que se origine un riesgo grave o un deterioro de la salud humana, el medio ambiente o los recursos naturales.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2050",
+        "nombre": "Proferir actos administrativos, por fuera del cumplimiento del deber, con violación de las disposiciones constitucionales o legales referentes a la protección de la diversidad étnica y cultural.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1514",
+    "nombre": "Glosas",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2035",
+    "nombre": "Incumplimiento a requerimiento de autoridades.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2036",
+        "nombre": "No enviar a la Procuraduría General de la Nación dentro de los cinco (5) días siguientes a la ejecutoria del fallo judicial, administrativo o fiscal, salvo disposición en contrario.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2033",
+    "nombre": "Incumplimiento de fallos judiciales.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2034",
+        "nombre": "Omitir hacer los descuentos conforme a la ley o a las órdenes de autoridad judicial y girar en el término que señale la ley o la autoridad judicial los dineros correspondientes.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "9",
+    "nombre": "Incumplimiento horario de trabajo.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2044",
+    "nombre": "Incumplimiento reiterado de obligaciones civiles, laborales, comerciales o de familia.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2045",
+        "nombre": "Incumplir, de manera reiterada e injustificada obligaciones civiles, laborales, comerciales o de familia impuestas en decisiones judiciales o admitidas en diligencia de conciliación.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2003",
+    "nombre": "Incumplir y hacer que se cumplan los deberes contenidos en los reglamentos y los manuales de funciones de la entidad.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2004",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en la Constitución, los tratados de derechos humanos y derecho internacional humanitario, los demás ratificados por el Congreso, las leyes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2008",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en las convenciones colectivas y los contratos de trabajo.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2007",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en las decisiones judiciales y disciplinarias.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2009",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en las órdenes superiores emitidas por funcionario competente.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2005",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en los estatutos de la entidad.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2006",
+        "nombre": "Cumplir y hacer que se cumplan los deberes contenidos en los reglamentos y los manuales de funciones de la entidad.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2106",
+    "nombre": "Incursión en conductas que en la Constitución y en la Ley estén previstas con sanción de remoción, destitución o mala conducta.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2107",
+        "nombre": "Las demás conductas que en la Constitución o en la ley hayan sido previstas con sanción de remoción o destitución, o como causales de mala conducta.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2124",
+    "nombre": "Incursión en delitos relacionados con la función pública.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2126",
+        "nombre": "Obstaculizar en forma grave la o las investigaciones que realicen las autoridades administrativas, jurisdiccionales o de control.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2125",
+        "nombre": "Realizar objetivamente una descripción típica consagrada en la ley como delito sancionable a título de dolo, cuando se cometa en razón, con ocasión o como consecuencia de la función o cargo.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2121",
+    "nombre": "Incursión en impedimentos, inhabilidades, incompatibilidades y conflicto de intereses.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2122",
+        "nombre": "Actuar u omitir, a pesar de la existencia de causales de incompatibilidad, inhabilidad y conflicto de intereses, de acuerdo con las previsiones constitucionales y legales.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2123",
+        "nombre": "Nombrar, designar, elegir, postular o intervenir en la postulación de una persona a sabiendas de que en ella concurre causal de inhabilidad, incompatibilidad o conflicto de intereses.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2080",
+    "nombre": "Intimidar o coaccionar a una persona por cualquier razón que comporte alguna clase de discriminación.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1521",
+    "nombre": "Irregularidades Administrativas",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1526",
+    "nombre": "Irregularidades en atención al usuario",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2038",
+    "nombre": "Irregularidades en calificación a empleados de carrera.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2039",
+        "nombre": "No calificar a los funcionarios o empleados en la oportunidad y condiciones previstas por la ley o el reglamento.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2012",
+    "nombre": "Irregularidades en contratación administrativa.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2023",
+        "nombre": "Aplicar la urgencia manifiesta para la celebración de los contratos sin existir las causales previstas en la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2015",
+        "nombre": "Celebrar contrato de prestación de servicios cuyo objeto sea el cumplimiento de funciones públicas o administrativas que requieran dedicación de tiempo completo e impliquen subordinación.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2022",
+        "nombre": "Dar por terminado un contrato estatal sin que se presenten las causales previstas en la ley para ello.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2021",
+        "nombre": "Declarar la caducidad de un contrato estatal sin que se presenten las causales previstas en la ley para ello.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2025",
+        "nombre": "El supervisor o el interventor certificar como recibida a satisfacción obra que no ha sido ejecutada a cabalidad.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2017",
+        "nombre": "Intervenir en la tramitación, aprobación, celebración o ejecución de contrato estatal con omisión de los estudios técnicos, financieros y jurídicos previos requeridos para su ejecución.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2016",
+        "nombre": "Intervenir en la tramitación, aprobación, celebración o ejecución de contrato estatal con persona que esté incursa en causal de incompatibilidad o inhabilidad prevista en la Constitución o en la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2018",
+        "nombre": "Intervenir en la tramitación, aprobación, celebración o ejecución de contrato estatal sin la previa obtención de la correspondiente licencia ambiental.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2024",
+        "nombre": "No exigir, el supervisor o el interventor, la calidad de los bienes y servicios adquiridos por la entidad estatal, o en su defecto, los exigidos por las normas técnicas.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2029",
+        "nombre": "No exigir, el supervisor o el interventor, la calidad de los bienes y servicios adquiridos por la entidad estatal, o en su defecto, los exigidos por las normas técnicas obligatorias.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2028",
+        "nombre": "Omitir, el supervisor o el interventor, el deber de informar a la entidad contratante cuando se presente el incumplimiento.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2026",
+        "nombre": "Omitir, el supervisor o el interventor, el deber de informar a la entidad contratante los hechos o circunstancias que puedan constituir actos de corrupción tipificados como conductas punibles.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2027",
+        "nombre": "Omitir, el supervisor o el interventor, el deber de informar a la entidad contratante los hechos o circunstancias que puedan poner o pongan en riesgo el cumplimiento del contrato.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2020",
+        "nombre": "Participar en la etapa en la actividad contractual en detrimento del patrimonio público o con desconocimiento de los principios que regulan la contratación estatal y la función administrativa.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2014",
+        "nombre": "Participar en la etapa en la actividad contractual en detrimento del patrimonio público o con desconocimiento de los principios que regulan la contratación estatal y la función administrativa (variante).",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2019",
+        "nombre": "Participar en la etapa precontractual en detrimento del patrimonio público o con desconocimiento de los principios que regulan la contratación estatal y la función administrativa.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2013",
+        "nombre": "Participar en la etapa precontractual en detrimento del patrimonio público o con desconocimiento de los principios que regulan la contratación estatal y la función administrativa (variante).",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1973",
+    "nombre": "Irregularidades en el manejo de la hacienda pública.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1976",
+        "nombre": "Asumir compromisos en exceso del saldo disponible de apropiación sin contar con las autorizaciones pertinentes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1977",
+        "nombre": "Asumir compromisos que afecten vigencias futuras, sin contar con las autorizaciones pertinentes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1978",
+        "nombre": "Asumir compromisos sobre apropiaciones presupuestales inexistentes sin contar con las autorizaciones pertinentes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1975",
+        "nombre": "Asumir compromisos sobre apropiaciones presupuestales inexistentes sin contar con las autorizaciones pertinentes (variante).",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1979",
+        "nombre": "Asumir, ordenar o efectuar el pago de obligaciones en exceso del saldo disponible en el Programa Anual Mensualizado de Caja (PAC).",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1974",
+        "nombre": "Autorizar u ordenar la utilización indebida, o utilizar indebidamente rentas que tienen destinación específica en la Constitución o en la ley.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1980",
+        "nombre": "No llevar en debida forma los libros de registro de la ejecución presupuestal de ingresos y gastos, y los de contabilidad financiera.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "31",
+    "nombre": "Irregularidades en la defensa judicial o extrajudicial.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1520",
+    "nombre": "Irregularidades en nombramientos de funcionarios",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1958",
+    "nombre": "Maltrato a servidor público.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1961",
+        "nombre": "Cometer, directa o indirectamente, con ocasión de sus funciones o excediéndose en el ejercicio de ellas, acto arbitrario e injustificado contra otro servidor público.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1959",
+        "nombre": "Ejecutar actos de violencia contra superior, subalterno o compañeros de trabajo, o demás servidores públicos.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1960",
+        "nombre": "Proferir expresiones injuriosas o calumniosas contra cualquier servidor público.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2061",
+    "nombre": "Maltrato, Acoso y/o Abuso al Menor.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2062",
+        "nombre": "Realizar objetivamente una descripción típica consagrada en la ley como delito sancionable a título de dolo, cuando se cometa en razón, con ocasión o como consecuencia de la función o cargo.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2001",
+    "nombre": "Mora en la tramitación de una actuación administrativa.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2002",
+        "nombre": "Incurrir injustificadamente en mora sistemática en la sustanciación y fallo de los asuntos asignados.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1518",
+    "nombre": "No cumplir su designación como jurado de votación",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2052",
+    "nombre": "No dar cumplimiento a las funciones relacionadas con la gestión del riesgo de desastre en los términos establecidos en la ley.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1989",
+    "nombre": "No dar cumplimiento injustificadamente a la exigencia de adoptar el Sistema Nacional de Contabilidad Pública de acuerdo con las disposiciones emitidas por la Contaduría General de la Nación.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1994",
+        "nombre": "Constituir unidad de caja con las rentas de destinación específica.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1990",
+        "nombre": "Desacatar las órdenes e instrucciones contenidas en las Directivas Presidenciales cuyo objeto sea la congelación de nóminas oficiales, dentro de la órbita de su competencia.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1992",
+        "nombre": "Incumplir las normas que buscan garantizar la sostenibilidad de largo plazo de las finanzas públicas, poniendo en riesgo la estabilidad macroeconómica del país.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1995",
+        "nombre": "Incumplir los acuerdos relativos a la reestructuración de pasivos o de saneamiento fiscal.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1991",
+        "nombre": "No asegurar por su valor real los bienes del Estado ni hacer las apropiaciones presupuestales pertinentes.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1993",
+        "nombre": "No ejecutar las transferencias para los resguardos indígenas.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1996",
+        "nombre": "No realizar la destinación preferente del porcentaje establecido en la ley proveniente de la renta percibida por concepto de renta de monopolio para salud y educación.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2098",
+    "nombre": "No formular, decidir oportunamente o ejecutar los planes de desarrollo y los presupuestos.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2037",
+    "nombre": "No permitir a los representantes del Ministerio Público, fiscales, jueces y demás autoridades competentes el acceso inmediato a los lugares donde deban adelantar sus actuaciones e investigaciones.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2129",
+    "nombre": "No resolver la consulta sobre la suspensión provisional en los términos de ley.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1956",
+    "nombre": "No tratar con respeto, imparcialidad y rectitud a las personas con que tenga relación por razón del servicio.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1957",
+        "nombre": "Omitir, negar, retardar o entrabar el despacho de los asuntos a su cargo o la prestación del servicio a que está obligado.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2083",
+    "nombre": "Omisiones de denuncia.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2084",
+        "nombre": "Omitir o retardar la denuncia de faltas gravísimas o delitos dolosos, preterintencionales o culposos investigables de oficio de que tenga conocimiento en razón del cargo o función.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "1496",
+    "nombre": "Omitir publicar cada cuatro meses en la página web de la entidad, un informe pormenorizado del estado del control interno de la entidad.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2128",
+    "nombre": "Omitir, retardar y obstaculizar la tramitación de la actuación disciplinaria originada en faltas gravísimas cometidas por los servidores públicos u omitir o retardar la denuncia de faltas gravísimas.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1962",
+    "nombre": "Pérdida o daño de documentos o elementos",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1965",
+        "nombre": "Causar daño a los equipos estatales de informática, alterar, falsificar, introducir, borrar, ocultar o desaparecer información en cualquiera de los sistemas de información oficial.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1971",
+        "nombre": "Dar lugar a la pérdida de bienes o elementos que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1972",
+        "nombre": "Dar lugar a la pérdida de expedientes o documentos que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1964",
+        "nombre": "Impedir o evitar la sustracción, destrucción, ocultamiento o utilización indebidos de la documentación e información que por razón de su empleo, cargo o función conserve bajo su cuidado.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1968",
+        "nombre": "No responder por la conservación de los útiles, equipos, muebles y bienes confiados a su guarda o administración y rendir cuenta oportuna de su utilización.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1967",
+        "nombre": "No vigilar y salvaguardar los bienes y valores que le han sido encomendados y cuidar que sean utilizados debida y racionalmente, de conformidad con los fines a que han sido destinados.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1970",
+        "nombre": "Ocasionar daño a los expedientes o documentos que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1969",
+        "nombre": "Ocasionar daño o dar lugar a la pérdida de bienes que hayan llegado a su poder por razón de sus funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1963",
+        "nombre": "Omitir custodiar y cuidar la documentación e información que por razón de su empleo, cargo o función conserve bajo su cuidado o a la cual tenga acceso.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1966",
+        "nombre": "Omitir vigilar y salvaguardar los bienes y valores que le han sido encomendados y cuidar que sean utilizados debida y racionalmente, de conformidad con los fines a que han sido destinados.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2081",
+    "nombre": "Prohibiciones de constituirse en acreedor o en deudor.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2082",
+        "nombre": "Constituirse en acreedor o deudor de alguna persona interesada directa o indirectamente en los asuntos a su cargo, de sus representantes o apoderados, de sus parientes dentro del cuarto grado.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2063",
+    "nombre": "Prohibiciones generales.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2067",
+        "nombre": "Asumir, ordenar o efectuar el pago de obligaciones en exceso del saldo disponible en el Programa Anual Mensualizado de Caja (PAC).",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2070",
+        "nombre": "Dar lugar al acceso o exhibir expedientes, documentos o archivos a personas no autorizadas.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2069",
+        "nombre": "Dar posesión para el desempeño de cargos públicos, a personas que no reúnan los requisitos constitucionales, legales o reglamentarios, a sabiendas de tal situación.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2064",
+        "nombre": "Desempeñar simultáneamente más de un empleo público.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2075",
+        "nombre": "Ejercer la docencia por un número superior a cinco horas semanales dentro de la jornada laboral, salvo lo previsto en la Ley Estatutaria de la Administración de Justicia.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2074",
+        "nombre": "Gestionar directa o indirectamente, a título personal, o en representación de terceros, en asuntos que estuvieron a su cargo.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2072",
+        "nombre": "Incumplir cualquier decisión judicial, fiscal, administrativa, o disciplinaria en razón o con ocasión del cargo o funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2068",
+        "nombre": "Nombrar o elegir, para el desempeño de cargos públicos, personas que no reúnan los requisitos constitucionales, legales o reglamentarios.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2073",
+        "nombre": "Obstaculizar la ejecución de cualquier decisión judicial, fiscal, administrativa, o disciplinaria en razón o con ocasión del cargo o funciones.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2066",
+        "nombre": "Ordenar el pago o percibir remuneración oficial por servicios no prestados, o por cuantía superior a la legal.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2076",
+        "nombre": "Prescindir del reparto cuando sea obligatorio hacerlo, o efectuarlo en forma irregular.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2071",
+        "nombre": "Proferir expresiones injuriosas o calumniosas contra cualquier servidor público.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2077",
+        "nombre": "Propiciar, organizar o participar en huelgas, paros o suspensión de actividades o disminución del ritmo de trabajo, cuando se trate de servicios públicos esenciales definidos por el legislador.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2065",
+        "nombre": "Recibir más de una asignación que provenga del tesoro público, o de empresas o de instituciones en las que tenga parte mayoritaria el Estado.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2079",
+    "nombre": "Proporcionar noticias o informes sobre asuntos de la administración, cuando no esté facultado para hacerlo.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1997",
+    "nombre": "Solicitar dinero, dádivas, agasajos, regalos o cualquier otra clase de beneficios.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1998",
+        "nombre": "Solicitar, directa o indirectamente, dádivas, agasajos, regalos, favores o cualquier otra clase de beneficios.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2108",
+    "nombre": "Suministro de datos e información a los fines de la posesión, el ascenso, e inclusión en carrera administrativa.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2111",
+        "nombre": "Suministrar datos inexactos que no correspondan a la realidad que tenga incidencia en su vinculación en la carrera administrativa.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2109",
+        "nombre": "Suministrar datos inexactos que no correspondan a la realidad que tenga incidencia en su vinculación o en las promociones o ascensos.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2110",
+        "nombre": "Suministrar documentación con contenidos que no correspondan a la realidad que tenga incidencia en su vinculación o en las promociones o ascensos.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "2112",
+        "nombre": "Suministrar documentación con contenidos que no correspondan a la realidad que tenga incidencia en su vinculación o permanencia en el cargo o en la carrera, o en las promociones o ascensos.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2040",
+    "nombre": "Suministro inexacto de información o documentación relacionada con la hoja de vida.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2078",
+    "nombre": "Tener a su servicio, en forma estable para las labores propias de su despacho, personas ajenas a la entidad.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "2046",
+    "nombre": "Usurpación de funciones públicas.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2047",
+        "nombre": "Influir en otro servidor público o particular que ejerza función pública, prevaliéndose de su cargo o de cualquier otra situación o relación derivada de su función o jerarquía.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "37",
+    "nombre": "Violación a las normas ambientales y de salud.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "1426",
+        "nombre": "Omitir injustificadamente el ejercicio de las funciones propias del cargo permitiendo que se origine un riesgo grave o deterioro al MEDIO AMBIENTE.",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1425",
+        "nombre": "Omitir injustificadamente el ejercicio de las funciones propias del cargo permitiendo que se origine un riesgo grave o deterioro de la SALUD HUMANA",
+        "tipo": "conducta"
+      },
+      {
+        "id": "1427",
+        "nombre": "Omitir injustificadamente el ejercicio de las funciones propias del cargo permitiendo que se origine un riesgo grave o deterioro de la salud humana o recursos naturales",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "34",
+    "nombre": "Violación a las normas relacionadas con el control de gestión.",
+    "tipo": "conducta",
+    "subconductas": []
+  },
+  {
+    "id": "1999",
+    "nombre": "Violación al derecho de petición",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2000",
+        "nombre": "Omitir, retardar o no suministrar debida y oportuna respuesta a las peticiones respetuosas de los particulares o a solicitudes de las autoridades, así como retenerlas o enviarlas a destinatario diferente.",
+        "tipo": "conducta"
+      }
+    ]
+  },
+  {
+    "id": "2104",
+    "nombre": "Violación de la reserva sumarial.",
+    "tipo": "categoria",
+    "subconductas": [
+      {
+        "id": "2105",
+        "nombre": "Violar la reserva de la investigación y de las demás actuaciones sometidas a la misma restricción.",
+        "tipo": "conducta"
+      }
+    ]
+  }
+]

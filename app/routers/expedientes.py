@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pathlib import Path
 from app.template_utils import make_templates
-from datetime import date
+from datetime import date, datetime as _dt
 from calendar import monthrange
 from typing import Optional
 import json
@@ -101,6 +101,16 @@ def _get_entidades():
 
 # ── Helpers de fecha y semáforo ────────────────────────────────────────────────
 
+def _safe_date(s) -> date | None:
+    """Acepta 'YYYY-MM-DD' y también 'YYYY-MM-DD HH:MM:SS' (legacy de importaciones anteriores)."""
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(str(s).strip()[:10])
+    except ValueError:
+        return None
+
+
 def _add_months(d: date, months: int) -> date:
     m = d.month - 1 + months
     year = d.year + m // 12
@@ -138,42 +148,30 @@ def _parse_flexible_date(s: str) -> date | None:
 
 
 def _enriquecer(exp: dict) -> dict:
-    # VENCIMIENTO ETAPA INDAGACIÓN (col P) = 6 meses desde FECHA DEL AUTO (col N)
-    fv_ind = None
-    if exp.get("fecha_auto_apertura_ind"):
-        try:
-            fv_ind = _add_months(date.fromisoformat(exp["fecha_auto_apertura_ind"]), 6).isoformat()
-        except ValueError:
-            pass
+    # VENCIMIENTO ETAPA INDAGACIÓN = 6 meses desde FECHA DEL AUTO
+    d = _safe_date(exp.get("fecha_auto_apertura_ind"))
+    fv_ind = _add_months(d, 6).isoformat() if d else None
     exp["fecha_vencimiento_ind"] = fv_ind
     exp["alerta_ind"] = calcular_alerta(fv_ind)
 
-    # PRESCRIPCION (col Y) = 5 años desde FECHA DE LOS HECHOS (col X)
-    fv_presc = None
+    # PRESCRIPCION = 5 años desde FECHA DE LOS HECHOS
     d_hechos = _parse_flexible_date(exp.get("fecha_hechos") or "")
-    if d_hechos:
-        fv_presc = _add_years(d_hechos, 5).isoformat()
+    fv_presc = _add_years(d_hechos, 5).isoformat() if d_hechos else None
     exp["fecha_prescripcion"] = fv_presc
     exp["alerta_prescripcion"] = calcular_alerta(fv_presc)
 
-    # VENCIMIENTO ETAPA INVESTIGACIÓN (col AD) = 6 meses desde FECHA APERTURA INVESTIGACION (col AB)
-    fv_inv = None
-    if exp.get("fecha_apertura_investigacion"):
-        try:
-            fv_inv = _add_months(date.fromisoformat(exp["fecha_apertura_investigacion"]), 6).isoformat()
-        except ValueError:
-            pass
+    # VENCIMIENTO ETAPA INVESTIGACIÓN = 6 meses desde FECHA APERTURA INVESTIGACION
+    d = _safe_date(exp.get("fecha_apertura_investigacion"))
+    fv_inv = _add_months(d, 6).isoformat() if d else None
     exp["fecha_vencimiento_inv"] = fv_inv
     exp["alerta_inv"] = calcular_alerta(fv_inv)
 
-    # VENCIMIENTO PRORROGA (col AL) = FECHA DE PRORROGA (col AI) + TIEMPO PRORROGA (col AK) meses
+    # VENCIMIENTO PRORROGA = FECHA DE PRORROGA + TIEMPO PRORROGA meses
     fv_prorr = None
-    if exp.get("fecha_prorroga") and exp.get("tiempo_prorroga"):
+    d_prorr = _safe_date(exp.get("fecha_prorroga"))
+    if d_prorr and exp.get("tiempo_prorroga"):
         try:
-            fv_prorr = _add_months(
-                date.fromisoformat(exp["fecha_prorroga"]),
-                int(exp["tiempo_prorroga"])
-            ).isoformat()
+            fv_prorr = _add_months(d_prorr, int(exp["tiempo_prorroga"])).isoformat()
         except (ValueError, TypeError):
             pass
     exp["fecha_vencimiento_prorroga"] = fv_prorr
@@ -852,6 +850,11 @@ async def importar_post(request: Request):
     def _v(val):
         if val is None:
             return None
+        # openpyxl devuelve datetime para celdas formateadas como fecha
+        if isinstance(val, _dt):
+            return val.strftime("%Y-%m-%d")
+        if isinstance(val, date):
+            return val.isoformat()
         s = str(val).strip()
         return None if s in ("", "nan", "None", "#VALUE!", "#N/A", "#REF!", "—") else s
 

@@ -8,7 +8,7 @@ from app.database import init_db
 from app.routers import (
     expedientes, importar, dashboard, seguimiento, autos,
     portal, digitales, sala, backup, correspondencia, control_autos,
-    pdf_tools,
+    pdf_tools, mundial,
 )
 from app.routers import sdqs as sdqs_router
 from app.routers import auth as auth_router
@@ -131,6 +131,7 @@ app.include_router(correspondencia.router)
 app.include_router(control_autos.router)
 app.include_router(sdqs_router.router)
 app.include_router(pdf_tools.router)
+app.include_router(mundial.router)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

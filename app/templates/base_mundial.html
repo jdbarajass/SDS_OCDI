@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Polla Mundial 2026 — OCDI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        body { background: #0a1628; }
+        .sidebar {
+            background: linear-gradient(180deg, #05101f 0%, #0d1f3c 100%);
+            border-right: 1px solid rgba(212,160,23,0.25);
+        }
+        .sidebar-brand { border-bottom: 1px solid rgba(212,160,23,0.2); padding-bottom: 14px; margin-bottom: 8px; }
+        .brand-icon { font-size: 28px; }
+        .brand-title { color: #d4a017 !important; font-size: 13px; letter-spacing: 0.5px; }
+        .brand-sub { color: rgba(255,255,255,0.5) !important; }
+        .nav-section-label { color: rgba(212,160,23,0.7) !important; }
+        .nav-link { color: rgba(255,255,255,0.75) !important; }
+        .nav-link:hover { background: rgba(212,160,23,0.12) !important; color: #d4a017 !important; }
+        .nav-link.active { background: rgba(212,160,23,0.2) !important; color: #d4a017 !important; border-left-color: #d4a017 !important; }
+        .nav-link-hub { border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; padding-top: 10px; }
+        .main-content { background: #0d1f3c; min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">🏆</div>
+            <div class="brand-text">
+                <span class="brand-title">POLLA MUNDIAL 2026</span>
+                <span class="brand-sub">FIFA · OCDI · SDS</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">⚽ FIFA WORLD CUP 2026</div>
+
+            <a href="/mundial/?tab=grupos"
+               class="nav-link {% if tab == 'grupos' %}active{% endif %}">
+                <span class="nav-ico">📅</span><span>Grupos y Fixture</span>
+            </a>
+            <a href="/mundial/?tab=bracket"
+               class="nav-link {% if tab == 'bracket' %}active{% endif %}">
+                <span class="nav-ico">🗓️</span><span>Bracket Eliminatorio</span>
+            </a>
+            <a href="/mundial/?tab=predicciones"
+               class="nav-link {% if tab == 'predicciones' %}active{% endif %}">
+                <span class="nav-ico">🎯</span><span>Mis Predicciones</span>
+            </a>
+            <a href="/mundial/?tab=tabla"
+               class="nav-link {% if tab == 'tabla' %}active{% endif %}">
+                <span class="nav-ico">📊</span><span>Tabla de Puntos</span>
+            </a>
+            <a href="/mundial/?tab=sorteo"
+               class="nav-link {% if tab == 'sorteo' %}active{% endif %}">
+                <span class="nav-ico">🎲</span><span>Sorteo de Marcadores</span>
+            </a>
+
+            <a href="/" class="nav-link nav-link-hub">
+                <span class="nav-ico">🏠</span><span>Portal Principal</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content" style="padding:0">
+        {% block content %}{% endblock %}
+    </main>
+
+</div>
+</body>
+</html>

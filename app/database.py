@@ -264,6 +264,34 @@ CREATE TABLE IF NOT EXISTS personal_oficina (
     nombre  TEXT NOT NULL UNIQUE,
     activo  INTEGER DEFAULT 1
 );
+
+-- ── MÓDULO POLLA MUNDIAL 2026 (independiente — removable) ────────────────────
+CREATE TABLE IF NOT EXISTS mundial_predicciones (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    participante TEXT NOT NULL,
+    clave        TEXT NOT NULL,
+    valor        TEXT NOT NULL,
+    created_at   TEXT DEFAULT (datetime('now','localtime')),
+    updated_at   TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(participante, clave)
+);
+
+CREATE TABLE IF NOT EXISTS mundial_sorteo (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    partido_id    TEXT NOT NULL,
+    participante  TEXT NOT NULL,
+    goles_local   INTEGER NOT NULL,
+    goles_visita  INTEGER NOT NULL,
+    sorteado_en   TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(partido_id, participante)
+);
+
+CREATE TABLE IF NOT EXISTS mundial_resultados (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    clave          TEXT NOT NULL UNIQUE,
+    valor          TEXT NOT NULL,
+    actualizado_en TEXT DEFAULT (datetime('now','localtime'))
+);
 """
 
 

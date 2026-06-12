@@ -190,6 +190,48 @@ SEMIS = [
 TERCER_PUESTO = {"id":"3P",    "f":"Vie 18 Jul","h":"4:00 p.m.","s":"Miami"}
 FINAL_INFO    = {"id":"FINAL","f":"Dom 19 Jul","h":"2:00 p.m.","s":"MetLife Stadium, NJ"}
 
+# ── Fixture completo por fecha (todos los partidos, ordenados cronológicamente) ─
+def _fecha_key(f: str) -> str:
+    _MES = {"Jun": "06", "Jul": "07"}
+    p = f.split()
+    return f"2026{_MES.get(p[2], '06')}{p[1].zfill(2)}"
+
+def _hora_key(h: str) -> int:
+    t = h.replace(".", "").split()
+    hr, mn = map(int, t[0].split(":"))
+    ap = t[1].lower()
+    if ap == "pm" and hr != 12: hr += 12
+    elif ap == "am" and hr == 12: hr = 0
+    return hr * 100 + mn
+
+_ALL: list = []
+for _p in FIXTURE_GRUPOS:
+    _ALL.append({**_p, "tipo": "grupo", "label": f"Grupo {_p['g']}", "tbd": False})
+for _p in RONDA_32:
+    _ALL.append({**_p, "tipo": "elim", "label": "Ronda de 32",      "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+for _p in OCTAVOS:
+    _ALL.append({**_p, "tipo": "elim", "label": "Octavos de Final", "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+for _p in CUARTOS:
+    _ALL.append({**_p, "tipo": "elim", "label": "Cuartos de Final", "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+for _p in SEMIS:
+    _ALL.append({**_p, "tipo": "elim", "label": "Semifinal",        "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+_ALL.append({**TERCER_PUESTO, "tipo": "elim", "label": "Tercer Puesto", "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+_ALL.append({**FINAL_INFO,    "tipo": "elim", "label": "🏆 Gran Final",  "e1": "❓ TBD", "e2": "❓ TBD", "tbd": True})
+
+_BY_DATE: dict = {}
+for _p in _ALL:
+    _BY_DATE.setdefault(_p["f"], []).append(_p)
+
+FIXTURE_POR_FECHA = [
+    {
+        "fecha":    _f,
+        "sort_key": _fecha_key(_f),
+        "partidos": sorted(_pl, key=lambda x: _hora_key(x["h"])),
+    }
+    for _f, _pl in sorted(_BY_DATE.items(), key=lambda x: _fecha_key(x[0]))
+]
+del _ALL, _BY_DATE, _p
+
 # ── Sorteo de marcadores — partidos disponibles ──────────────────────────────
 PARTIDOS_SORTEO = [
     {"id":"CF_1",  "nombre":"⚽ Cuarto de Final 1",  "f":"Mié 9 Jul",  "h":"3:00 p.m.", "s":"Boston"},
@@ -256,6 +298,7 @@ async def mundial_inicio(request: Request, tab: str = "grupos", msg: str = "", s
         sorteo_partido_activo=sorteo_partido,
         grupos=GRUPOS,
         fixture_grupos=FIXTURE_GRUPOS,
+        fixture_por_fecha=FIXTURE_POR_FECHA,
         ronda_32=RONDA_32,
         octavos=OCTAVOS,
         cuartos=CUARTOS,
@@ -341,6 +384,27 @@ async def mundial_resultado(request: Request, clave: str = Form(...), valor: str
     finally:
         conn.close()
     return RedirectResponse("/mundial/?tab=tabla&msg=ok_resultado", status_code=303)
+
+
+@router.post("/admin-bulk")
+async def mundial_admin_bulk(request: Request):
+    """Guarda múltiples resultados reales en un solo POST."""
+    form = await request.form()
+    conn = get_db()
+    try:
+        for key, valor in form.multi_items():
+            if key.startswith("_") or not key or not valor or str(valor).strip() == "":
+                continue
+            conn.execute(
+                "INSERT INTO mundial_resultados(clave,valor) VALUES(?,?) "
+                "ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, "
+                "actualizado_en=datetime('now','localtime')",
+                (key.strip(), str(valor).strip()),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return RedirectResponse("/mundial/?tab=admin&msg=ok_resultado", status_code=303)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

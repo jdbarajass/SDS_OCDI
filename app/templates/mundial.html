@@ -71,31 +71,33 @@
 
 /* ── Grilla de grupos ───────────────────────────────────────────────────────── */
 .grupos-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 14px;
 }
 .grupo-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; overflow: hidden; }
 .grupo-header {
-    background: rgba(212,160,23,0.12); padding: 10px 16px;
-    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(212,160,23,0.14); padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
 }
-.grupo-letra { font-size: 18px; font-weight: 900; color: var(--gold); }
-.grupo-equipos {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
-    padding: 10px 0; border-bottom: 1px solid var(--card-border);
+.grupo-letra { font-size: 20px; font-weight: 900; color: var(--gold); min-width: 70px; }
+.grupo-equipos-inline {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 14px;
+    border-bottom: 1px solid var(--card-border);
 }
-.grupo-equipo { padding: 6px 16px; font-size: 13px; color: var(--text); font-weight: 600; }
+.grupo-equipo-badge {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--text); font-weight: 600;
+    white-space: nowrap;
+}
 
 .grupo-fixtures { font-size: 11.5px; }
 .gf-row {
-    display: grid; grid-template-columns: 90px 1fr 40px;
-    align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 8px;
     padding: 6px 14px; border-top: 1px solid rgba(255,255,255,0.05);
 }
-.gf-row:hover { background: rgba(255,255,255,0.02); }
-.gf-fecha { color: var(--gold); font-size: 10px; font-weight: 700; }
-.gf-match { color: var(--text); }
-.gf-hora  { color: var(--text-muted); font-size: 10px; text-align: right; }
-.gf-sede  { grid-column: 1/-1; color: var(--text-muted); font-size: 10px; padding-left: 0; padding-top: 0; }
+.gf-row:hover { background: rgba(255,255,255,0.03); }
+.gf-fecha { color: var(--gold); font-size: 10px; font-weight: 700; min-width: 86px; flex-shrink: 0; }
+.gf-match { color: var(--text); flex: 1; font-size: 11.5px; }
+.gf-hora  { color: var(--text-muted); font-size: 10px; text-align: right; white-space: nowrap; flex-shrink: 0; }
 
 /* ── Bracket ────────────────────────────────────────────────────────────────── */
 .bracket-outer { overflow-x: auto; padding-bottom: 16px; }
@@ -273,6 +275,63 @@
     font-style: italic;
 }
 
+/* ── Vista por fechas ───────────────────────────────────────────────────────── */
+.cal-proxima-banner {
+    background: linear-gradient(135deg, rgba(212,160,23,0.18), rgba(212,160,23,0.07));
+    border: 1px solid rgba(212,160,23,0.45);
+    border-radius: 10px; padding: 14px 20px; margin-bottom: 22px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.cal-proxima-ico  { font-size: 28px; }
+.cal-proxima-txt  { font-size: 12px; color: var(--text-muted); }
+.cal-proxima-dato { font-size: 15px; font-weight: 800; color: var(--gold); }
+.cal-proxima-empty{ font-size: 13px; color: var(--text-muted); font-style: italic; }
+
+.cal-fecha-block  { margin-bottom: 16px; }
+.cal-fecha-header {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px 8px 0 0; padding: 9px 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    cursor: pointer; user-select: none;
+}
+.cal-fecha-header.hoy {
+    background: rgba(212,160,23,0.14); border-color: rgba(212,160,23,0.4);
+}
+.cal-fecha-header.proxima {
+    background: rgba(212,160,23,0.1); border-color: rgba(212,160,23,0.35);
+}
+.cal-fecha-nombre { font-weight: 800; color: var(--text); font-size: 13px; flex: 1; }
+.cal-fecha-header.hoy    .cal-fecha-nombre,
+.cal-fecha-header.proxima .cal-fecha-nombre { color: var(--gold); }
+.cal-tag {
+    font-size: 10px; font-weight: 800; padding: 2px 9px; border-radius: 10px; white-space: nowrap;
+}
+.cal-tag-hoy     { background: var(--gold); color: #0d1f3c; }
+.cal-tag-proxima { background: rgba(212,160,23,0.25); color: var(--gold); border: 1px solid rgba(212,160,23,0.4); }
+.cal-tag-cuenta  { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+
+.cal-lista {
+    background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07);
+    border-top: none; border-radius: 0 0 8px 8px; overflow: hidden;
+}
+.cal-fila {
+    display: grid;
+    grid-template-columns: 76px 110px 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.05);
+}
+.cal-fila:hover { background: rgba(255,255,255,0.03); }
+.cal-fila.tbd   { opacity: 0.6; }
+.cal-hora       { color: var(--gold); font-weight: 800; font-size: 12px; white-space: nowrap; }
+.cal-ronda      {
+    font-size: 10px; font-weight: 700; color: var(--text-muted);
+    background: rgba(255,255,255,0.06); padding: 3px 9px;
+    border-radius: 12px; text-align: center; white-space: nowrap;
+}
+.cal-ronda.grupo { background: rgba(212,160,23,0.1); color: rgba(212,160,23,0.8); }
+.cal-equipos    { font-size: 13px; color: var(--text); font-weight: 600; }
+.cal-sede       { font-size: 10px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+
 /* ── Fase eliminatoria (calendario) ─────────────────────────────────────────── */
 .elim-section { margin-bottom: 24px; }
 .elim-title {
@@ -288,6 +347,27 @@
 .elim-equi { font-size: 13px; font-weight: 700; color: var(--text-muted); font-style: italic; }
 .elim-fecha{ font-size: 11px; color: var(--gold); margin-top: 4px; }
 .elim-sede { font-size: 10px; color: var(--text-muted); }
+
+/* ── Resaltado de equipos ───────────────────────────────────────────────────── */
+/* Colombia — amarillo selección cafetera */
+.eq-colombia {
+    background: linear-gradient(135deg, rgba(255,205,0,0.22), rgba(255,160,0,0.1)) !important;
+    border-color: rgba(255,210,0,0.6) !important;
+    color: #FFD700 !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 10px rgba(255,205,0,0.18), inset 0 0 0 1px rgba(255,205,0,0.15);
+    text-shadow: 0 0 8px rgba(255,205,0,0.4);
+}
+/* Favoritos — azul hielo */
+.eq-favorito {
+    background: linear-gradient(135deg, rgba(99,179,237,0.18), rgba(99,179,237,0.07)) !important;
+    border-color: rgba(99,179,237,0.45) !important;
+    color: #90cdf4 !important;
+    font-weight: 700 !important;
+}
+/* Texto inline en filas de fixture */
+.eq-col-txt  { color: #FFD700; font-weight: 800; text-shadow: 0 0 6px rgba(255,205,0,0.35); }
+.eq-fav-txt  { color: #90cdf4; font-weight: 700; }
 
 /* ── Final especial ─────────────────────────────────────────────────────────── */
 .final-card-big {
@@ -316,10 +396,12 @@
 <!-- Tabs -->
 <div class="mw-tabs">
     <button class="mw-tab {% if tab=='grupos' %}active{% endif %}" onclick="setTab('grupos',this)">📅 Grupos y Fixture</button>
-    <button class="mw-tab {% if tab=='bracket' %}active{% endif %}" onclick="setTab('bracket',this)">🗓️ Bracket</button>
+    <button class="mw-tab {% if tab=='calendario' %}active{% endif %}" onclick="setTab('calendario',this)">🗓️ Por Fechas</button>
+    <button class="mw-tab {% if tab=='bracket' %}active{% endif %}" onclick="setTab('bracket',this)">🔀 Bracket</button>
     <button class="mw-tab {% if tab=='predicciones' %}active{% endif %}" onclick="setTab('predicciones',this)">🎯 Predicciones</button>
     <button class="mw-tab {% if tab=='tabla' %}active{% endif %}" onclick="setTab('tabla',this)">📊 Tabla de Puntos</button>
     <button class="mw-tab {% if tab=='sorteo' %}active{% endif %}" onclick="setTab('sorteo',this)">🎲 Sorteo</button>
+    <button class="mw-tab {% if tab=='admin' %}active{% endif %}" onclick="setTab('admin',this)" style="margin-left:auto;color:rgba(212,160,23,0.7)">⚙️ Admin</button>
 </div>
 
 <!-- Flash -->
@@ -339,6 +421,52 @@
 </div>
 {% endif %}
 
+<!-- ══════════════════════ TAB: CALENDARIO (POR FECHAS) ══════════════════════ -->
+<div id="tab-calendario" class="mw-section {% if tab=='calendario' %}active{% endif %}">
+    <div class="mw-section-title">🗓️ Todos los Partidos · Ordenados por Fecha
+        <small style="font-size:11px;font-weight:400;color:var(--text-muted)">(Hora Colombia — COT, UTC-5)</small>
+    </div>
+
+    <!-- Banner próximo partido — rellenado por JS -->
+    <div id="cal-banner" class="cal-proxima-banner" style="display:none">
+        <div class="cal-proxima-ico">⚡</div>
+        <div>
+            <div class="cal-proxima-txt">Próximos partidos</div>
+            <div id="cal-banner-dato" class="cal-proxima-dato"></div>
+        </div>
+        <div id="cal-banner-matches" style="font-size:12px;color:var(--text);line-height:1.8"></div>
+    </div>
+    <div id="cal-banner-ok" style="display:none;margin-bottom:18px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px 16px;font-size:13px;color:#6ee7b7;font-weight:700">
+        🏆 El Mundial ha finalizado. ¡Gracias por participar!
+    </div>
+
+    <!-- Bloques por fecha -->
+    {% for bloque in fixture_por_fecha %}
+    <div class="cal-fecha-block" id="cal-bloque-{{ bloque.sort_key }}" data-sortkey="{{ bloque.sort_key }}">
+        <div class="cal-fecha-header" onclick="toggleCalBloque('{{ bloque.sort_key }}')">
+            <span class="cal-fecha-nombre">📆 {{ bloque.fecha }}</span>
+            <span class="cal-tag cal-tag-cuenta">{{ bloque.partidos|length }} partido{{ 's' if bloque.partidos|length != 1 }}</span>
+        </div>
+        <div class="cal-lista" id="cal-lista-{{ bloque.sort_key }}">
+            {% for p in bloque.partidos %}
+            <div class="cal-fila {% if p.tbd %}tbd{% endif %}">
+                <span class="cal-hora">{{ p.h }}</span>
+                <span class="cal-ronda {% if not p.tbd %}grupo{% endif %}">{{ p.label }}</span>
+                <span class="cal-equipos">
+                    {% if p.tbd %}
+                    <span style="color:var(--text-muted);font-style:italic">❓ Por definir</span>
+                    {% else %}
+                    {{ p.e1 }} <span style="color:var(--gold);font-weight:400;font-size:11px"> vs </span> {{ p.e2 }}
+                    {% endif %}
+                </span>
+                <span class="cal-sede">📍 {{ p.s }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
 <!-- ══════════════════════ TAB: GRUPOS Y FIXTURE ══════════════════════════════ -->
 <div id="tab-grupos" class="mw-section {% if tab=='grupos' %}active{% endif %}">
     <div class="mw-section-title">📅 Grupos y Fixture · Fase de Grupos <small style="font-size:11px;font-weight:400;color:var(--text-muted)">(Todos los horarios en hora Colombia — COT, UTC-5)</small></div>
@@ -350,9 +478,9 @@
                 <span class="grupo-letra">GRUPO {{ letra }}</span>
                 <span style="font-size:11px;color:var(--text-muted)">{{ gdata.equipos | length }} equipos</span>
             </div>
-            <div class="grupo-equipos">
+            <div class="grupo-equipos-inline">
                 {% for i in range(4) %}
-                <div class="grupo-equipo">{{ gdata.flags[i] }} {{ gdata.equipos[i] }}</div>
+                <span class="grupo-equipo-badge">{{ gdata.flags[i] }} {{ gdata.equipos[i] }}</span>
                 {% endfor %}
             </div>
             <div class="grupo-fixtures">
@@ -362,7 +490,6 @@
                     <span class="gf-fecha">{{ p.f }}</span>
                     <span class="gf-match">{{ p.e1 }} vs {{ p.e2 }}</span>
                     <span class="gf-hora">{{ p.h }}</span>
-                    <span class="gf-sede">📍 {{ p.s }}</span>
                 </div>
                 {% endif %}
                 {% endfor %}
@@ -374,27 +501,32 @@
 
 <!-- ══════════════════════ TAB: BRACKET ══════════════════════════════════════ -->
 <div id="tab-bracket" class="mw-section {% if tab=='bracket' %}active{% endif %}">
-    <div class="mw-section-title">🗓️ Bracket Eliminatorio — Fase Final <small style="font-size:11px;font-weight:400;color:var(--text-muted)">(Los equipos se actualizan al avanzar el torneo)</small></div>
+    <div class="mw-section-title">🔀 Bracket Eliminatorio — Fase Final
+        <small style="font-size:11px;font-weight:400;color:var(--text-muted)">Los equipos los ingresa el admin · se actualiza automáticamente</small>
+    </div>
 
-    <!-- Final -->
+    {% macro bteam(key, style='') %}
+    {% set t = res_map.get(key, '') %}
+    <div class="b-team {{ 'tbd' if not t else '' }}" style="{{ style }}">{{ t if t else '❓ Por definir' }}</div>
+    {% endmacro %}
+
+    <!-- Gran Final — resultado y campeón -->
     <div class="final-card-big">
         <div class="final-trophy">🏆</div>
         <div class="final-titulo">GRAN FINAL FIFA 2026</div>
         <div class="final-fecha">{{ final_info.f }} · {{ final_info.h }}</div>
         <div class="final-sede">📍 {{ final_info.s }}</div>
-        <div style="margin-top:12px;font-size:18px;font-weight:900;color:var(--text-muted)">
+        <div style="margin-top:12px;font-size:17px;font-weight:900;color:{% if res_map.get('finalista_1') %}var(--text){% else %}var(--text-muted){% endif %}">
             {{ res_map.get('finalista_1', '❓ Por definir') }}
-            <span style="color:var(--gold);font-size:14px"> vs </span>
+            <span style="color:var(--gold);font-size:13px"> vs </span>
             {{ res_map.get('finalista_2', '❓ Por definir') }}
         </div>
         {% if res_map.get('campeon') %}
-        <div style="margin-top:10px;font-size:22px;font-weight:900;color:var(--gold)">
-            🏆 {{ res_map.campeon }}
-        </div>
+        <div style="margin-top:10px;font-size:20px;font-weight:900;color:var(--gold)">🏆 {{ res_map['campeon'] }}</div>
         {% endif %}
     </div>
 
-    <!-- Bracket visual QF → Final -->
+    <!-- Bracket visual QF → SF → Final -->
     <div class="bracket-outer">
         <div class="bracket-wrap" style="justify-content:center;gap:0">
 
@@ -403,13 +535,13 @@
                 <div class="bracket-round-label">CUARTOS DE FINAL</div>
                 <div class="bracket-matches" style="gap:24px">
                     <div class="bracket-match">
-                        <div class="b-team tbd">❓ Por definir</div>
-                        <div class="b-team tbd">❓ Por definir</div>
+                        {{ bteam('cf1_e1') }}
+                        {{ bteam('cf1_e2') }}
                         <div class="b-info">{{ cuartos[0].f }} · {{ cuartos[0].h }} · {{ cuartos[0].s }}</div>
                     </div>
                     <div class="bracket-match">
-                        <div class="b-team tbd">❓ Por definir</div>
-                        <div class="b-team tbd">❓ Por definir</div>
+                        {{ bteam('cf2_e1') }}
+                        {{ bteam('cf2_e2') }}
                         <div class="b-info">{{ cuartos[1].f }} · {{ cuartos[1].h }} · {{ cuartos[1].s }}</div>
                     </div>
                 </div>
@@ -425,8 +557,8 @@
             <div class="bracket-col" style="justify-content:center">
                 <div class="bracket-round-label">SEMIFINAL 1</div>
                 <div class="bracket-match highlight" style="margin-top:12px">
-                    <div class="b-team tbd">❓ Por definir</div>
-                    <div class="b-team tbd">❓ Por definir</div>
+                    {{ bteam('sf1_e1') }}
+                    {{ bteam('sf1_e2') }}
                     <div class="b-info">{{ semis[0].f }} · {{ semis[0].h }} · {{ semis[0].s }}</div>
                 </div>
             </div>
@@ -440,8 +572,8 @@
             <div class="bracket-col" style="justify-content:center">
                 <div class="bracket-round-label">GRAN FINAL</div>
                 <div class="bracket-match highlight" style="margin-top:12px;width:180px;border-color:var(--gold)">
-                    <div class="b-team tbd" style="padding:10px 12px">❓ Por definir</div>
-                    <div class="b-team tbd" style="padding:10px 12px">❓ Por definir</div>
+                    {{ bteam('finalista_1', 'padding:10px 12px') }}
+                    {{ bteam('finalista_2', 'padding:10px 12px') }}
                     <div class="b-info" style="font-size:10px">{{ final_info.f }} · {{ final_info.h }}</div>
                     <div class="b-info" style="font-size:9px">{{ final_info.s }}</div>
                 </div>
@@ -456,8 +588,8 @@
             <div class="bracket-col" style="justify-content:center">
                 <div class="bracket-round-label">SEMIFINAL 2</div>
                 <div class="bracket-match highlight" style="margin-top:12px">
-                    <div class="b-team tbd">❓ Por definir</div>
-                    <div class="b-team tbd">❓ Por definir</div>
+                    {{ bteam('sf2_e1') }}
+                    {{ bteam('sf2_e2') }}
                     <div class="b-info">{{ semis[1].f }} · {{ semis[1].h }} · {{ semis[1].s }}</div>
                 </div>
             </div>
@@ -473,13 +605,13 @@
                 <div class="bracket-round-label">CUARTOS DE FINAL</div>
                 <div class="bracket-matches" style="gap:24px">
                     <div class="bracket-match">
-                        <div class="b-team tbd">❓ Por definir</div>
-                        <div class="b-team tbd">❓ Por definir</div>
+                        {{ bteam('cf3_e1') }}
+                        {{ bteam('cf3_e2') }}
                         <div class="b-info">{{ cuartos[2].f }} · {{ cuartos[2].h }} · {{ cuartos[2].s }}</div>
                     </div>
                     <div class="bracket-match">
-                        <div class="b-team tbd">❓ Por definir</div>
-                        <div class="b-team tbd">❓ Por definir</div>
+                        {{ bteam('cf4_e1') }}
+                        {{ bteam('cf4_e2') }}
                         <div class="b-info">{{ cuartos[3].f }} · {{ cuartos[3].h }} · {{ cuartos[3].s }}</div>
                     </div>
                 </div>
@@ -491,7 +623,13 @@
     <div style="text-align:center;margin-top:12px">
         <div style="display:inline-block;background:rgba(176,102,60,0.12);border:1px solid rgba(176,102,60,0.35);border-radius:10px;padding:12px 24px">
             <div style="font-size:13px;font-weight:800;color:#b0663c">🥉 TERCER PUESTO</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">{{ tercer_puesto.f }} · {{ tercer_puesto.h }} · {{ tercer_puesto.s }}</div>
+            <div style="margin-top:6px;font-size:13px;color:var(--text)">
+                {{ res_map.get('3p_e1', '❓') }} <span style="color:#b0663c"> vs </span> {{ res_map.get('3p_e2', '❓') }}
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">{{ tercer_puesto.f }} · {{ tercer_puesto.h }} · {{ tercer_puesto.s }}</div>
+            {% if res_map.get('tercero') %}
+            <div style="margin-top:6px;font-size:14px;font-weight:800;color:#b0663c">🥉 {{ res_map['tercero'] }}</div>
+            {% endif %}
         </div>
     </div>
 
@@ -652,47 +790,6 @@
         </table>
     </div>
 
-    <!-- Panel admin: cargar resultados reales -->
-    <div class="admin-panel">
-        <div class="admin-title">⚙️ Administrador — Registrar resultados reales</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">
-            A medida que termine cada fase, registra los resultados aquí para calcular los puntos automáticamente.
-        </div>
-
-        <form method="post" action="/mundial/resultado" style="display:flex;flex-direction:column;gap:10px">
-            <div class="admin-row">
-                <select name="clave" class="admin-select" id="admin-clave" onchange="actualizarAdminValor()">
-                    <option value="">— Seleccionar qué actualizar —</option>
-                    {% for letra in grupos.keys() %}
-                    <option value="ganador_{{ letra }}">Ganador Grupo {{ letra }}</option>
-                    {% endfor %}
-                    <option value="campeon">Campeón Mundial</option>
-                    <option value="subcampeon">Subcampeón</option>
-                    <option value="tercero">Tercer Puesto</option>
-                    <option value="finalista_1">Finalista 1 (bracket)</option>
-                    <option value="finalista_2">Finalista 2 (bracket)</option>
-                </select>
-                <select name="valor" class="admin-select" id="admin-valor">
-                    <option value="">— Primero selecciona qué actualizar —</option>
-                </select>
-                <button type="submit" class="btn-admin">✅ Registrar</button>
-            </div>
-
-            {% if res_map %}
-            <div style="margin-top:8px">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Resultados registrados:</div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px">
-                {% for clave, valor in res_map.items() %}
-                <span style="background:rgba(110,231,183,0.1);border:1px solid rgba(110,231,183,0.3);color:#6ee7b7;font-size:11px;padding:3px 10px;border-radius:12px">
-                    {{ clave }}: {{ valor }}
-                </span>
-                {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </form>
-    </div>
-
     <!-- Detalle predicciones por participante -->
     <div style="margin-top:28px">
         <div class="mw-section-title" style="font-size:14px">🔍 Predicciones Registradas por Participante</div>
@@ -812,6 +909,182 @@
     </div>
 </div>
 
+<!-- ══════════════════════ TAB: ADMIN ════════════════════════════════════════ -->
+<div id="tab-admin" class="mw-section {% if tab=='admin' %}active{% endif %}">
+    <div class="mw-section-title">⚙️ Panel de Administrador — Ingresar Resultados Reales</div>
+
+    <div style="background:rgba(212,160,23,0.07);border:1px solid rgba(212,160,23,0.2);border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--text)">
+        Aquí el administrador ingresa los resultados a medida que avanza el torneo.
+        El <strong style="color:var(--gold)">Bracket</strong> y la <strong style="color:var(--gold)">Tabla de Puntos</strong>
+        se actualizan automáticamente al guardar.
+    </div>
+
+    {% if msg == 'ok_resultado' and tab == 'admin' %}
+    <div class="mw-alert mw-alert-ok" style="margin-bottom:18px">✅ Resultados guardados correctamente.</div>
+    {% endif %}
+
+    <!-- ── SECCIÓN 1: Fase de Grupos ── -->
+    <form method="post" action="/mundial/admin-bulk">
+        <input type="hidden" name="_tab" value="admin">
+        <div class="mw-section-title" style="font-size:14px;margin-top:0">📅 Fase de Grupos — Ganador de cada grupo</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+            {% for letra, gdata in grupos.items() %}
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:12px 14px">
+                <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">GRUPO {{ letra }}</div>
+                <select name="ganador_{{ letra }}" class="pred-grupo-select">
+                    <option value="">— Por definir —</option>
+                    {% for i in range(4) %}
+                    {% set eq = gdata.equipos[i] %}
+                    <option value="{{ eq }}" {% if res_map.get('ganador_' ~ letra) == eq %}selected{% endif %}>
+                        {{ gdata.flags[i] }} {{ eq }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn-guardar" style="margin-bottom:32px">💾 Guardar ganadores de grupo</button>
+    </form>
+
+    <!-- ── SECCIÓN 2: Cuartos de Final ── -->
+    <form method="post" action="/mundial/admin-bulk">
+        <input type="hidden" name="_tab" value="admin">
+        <div class="mw-section-title" style="font-size:14px">⚽ Cuartos de Final (Jul 9–11) — Equipos que clasifican</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px">
+            {% for i in range(4) %}
+            {% set cf = cuartos[i] %}
+            {% set k = 'cf' ~ (i+1) %}
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:14px">
+                <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:4px">CF {{ i+1 }}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px">{{ cf.f }} · {{ cf.h }} · {{ cf.s }}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Equipo 1</div>
+                        <select name="{{ k }}_e1" class="pred-grupo-select">
+                            <option value="">— Por definir —</option>
+                            {% for eq in todos_los_equipos %}
+                            {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                            <option value="{{ n }}" {% if res_map.get(k~'_e1') == n %}selected{% endif %}>{{ eq }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Equipo 2</div>
+                        <select name="{{ k }}_e2" class="pred-grupo-select">
+                            <option value="">— Por definir —</option>
+                            {% for eq in todos_los_equipos %}
+                            {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                            <option value="{{ n }}" {% if res_map.get(k~'_e2') == n %}selected{% endif %}>{{ eq }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn-guardar" style="margin-bottom:32px">💾 Guardar equipos de cuartos</button>
+    </form>
+
+    <!-- ── SECCIÓN 3: Semifinales ── -->
+    <form method="post" action="/mundial/admin-bulk">
+        <input type="hidden" name="_tab" value="admin">
+        <div class="mw-section-title" style="font-size:14px">⚡ Semifinales (Jul 14–15) — Equipos que clasifican</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px">
+            {% for i in range(2) %}
+            {% set sf = semis[i] %}
+            {% set k = 'sf' ~ (i+1) %}
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:14px">
+                <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:4px">SEMIFINAL {{ i+1 }}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px">{{ sf.f }} · {{ sf.h }} · {{ sf.s }}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Equipo 1</div>
+                        <select name="{{ k }}_e1" class="pred-grupo-select">
+                            <option value="">— Por definir —</option>
+                            {% for eq in todos_los_equipos %}
+                            {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                            <option value="{{ n }}" {% if res_map.get(k~'_e1') == n %}selected{% endif %}>{{ eq }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Equipo 2</div>
+                        <select name="{{ k }}_e2" class="pred-grupo-select">
+                            <option value="">— Por definir —</option>
+                            {% for eq in todos_los_equipos %}
+                            {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                            <option value="{{ n }}" {% if res_map.get(k~'_e2') == n %}selected{% endif %}>{{ eq }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn-guardar" style="margin-bottom:32px">💾 Guardar equipos de semifinales</button>
+    </form>
+
+    <!-- ── SECCIÓN 4: Tercer Puesto y Final ── -->
+    <form method="post" action="/mundial/admin-bulk">
+        <input type="hidden" name="_tab" value="admin">
+        <div class="mw-section-title" style="font-size:14px">🏆 Gran Final y Tercer Puesto (Jul 18–19)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px">
+
+            {% set final_fields = [
+                ('3p_e1',     '🥉 3er Puesto — Equipo 1'),
+                ('3p_e2',     '🥉 3er Puesto — Equipo 2'),
+                ('finalista_1','🏆 Finalista 1'),
+                ('finalista_2','🏆 Finalista 2'),
+            ] %}
+            {% for fkey, flabel in final_fields %}
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:12px 14px">
+                <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">{{ flabel }}</div>
+                <select name="{{ fkey }}" class="pred-grupo-select">
+                    <option value="">— Por definir —</option>
+                    {% for eq in todos_los_equipos %}
+                    {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                    <option value="{{ n }}" {% if res_map.get(fkey) == n %}selected{% endif %}>{{ eq }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+            {% set resultado_fields = [
+                ('tercero',    '🥉 Ganador 3er Puesto'),
+                ('subcampeon', '🥈 Subcampeón (Finalista perdedor)'),
+                ('campeon',    '🏆 Campeón Mundial'),
+            ] %}
+            {% for fkey, flabel in resultado_fields %}
+            <div style="background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.3);border-radius:8px;padding:12px 14px">
+                <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:8px">{{ flabel }}</div>
+                <select name="{{ fkey }}" class="pred-grupo-select">
+                    <option value="">— Por definir —</option>
+                    {% for eq in todos_los_equipos %}
+                    {% set n = eq.split(' ',1)[1] if ' ' in eq else eq %}
+                    <option value="{{ n }}" {% if res_map.get(fkey) == n %}selected{% endif %}>{{ eq }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn-guardar">💾 Guardar Final y Tercer Puesto</button>
+    </form>
+
+    <!-- Resumen de resultados guardados -->
+    {% if res_map %}
+    <div style="margin-top:32px">
+        <div class="mw-section-title" style="font-size:13px">📋 Resultados guardados actualmente</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+            {% for clave, valor in res_map.items() %}
+            <span style="background:rgba(110,231,183,0.1);border:1px solid rgba(110,231,183,0.25);color:#6ee7b7;font-size:11px;padding:4px 12px;border-radius:20px">
+                <strong>{{ clave }}</strong>: {{ valor }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 <!-- ══════════════════════ JAVASCRIPT ════════════════════════════════════════ -->
 <script>
 const PRED_MAP = {{ pred_map_json | safe }};
@@ -829,6 +1102,15 @@ function setTab(name, btn) {
     document.getElementById('tab-' + name).classList.add('active');
     if (btn) btn.classList.add('active');
     history.replaceState(null, '', '/mundial/?tab=' + name);
+    // Sync sidebar nav active state
+    document.querySelectorAll('.sidebar .nav-link').forEach(a => {
+        a.classList.toggle('active', a.href && a.href.includes('tab=' + name));
+    });
+    // Al abrir el calendario: scroll al próximo/hoy
+    if (name === 'calendario') {
+        const prox = document.querySelector('.cal-fecha-header.hoy, .cal-fecha-header.proxima');
+        if (prox) setTimeout(() => prox.scrollIntoView({behavior:'smooth', block:'start'}), 180);
+    }
 }
 
 /* ── Predicciones: cargar al seleccionar participante ─────────────────────── */
@@ -907,6 +1189,132 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => card.scrollIntoView({behavior:'smooth', block:'center'}), 300);
         }
     }
+});
+
+/* ── Calendario: próximo partido ─────────────────────────────────────────── */
+function initCalendario() {
+    const hoy = new Date();
+    const hoyKey = hoy.getFullYear().toString()
+        + String(hoy.getMonth() + 1).padStart(2, '0')
+        + String(hoy.getDate()).padStart(2, '0');
+
+    const bloques = document.querySelectorAll('.cal-fecha-block[data-sortkey]');
+    let proximoBloque = null;
+    let hayHoy = false;
+
+    bloques.forEach(bloque => {
+        const key = bloque.dataset.sortkey;
+        const header = bloque.querySelector('.cal-fecha-header');
+        const tag = document.createElement('span');
+        tag.className = 'cal-tag';
+
+        if (key === hoyKey) {
+            hayHoy = true;
+            header.classList.add('hoy');
+            tag.classList.add('cal-tag-hoy');
+            tag.textContent = 'HOY';
+            header.insertBefore(tag, header.querySelector('.cal-tag-cuenta'));
+            proximoBloque = bloque;
+        } else if (key > hoyKey && !proximoBloque) {
+            header.classList.add('proxima');
+            tag.classList.add('cal-tag-proxima');
+            tag.textContent = 'PRÓXIMO';
+            header.insertBefore(tag, header.querySelector('.cal-tag-cuenta'));
+            proximoBloque = bloque;
+        }
+
+        // Cerrar bloques pasados para no desplazarse por ellos
+        if (key < hoyKey) {
+            const lista = bloque.querySelector('.cal-lista');
+            if (lista) lista.style.display = 'none';
+        }
+    });
+
+    // Banner superior
+    const banner  = document.getElementById('cal-banner');
+    const bannerOk = document.getElementById('cal-banner-ok');
+    if (proximoBloque) {
+        const fecha = proximoBloque.querySelector('.cal-fecha-nombre').textContent.replace('📆 ', '').trim();
+        document.getElementById('cal-banner-dato').textContent = fecha;
+        // Armar lista de partidos del día próximo
+        const filas = proximoBloque.querySelectorAll('.cal-fila');
+        const matchLines = Array.from(filas).map(f => {
+            const hora = f.querySelector('.cal-hora').textContent.trim();
+            const eq   = f.querySelector('.cal-equipos').textContent.trim().replace(/\s+/g, ' ');
+            return `<span style="color:var(--gold);font-weight:800">${hora}</span> — ${eq}`;
+        });
+        document.getElementById('cal-banner-matches').innerHTML = matchLines.join('<br>');
+        banner.style.display = 'flex';
+        // Auto-scroll al bloque próximo si estamos en tab calendario
+        const tabCal = document.getElementById('tab-calendario');
+        if (tabCal && tabCal.classList.contains('active')) {
+            setTimeout(() => proximoBloque.scrollIntoView({behavior:'smooth', block:'start'}), 300);
+        }
+    } else if (bloques.length > 0) {
+        // Mundial terminado
+        bannerOk.style.display = 'block';
+    }
+}
+
+function toggleCalBloque(sortkey) {
+    const lista = document.getElementById('cal-lista-' + sortkey);
+    if (lista) lista.style.display = lista.style.display === 'none' ? '' : 'none';
+}
+
+/* ── Resaltado de equipos favoritos ──────────────────────────────────────── */
+const EQUIPO_COL = ['Colombia'];
+const EQUIPO_FAV = [
+    'Argentina','Brasil','Francia','España','Alemania',
+    'Inglaterra','Portugal','Países Bajos','Uruguay','Bélgica'
+];
+
+function rxEscape(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function resaltarEquipos() {
+    // Badges de grupos
+    document.querySelectorAll('.grupo-equipo-badge').forEach(el => {
+        const t = el.textContent;
+        if (EQUIPO_COL.some(eq => t.includes(eq)))       el.classList.add('eq-colombia');
+        else if (EQUIPO_FAV.some(eq => t.includes(eq)))  el.classList.add('eq-favorito');
+    });
+
+    // Fixture: resaltar nombres en columna de partido
+    document.querySelectorAll('.gf-match').forEach(el => {
+        let h = el.innerHTML;
+        EQUIPO_COL.forEach(eq => {
+            h = h.replace(new RegExp(`(${rxEscape(eq)})`, 'g'), '<span class="eq-col-txt">$1</span>');
+        });
+        EQUIPO_FAV.forEach(eq => {
+            h = h.replace(new RegExp(`(${rxEscape(eq)})`, 'g'), '<span class="eq-fav-txt">$1</span>');
+        });
+        el.innerHTML = h;
+    });
+
+    // Opciones de selects (predicciones y admin)
+    document.querySelectorAll('select option').forEach(opt => {
+        const t = opt.textContent;
+        if (EQUIPO_COL.some(eq => t.includes(eq))) {
+            opt.style.color = '#FFD700'; opt.style.fontWeight = '800';
+        } else if (EQUIPO_FAV.some(eq => t.includes(eq))) {
+            opt.style.color = '#90cdf4'; opt.style.fontWeight = '700';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    resaltarEquipos();
+    initCalendario();
+    // También resaltar en filas de calendario
+    document.querySelectorAll('.cal-equipos').forEach(el => {
+        let h = el.innerHTML;
+        EQUIPO_COL.forEach(eq => {
+            h = h.replace(new RegExp(`(${rxEscape(eq)})`, 'g'), '<span class="eq-col-txt">$1</span>');
+        });
+        EQUIPO_FAV.forEach(eq => {
+            h = h.replace(new RegExp(`(${rxEscape(eq)})`, 'g'), '<span class="eq-fav-txt">$1</span>');
+        });
+        el.innerHTML = h;
+    });
 });
 </script>
 

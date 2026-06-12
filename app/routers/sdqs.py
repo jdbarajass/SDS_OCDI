@@ -60,11 +60,18 @@ def _str(val) -> str:
 
 def _calcular_semaforo_sdqs(reg: dict) -> dict:
     """
-    Calcula estado_dias (total días del plazo) y semaforo_sdqs ('verde'/'amarillo'/'rojo').
-    Verde  = primera mitad del plazo aún no cumplida.
+    Calcula estado_dias y semaforo_sdqs ('verde'/'amarillo'/'rojo'/'respondido').
+    Si ya existe rad_salida → 'respondido' (no aparece en filtros de plazo).
+    Verde    = primera mitad del plazo aún no cumplida.
     Amarillo = segunda mitad del plazo (pero > 2 días restantes).
-    Rojo   = 2 días o menos hasta el vencimiento (o ya vencido).
+    Rojo     = 2 días o menos hasta el vencimiento (o ya vencido).
     """
+    # Si ya hay radicado de salida el caso fue respondido — no aplica semáforo de plazo
+    if reg.get("rad_salida") and str(reg.get("rad_salida")).strip():
+        reg["semaforo_sdqs"] = "respondido"
+        reg["estado_dias"] = None
+        return reg
+
     fa = reg.get("fecha_asignacion")
     fv = reg.get("fecha_vencimiento")
     reg["estado_dias"] = None

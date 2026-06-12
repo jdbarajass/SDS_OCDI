@@ -43,9 +43,13 @@
                class="nav-link {% if tab == 'grupos' %}active{% endif %}">
                 <span class="nav-ico">📅</span><span>Grupos y Fixture</span>
             </a>
+            <a href="/mundial/?tab=calendario"
+               class="nav-link {% if tab == 'calendario' %}active{% endif %}">
+                <span class="nav-ico">🗓️</span><span>Por Fechas</span>
+            </a>
             <a href="/mundial/?tab=bracket"
                class="nav-link {% if tab == 'bracket' %}active{% endif %}">
-                <span class="nav-ico">🗓️</span><span>Bracket Eliminatorio</span>
+                <span class="nav-ico">🔀</span><span>Bracket Eliminatorio</span>
             </a>
             <a href="/mundial/?tab=predicciones"
                class="nav-link {% if tab == 'predicciones' %}active{% endif %}">
@@ -59,6 +63,11 @@
                class="nav-link {% if tab == 'sorteo' %}active{% endif %}">
                 <span class="nav-ico">🎲</span><span>Sorteo de Marcadores</span>
             </a>
+            <a href="/mundial/?tab=admin"
+               class="nav-link {% if tab == 'admin' %}active{% endif %}"
+               style="border-top:1px solid rgba(212,160,23,0.15);margin-top:6px;padding-top:10px">
+                <span class="nav-ico">⚙️</span><span>Admin Resultados</span>
+            </a>
 
             <a href="/" class="nav-link nav-link-hub">
                 <span class="nav-ico">🏠</span><span>Portal Principal</span>
@@ -66,7 +75,7 @@
         </nav>
     </aside>
 
-    <main class="main-content" style="padding:0">
+    <main class="main" style="padding:0;background:#0a1628;min-height:100vh">
         {% block content %}{% endblock %}
     </main>
 

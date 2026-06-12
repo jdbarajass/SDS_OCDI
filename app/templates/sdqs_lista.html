@@ -120,7 +120,11 @@
         </td>
         <td style="padding:8px 10px;white-space:nowrap;font-size:12px">{{ reg.fecha_vencimiento or '—' }}</td>
         <td style="padding:8px 10px;text-align:center">
-            {% if reg.semaforo_sdqs == 'verde' %}
+            {% if reg.semaforo_sdqs == 'respondido' %}
+            <span style="background:#d1ecf1;color:#0c5460;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap">
+                ✅ Respondido
+            </span>
+            {% elif reg.semaforo_sdqs == 'verde' %}
             <span style="background:#d4edda;color:#155724;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap">
                 🟢 {{ reg.estado_dias }} días
             </span>

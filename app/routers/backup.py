@@ -86,7 +86,8 @@ async def backup_exportar():
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     seg_rows    = conn.execute("""
-        SELECT s.anio, s.mes, e.n_expediente, e.abogado_asignado, s.descripcion, s.created_by, s.created_at
+        SELECT s.anio, s.mes, e.n_expediente, e.anio AS exp_anio, e.abogado_asignado,
+               s.descripcion, s.created_by, s.created_at
         FROM seguimiento_mensual s
         JOIN expedientes e ON e.id = s.expediente_id
         ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER)
@@ -252,8 +253,10 @@ async def backup_exportar():
     ws4 = wb.create_sheet("Control Autos")
     fill_autos = PatternFill("solid", fgColor="2E7D32")
 
-    headers4 = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES"]
-    campos4   = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones"]
+    headers4 = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES",
+                "CREADO POR", "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN"]
+    campos4   = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones",
+                "created_by", "created_at", "updated_at"]
 
     for col_idx, h in enumerate(headers4, 1):
         cell = ws4.cell(row=1, column=col_idx, value=h)
@@ -271,7 +274,7 @@ async def backup_exportar():
             if fill:
                 cell.fill = fill
 
-    col_widths4 = [18, 16, 16, 48, 22, 30]
+    col_widths4 = [18, 16, 16, 48, 22, 30, 20, 20, 20]
     for i, w in enumerate(col_widths4, 1):
         ws4.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws4.freeze_panes = "A2"
@@ -334,7 +337,7 @@ async def backup_exportar():
         "TIPO REQUERIMIENTO", "TÉRMINO (DÍAS)", "TIPO DOCUMENTO",
         "RESPONSABLE", "CASO BMP",
         "N. RADICADOS SALIDA", "URLS RAD SALIDA", "FECHA RAD SALIDA",
-        "TIPO RESPUESTA", "OBSERVACIONES",
+        "TIPO RESPUESTA", "TRÁMITE DE SALIDA",
         "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN",
     ]
     for col_idx, h in enumerate(headers6, 1):
@@ -375,7 +378,11 @@ async def backup_exportar():
     ws7 = wb.create_sheet("Seguimiento Mensual")
     fill_seg7 = PatternFill("solid", fgColor="0D3060")
 
-    headers7 = ["AÑO", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
+    # "AÑO EXPEDIENTE" es indispensable para reimportar correctamente: los
+    # números de expediente se reinician cada año (ver H2/H11), así que
+    # buscar solo por N. EXPEDIENTE al reimportar puede enlazar el
+    # seguimiento al expediente equivocado si el número se repite en otro año.
+    headers7 = ["AÑO", "MES", "N. EXPEDIENTE", "AÑO EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
     for col_idx, h in enumerate(headers7, 1):
         cell = ws7.cell(row=1, column=col_idx, value=h)
         cell.fill = fill_seg7
@@ -386,16 +393,16 @@ async def backup_exportar():
     for row_idx, row in enumerate(seg_rows, 2):
         d = dict(row)
         fill = alt_fill if row_idx % 2 == 0 else None
-        vals7 = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
+        vals7 = [d.get("anio"), d.get("mes"), d.get("n_expediente"), d.get("exp_anio"),
                  d.get("abogado_asignado"), d.get("descripcion"),
                  d.get("created_by"), d.get("created_at")]
         for col_idx, v in enumerate(vals7, 1):
             cell = ws7.cell(row=row_idx, column=col_idx, value=v)
-            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx == 5))
+            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx == 6))
             if fill:
                 cell.fill = fill
 
-    col_widths7 = [10, 14, 16, 28, 60, 24, 20]
+    col_widths7 = [10, 14, 16, 12, 28, 60, 24, 20]
     for i, w in enumerate(col_widths7, 1):
         ws7.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws7.freeze_panes = "A2"
@@ -434,7 +441,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_archivo", status_code=303)
 
     conn = get_db()
-    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0, "autos": 0, "sdqs": 0, "corr": 0, "seg": 0}
+    stats = {"base": 0, "digitales": 0, "coms": 0, "sala": 0, "autos": 0, "sdqs": 0, "corr": 0, "seg": 0, "sdqs_omitidos": 0}
 
     try:
         # ── Hoja 1: Base Expedientes ───────────────────────────────────────────
@@ -553,14 +560,15 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 if not fecha or not franja:
                     continue
                 conn.execute(
-                    """INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    """INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now','localtime')))""",
                     [
                         fecha, franja,
                         _v(row[2]) if len(row) > 2 else None,
                         _v(row[3]) if len(row) > 3 else None,
                         _v(row[4]) if len(row) > 4 else "Ocupado",
                         _v(row[5]) if len(row) > 5 else None,
+                        _v(row[6]) if len(row) > 6 else None,
                     ],
                 )
                 stats["sala"] += 1
@@ -594,6 +602,9 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 asunto_auto = _v(row[3]) if len(row) > 3 else None
                 abogado     = _v(row[4]) if len(row) > 4 else None
                 obs         = _v(row[5]) if len(row) > 5 else None
+                creado_por  = _v(row[6]) if len(row) > 6 else None
+                creado_en   = _v(row[7]) if len(row) > 7 else None
+                actualiz_en = _v(row[8]) if len(row) > 8 else None
                 if not any([expediente, numero_auto, fecha_auto, asunto_auto, abogado]):
                     continue
                 # Saltar filas de descripción del pie del formato
@@ -601,9 +612,13 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                     continue
                 conn.execute(
                     """INSERT INTO control_autos_sustanciacion
-                       (expediente, numero_auto, fecha_auto, asunto_auto, abogado_responsable, observaciones)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    [expediente, numero_auto, fecha_auto, asunto_auto, abogado, obs],
+                       (expediente, numero_auto, fecha_auto, asunto_auto, abogado_responsable, observaciones,
+                        created_by, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?,
+                               COALESCE(?, datetime('now','localtime')),
+                               COALESCE(?, datetime('now','localtime')))""",
+                    [expediente, numero_auto, fecha_auto, asunto_auto, abogado, obs,
+                     creado_por, creado_en, actualiz_en],
                 )
                 stats["autos"] += 1
 
@@ -617,7 +632,18 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 "estado_proceso", "hecho_corrupto", "valor_institucional", "tipologia",
                 "created_by", "created_at", "updated_at",
             ]
+            # Columnas NOT NULL de sdqs (además de sdqs_num, ya validado abajo).
+            # Si vienen vacías en el Excel, _v() las convierte a None y el
+            # INSERT viola la restricción NOT NULL — con "OR IGNORE" eso
+            # significa perder el registro completo en silencio (confirmado
+            # con datos reales: 5 registros con quejoso/fecha_asignacion
+            # vacíos desaparecían en cada ciclo de respaldo-restauración).
+            # Se coacciona a '' igual que hace el importador propio de SDQS
+            # (app/routers/sdqs.py), que sí tolera estos campos vacíos.
+            _idx_not_null_sdqs = {0, 1, 7, 8}  # mes, fecha_asignacion, tema, competencia_ocdi
+            _idx_quejoso = 5
             conn.execute("DELETE FROM sdqs")
+            sdqs_omitidos = 0
             for row in ws5.iter_rows(min_row=2, values_only=True):
                 if not any(v for v in row if v is not None):
                     continue
@@ -625,11 +651,18 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 if not sdqs_num:
                     continue
                 vals = [_v(row[i]) if i < len(row) else None for i in range(len(campos_sdqs))]
-                conn.execute(
+                for idx in _idx_not_null_sdqs | {_idx_quejoso}:
+                    if vals[idx] is None:
+                        vals[idx] = ""
+                cur = conn.execute(
                     f"INSERT OR IGNORE INTO sdqs ({', '.join(campos_sdqs)}) VALUES ({', '.join(['?']*len(campos_sdqs))})",
                     vals,
                 )
-                stats["sdqs"] += 1
+                if cur.rowcount:
+                    stats["sdqs"] += 1
+                else:
+                    sdqs_omitidos += 1
+            stats["sdqs_omitidos"] = sdqs_omitidos
 
         # ── Hoja 6: Correspondencia ────────────────────────────────────────────
         if "Correspondencia" in wb.sheetnames:
@@ -684,17 +717,39 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
         # ── Hoja 7: Seguimiento Mensual ────────────────────────────────────────
         if "Seguimiento Mensual" in wb.sheetnames:
             ws7 = wb["Seguimiento Mensual"]
+            # Detectar si el archivo tiene la columna "AÑO EXPEDIENTE" (formato
+            # nuevo) leyendo el encabezado real, para seguir aceptando backups
+            # exportados antes de este fix sin romper la importación.
+            header_row7 = [str(c.value or "").strip().upper() for c in next(ws7.iter_rows(min_row=1, max_row=1))]
+            tiene_anio_exp = "AÑO EXPEDIENTE" in header_row7
+            i_desc = 5 if tiene_anio_exp else 4
+            i_creador = 6 if tiene_anio_exp else 5
+
             conn.execute("DELETE FROM seguimiento_mensual")
             for row in ws7.iter_rows(min_row=2, values_only=True):
                 if not any(v for v in row if v is not None):
                     continue
                 n_exp = _v(row[2]) if len(row) > 2 else None
-                descripcion = _v(row[4]) if len(row) > 4 else None
+                descripcion = _v(row[i_desc]) if len(row) > i_desc else None
                 if not n_exp or not descripcion:
                     continue
-                exp_row = conn.execute(
-                    "SELECT id FROM expedientes WHERE n_expediente = ?", (n_exp,)
-                ).fetchone()
+                if tiene_anio_exp:
+                    exp_anio = _v(row[3]) if len(row) > 3 else None
+                    # Clave correcta: (n_expediente, anio) — los números de
+                    # expediente se reinician cada año (ver H2/H11), así que
+                    # buscar solo por n_expediente puede enlazar al expediente
+                    # equivocado si el número se repite en otro año.
+                    exp_row = conn.execute(
+                        "SELECT id FROM expedientes WHERE n_expediente = ? AND anio = ?",
+                        (n_exp, exp_anio),
+                    ).fetchone()
+                else:
+                    # Backup exportado antes de este fix: no incluye el año del
+                    # expediente — se mantiene el comportamiento anterior (con
+                    # el mismo riesgo de ambigüedad si el número se repite).
+                    exp_row = conn.execute(
+                        "SELECT id FROM expedientes WHERE n_expediente = ?", (n_exp,)
+                    ).fetchone()
                 if not exp_row:
                     continue
                 conn.execute("""
@@ -705,7 +760,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                     _v(row[0]),
                     _v(row[1]),
                     descripcion,
-                    _v(row[5]) if len(row) > 5 else None,
+                    _v(row[i_creador]) if len(row) > i_creador else None,
                 ])
                 stats["seg"] += 1
 
@@ -716,7 +771,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
         return RedirectResponse("/backup/?msg=error_import", status_code=303)
 
     conn.close()
-    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}_{stats['autos']}_{stats['sdqs']}_{stats['corr']}_{stats['seg']}"
+    msg = f"ok_{stats['base']}_{stats['digitales']}_{stats['coms']}_{stats['sala']}_{stats['autos']}_{stats['sdqs']}_{stats['corr']}_{stats['seg']}_{stats['sdqs_omitidos']}"
     return RedirectResponse(f"/backup/?msg={msg}", status_code=303)
 
 
@@ -758,7 +813,8 @@ async def backup_zip():
     corr_rows = [_calcular_semaforo_row(dict(r)) for r in corr_rows_raw]
     sdqs_rows    = conn.execute("SELECT * FROM sdqs ORDER BY fecha_asignacion, id").fetchall()
     seg_rows     = conn.execute("""
-        SELECT s.anio, s.mes, e.n_expediente, e.abogado_asignado, s.descripcion, s.created_by, s.created_at
+        SELECT s.anio, s.mes, e.n_expediente, e.anio AS exp_anio, e.abogado_asignado,
+               s.descripcion, s.created_by, s.created_at
         FROM seguimiento_mensual s
         JOIN expedientes e ON e.id = s.expediente_id
         ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER), s.anio DESC,
@@ -841,7 +897,7 @@ async def backup_zip():
         # Hoja 2: Seguimiento Mensual (pertenece a Base Expedientes)
         ws_seg = wb.create_sheet("Seguimiento Mensual")
         fill_seg = PatternFill("solid", fgColor="0D3060")
-        seg_headers = ["AÑO", "MES", "N. EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
+        seg_headers = ["AÑO", "MES", "N. EXPEDIENTE", "AÑO EXPEDIENTE", "ABOGADO", "DESCRIPCIÓN ACTUACIÓN", "REGISTRADO POR", "FECHA REGISTRO"]
         for ci, h in enumerate(seg_headers, 1):
             cell = ws_seg.cell(row=1, column=ci, value=h)
             cell.fill = fill_seg; cell.font = h_font; cell.alignment = center
@@ -849,14 +905,14 @@ async def backup_zip():
         for ri, row in enumerate(seg_rows, 2):
             d = dict(row)
             rf = alt_fill if ri % 2 == 0 else None
-            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"),
+            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"), d.get("exp_anio"),
                     d.get("abogado_asignado"), d.get("descripcion"),
                     d.get("created_by"), d.get("created_at")]
             for ci, v in enumerate(vals, 1):
                 cell = ws_seg.cell(row=ri, column=ci, value=v)
-                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 5))
+                cell.alignment = Alignment(vertical="center", wrap_text=(ci == 6))
                 if rf: cell.fill = rf
-        for i, w in enumerate([10, 14, 16, 28, 60, 24, 20], 1):
+        for i, w in enumerate([10, 14, 16, 12, 28, 60, 24, 20], 1):
             ws_seg.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws_seg.freeze_panes = "A2"
 
@@ -927,7 +983,7 @@ async def backup_zip():
             "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
             "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
             "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
-            "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
+            "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRÁMITE DE SALIDA",
             "FECHA DE VENCIMIENTO LEGAL",
             "FECHA REVISIÓN SUGERIDA (−2 días hábiles)",
             "DÍAS TRANSCURRIDOS",
@@ -1045,8 +1101,10 @@ async def backup_zip():
         ws = wb.active
         ws.title = "Control Autos"
         fill = PatternFill("solid", fgColor="2E7D32")
-        headers = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES"]
-        campos  = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones"]
+        headers = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES",
+                   "CREADO POR", "FECHA CREACIÓN", "ÚLTIMA ACTUALIZACIÓN"]
+        campos  = ["expediente", "numero_auto", "fecha_auto", "asunto_auto", "abogado_responsable", "observaciones",
+                   "created_by", "created_at", "updated_at"]
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
             cell.fill = fill; cell.font = h_font; cell.alignment = center
@@ -1059,7 +1117,7 @@ async def backup_zip():
                 cell = ws.cell(row=ri, column=ci, value=d.get(campo))
                 cell.alignment = Alignment(vertical="center")
                 if rf: cell.fill = rf
-        col_widths = [18, 16, 16, 48, 22, 30]
+        col_widths = [18, 16, 16, 48, 22, 30, 20, 20, 20]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws.freeze_panes = "A2"

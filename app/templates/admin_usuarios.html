@@ -42,6 +42,14 @@
 .section-title { font-size:16px; font-weight:700; color:#1e293b; margin:28px 0 14px; border-bottom:2px solid #e2e8f0; padding-bottom:8px; }
 </style>
 
+{% if msg == 'usuario_creado' %}
+<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#065f46">✓ Usuario creado correctamente.</div>
+{% elif msg == 'error_usuario_obligatorios' %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Complete nombre, rol y, si no es abogado, usuario + contraseña de mínimo 8 caracteres.</div>
+{% elif msg == 'error_usuario_duplicado' %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Ese nombre de usuario ya existe.</div>
+{% endif %}
+
 <!-- ── Tabla de usuarios ─────────────────────────────────────────────── -->
 <div class="section-title">👥 Lista de Usuarios</div>
 <table class="users-table">
@@ -117,6 +125,57 @@
         {% endfor %}
     </tbody>
 </table>
+
+{% if current_user.rol == 'admin' %}
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin-bottom:32px">
+    <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px">➕ Crear nuevo usuario</div>
+    <form method="post" action="/admin/usuarios/nuevo" id="form-nuevo-usuario" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end">
+        <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">NOMBRE COMPLETO</label>
+            <input type="text" name="nombre_completo" required placeholder="Ej: JUAN PÉREZ GÓMEZ"
+                   style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+        </div>
+        <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">ROL</label>
+            <select name="rol" id="nu-rol" required onchange="toggleCredencialesNuevoUsuario()"
+                    style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+                <option value="">— Seleccionar —</option>
+                <option value="abogado">Abogado (sin contraseña)</option>
+                <option value="secretario">Secretario</option>
+                <option value="auxiliar">Auxiliar</option>
+                <option value="jefe">Jefe</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div id="nu-credenciales-1">
+            <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">USUARIO</label>
+            <input type="text" name="username" id="nu-username" placeholder="usuario de acceso"
+                   style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+        </div>
+        <div id="nu-credenciales-2">
+            <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">CONTRASEÑA</label>
+            <input type="password" name="password" id="nu-password" placeholder="mínimo 8 caracteres" autocomplete="new-password"
+                   style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+        </div>
+        <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">TIPO CONTRATO (opcional)</label>
+            <select name="tipo_contrato" style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
+                <option value="">— Sin asignar —</option>
+                <option value="planta">🏛 Planta</option>
+                <option value="contratista">📋 Contratista</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn-sm btn-primary" style="padding:8px 16px;white-space:nowrap">➕ Crear usuario</button>
+        </div>
+    </form>
+    <p style="font-size:11px;color:#94a3b8;margin-top:10px;margin-bottom:0">
+        Los abogados no usan usuario/contraseña — ingresan seleccionando su nombre en la pantalla de login.
+        Al crear el usuario se le asignan automáticamente permisos de visibilidad en todos los módulos
+        (escritura activada por defecto solo para Secretario/Auxiliar, igual que en la configuración inicial del sistema).
+    </p>
+</div>
+{% endif %}
 
 <!-- ── Personal de la Oficina ────────────────────────────────────────────── -->
 <div class="section-title" id="personal-oficina">👥 Personal de la Oficina</div>
@@ -263,6 +322,16 @@ function updateLabel(tipo, uid, mod, checked) {
     var lbl = document.getElementById('label-' + tipo + '-' + uid + '-' + mod);
     if (checked) lbl.classList.add('checked');
     else lbl.classList.remove('checked');
+}
+function toggleCredencialesNuevoUsuario() {
+    var esAbogado = document.getElementById('nu-rol').value === 'abogado';
+    var c1 = document.getElementById('nu-credenciales-1');
+    var c2 = document.getElementById('nu-credenciales-2');
+    var u = document.getElementById('nu-username');
+    var p = document.getElementById('nu-password');
+    c1.style.display = esAbogado ? 'none' : 'block';
+    c2.style.display = esAbogado ? 'none' : 'block';
+    if (esAbogado) { u.value = ''; p.value = ''; }
 }
 </script>
 {% endblock %}

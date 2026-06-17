@@ -109,7 +109,7 @@ async def pdf_info(archivo: UploadFile = File(...)):
 @router.post("/unir")
 async def pdf_unir(archivos: List[UploadFile] = File(...)):
     _require_pypdf()
-    if not archivos:
+    if len(archivos) < 2:
         raise HTTPException(400, "Suba al menos dos archivos PDF.")
     writer = PdfWriter()
     for f in archivos:

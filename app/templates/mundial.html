@@ -417,6 +417,8 @@
 <div class="mw-alert mw-alert-err">❌ Participante no válido. Por favor seleccione un nombre de la lista.</div>
 {% elif msg == 'error_partido' %}
 <div class="mw-alert mw-alert-err">❌ Partido no válido para el sorteo.</div>
+{% else %}
+<div class="mw-alert mw-alert-ok">{{ msg }}</div>
 {% endif %}
 </div>
 {% endif %}

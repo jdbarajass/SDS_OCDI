@@ -5,7 +5,7 @@ from app.template_utils import make_templates
 
 from app.database import get_db
 from app.auth_utils import (
-    hash_password, MODULOS_SISTEMA, ROLES_SUPERUSUARIO, registrar_log
+    hash_password, MODULOS_SISTEMA, ROLES_SUPERUSUARIO, ROLES_ESCRITURA_DEFAULT, registrar_log
 )
 
 router = APIRouter(prefix="/admin")
@@ -17,6 +17,9 @@ def _require_superuser(request: Request):
     if not user or user["rol"] not in ROLES_SUPERUSUARIO:
         return None
     return user
+
+
+ROLES_VALIDOS = {"admin", "jefe", "secretario", "auxiliar", "abogado"}
 
 
 # ── Gestión de usuarios ───────────────────────────────────────────────────────
@@ -60,6 +63,65 @@ async def admin_usuarios(request: Request, msg: str = ""):
         "msg": msg,
         "active": "admin_usuarios",
     })
+
+
+@router.post("/usuarios/nuevo")
+async def crear_usuario(
+    request: Request,
+    nombre_completo: str = Form(""),
+    rol: str = Form(""),
+    username: str = Form(""),
+    password: str = Form(""),
+    tipo_contrato: str = Form(""),
+):
+    user = _require_superuser(request)
+    if not user or user["rol"] != "admin":
+        return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
+
+    nombre_completo = nombre_completo.strip().upper()
+    rol = rol.strip()
+    username = username.strip()
+    password = password.strip()
+    tipo_contrato = tipo_contrato.strip() or None
+
+    if not nombre_completo or rol not in ROLES_VALIDOS:
+        return RedirectResponse("/admin/usuarios?msg=error_usuario_obligatorios", status_code=303)
+    if tipo_contrato and tipo_contrato not in ("planta", "contratista"):
+        return RedirectResponse("/admin/usuarios?msg=error_usuario_obligatorios", status_code=303)
+
+    # Los abogados ingresan solo seleccionando su nombre (sin contraseña, ver
+    # /login/abogado); el resto de roles necesita usuario+contraseña propios.
+    if rol == "abogado":
+        username, password_hash = None, None
+    else:
+        if not username or len(password) < 8:
+            return RedirectResponse("/admin/usuarios?msg=error_usuario_obligatorios", status_code=303)
+        password_hash = hash_password(password)
+
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO usuarios (username, password_hash, nombre_completo, rol, tipo_contrato) VALUES (?,?,?,?,?)",
+            (username, password_hash, nombre_completo, rol, tipo_contrato),
+        )
+    except Exception:
+        conn.close()
+        return RedirectResponse("/admin/usuarios?msg=error_usuario_duplicado", status_code=303)
+
+    uid = cur.lastrowid
+    # admin y jefe bypasean permisos por módulo — no necesitan filas en permisos_modulo.
+    if rol not in ROLES_SUPERUSUARIO:
+        puede_escribir_default = 1 if rol in ROLES_ESCRITURA_DEFAULT else 0
+        for modulo, _ in MODULOS_SISTEMA:
+            conn.execute(
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
+                (uid, modulo, puede_escribir_default),
+            )
+    conn.commit()
+    registrar_log(user, "crear_usuario", "usuarios", f"Usuario creado: '{nombre_completo}' (rol={rol})",
+                  request.client.host if request.client else None)
+    conn.close()
+    return RedirectResponse("/admin/usuarios?msg=usuario_creado", status_code=303)
 
 
 @router.post("/usuarios/{user_id}/toggle-activo")

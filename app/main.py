@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.database import init_db
 from app.routers import (
-    expedientes, importar, dashboard, seguimiento, autos,
+    expedientes, importar, dashboard, seguimiento,
     portal, digitales, sala, backup, correspondencia, control_autos,
     pdf_tools, mundial,
 )
@@ -123,7 +123,6 @@ app.include_router(dashboard.router)
 app.include_router(expedientes.router)
 app.include_router(importar.router)
 app.include_router(seguimiento.router)
-app.include_router(autos.router)
 app.include_router(digitales.router)
 app.include_router(sala.router)
 app.include_router(backup.router)

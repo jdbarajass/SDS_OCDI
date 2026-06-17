@@ -984,6 +984,15 @@ async def com_nueva(
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse(f"/digitales/{exp_id}?msg=sin_permiso", status_code=303)
+
+    # fecha_envio es la fecha ancla de todo el sistema de alertas (lista,
+    # dashboard y comunicaciones_lista calculan días sin respuesta a partir
+    # de ella). Sin esta fecha la comunicación nunca tendría alerta, aunque
+    # lleve meses sin responder — se exige al crear (no al editar, para no
+    # bloquear la corrección de comunicaciones legadas que ya existan sin ella).
+    if not fecha_envio.strip():
+        return RedirectResponse(f"/digitales/{exp_id}/editar?msg=error_com_obligatorios", status_code=303)
+
     conn = get_db()
     conn.execute("""
         INSERT INTO exp_comunicaciones

@@ -124,9 +124,12 @@
       {% for c in criticos %}
       <tr>
         <td style="text-align:center;font-weight:800;font-size:16px;
-            {% if c.dias_transcurridos >= 9 %}color:#dc2626{% elif c.dias_transcurridos >= 6 %}color:#d97706{% else %}color:#16a34a{% endif %}">
-          {{ c.dias_transcurridos }}
+            {% if c.semaforo == 'roja' %}color:#dc2626{% elif c.semaforo == 'amarilla' %}color:#d97706{% else %}color:#16a34a{% endif %}">
+          {% if c.dias_restantes is not none %}{{ c.dias_restantes }}
+          <span style="font-size:10px;display:block;font-weight:400;color:var(--text-muted)">días restantes</span>
+          {% else %}{{ c.dias_transcurridos }}
           <span style="font-size:10px;display:block;font-weight:400;color:var(--text-muted)">días</span>
+          {% endif %}
         </td>
         <td style="font-weight:600;font-size:12px">{{ c.n_radicado or '—' }}</td>
         <td style="font-size:12px">{{ c.fecha_ingreso | fmt_fecha or '—' }}</td>

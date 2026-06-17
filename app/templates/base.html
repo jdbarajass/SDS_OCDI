@@ -44,7 +44,7 @@
                 <span class="nav-ico">🗓</span>
                 <span>Seguimiento Mensual</span>
             </a>
-            <a href="/autos" class="nav-link {% if active == 'autos' %}active{% endif %}">
+            <a href="/control-autos/" class="nav-link">
                 <span class="nav-ico">⚖️</span>
                 <span>Control de Autos</span>
             </a>
@@ -104,6 +104,7 @@
             {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'error_datos' %}⚠️ Datos inválidos o incompletos — no se guardaron los cambios.
             {% else %}{{ msg }}
             {% endif %}
         </div>

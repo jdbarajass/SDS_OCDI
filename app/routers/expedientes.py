@@ -9,7 +9,7 @@ import json
 import io
 
 from app.database import get_db, calcular_alerta, row_to_dict
-from app.auth_utils import puede_escribir as _pw, registrar_log
+from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log
 
 _MOD = "expedientes"
 _ROOT = Path(__file__).parent.parent.parent
@@ -59,6 +59,11 @@ ESTADOS = [
     "TRASLADADO - SUBRED SUR OCCIDENTE E.S.E",
     "PLIEGO DE CARGOS",
 ]
+
+# Estados que cierran el expediente: a partir de aquí los plazos dejan de "correr".
+# Fuente única de verdad — usada por _enriquecer() para que TODAS las vistas
+# (lista, dashboard, detalle, exportar-filtrado) coincidan en qué cuenta como "vencido".
+ESTADOS_CERRADOS = {"AUTO DE ARCHIVO", "ACUMULADO", "INCORPORADO"}
 
 ENTIDADES_SUGERIDAS = [
     "SDQS", "PERSONERIA DE BOGOTA", "PERSONA PARTICULAR", "ANONIMO", "CONTRALORIA",
@@ -177,6 +182,15 @@ def _enriquecer(exp: dict) -> dict:
     exp["fecha_vencimiento_prorroga"] = fv_prorr
     exp["alerta_prorroga"] = calcular_alerta(fv_prorr)
 
+    # Si el expediente ya está cerrado, el plazo dejó de correr: no debe contar
+    # como "vencido" ni "próximo" en ninguna vista (lista, dashboard, export).
+    if (exp.get("estado_proceso") or "").strip().upper() in ESTADOS_CERRADOS:
+        _cerrado = {"dias": None, "clase": "sin-plazo", "texto": "Cerrado — plazo no aplica"}
+        exp["alerta_ind"] = dict(_cerrado)
+        exp["alerta_inv"] = dict(_cerrado)
+        exp["alerta_prescripcion"] = dict(_cerrado)
+        exp["alerta_prorroga"] = dict(_cerrado)
+
     return exp
 
 
@@ -192,11 +206,25 @@ def _next_n_expediente(conn) -> str:
     return f"{siguiente:03d}"
 
 
+def _abogados_activos() -> list[str]:
+    """Lee los abogados desde la tabla usuarios (rol='abogado'), fuente de verdad
+    administrada en Usuarios y Permisos. ABOGADOS queda como respaldo estático
+    solo por si la tabla aún no tiene abogados registrados (instalación nueva)."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT nombre_completo FROM usuarios WHERE rol='abogado' AND activo=1 ORDER BY nombre_completo"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [r[0] for r in rows] or ABOGADOS
+
+
 def _ctx_base():
     return {
         "meses": MESES,
         "medios_ingreso": MEDIOS_INGRESO,
-        "abogados": ABOGADOS,
+        "abogados": _abogados_activos(),
         "tipos_expediente": TIPOS_EXPEDIENTE,
         "perfiles_investigado": PERFILES_INVESTIGADO,
         "tiempos_prorroga": TIEMPOS_PRORROGA,
@@ -207,37 +235,6 @@ def _ctx_base():
         "tipologias_json": json.dumps(_get_tipologias(), ensure_ascii=False),
         "entidades_json": json.dumps(_get_entidades(), ensure_ascii=False),
     }
-
-
-# ── Dashboard ──────────────────────────────────────────────────────────────────
-
-@router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    conn = get_db()
-    total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
-    por_etapa = conn.execute(
-        "SELECT etapa_actual, COUNT(*) as cnt FROM expedientes GROUP BY etapa_actual ORDER BY cnt DESC"
-    ).fetchall()
-    por_estado = conn.execute(
-        "SELECT estado_proceso, COUNT(*) as cnt FROM expedientes GROUP BY estado_proceso ORDER BY cnt DESC"
-    ).fetchall()
-    por_abogado = conn.execute(
-        "SELECT abogado_asignado, COUNT(*) as cnt FROM expedientes GROUP BY abogado_asignado ORDER BY cnt DESC"
-    ).fetchall()
-    ultimos = conn.execute(
-        "SELECT * FROM expedientes ORDER BY created_at DESC LIMIT 10"
-    ).fetchall()
-    conn.close()
-    ultimos_enriquecidos = [_enriquecer(dict(r)) for r in ultimos]
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "total": total,
-        "por_etapa": [dict(r) for r in por_etapa],
-        "por_estado": [dict(r) for r in por_estado],
-        "por_abogado": [dict(r) for r in por_abogado],
-        "ultimos": ultimos_enriquecidos,
-        "active": "dashboard",
-    })
 
 
 # ── Listado ────────────────────────────────────────────────────────────────────
@@ -535,7 +532,7 @@ async def exportar_filtrado_page(request: Request):
         "request": request,
         "active": "exportar",
         "anios": anios_list,
-        "abogados": ABOGADOS,
+        "abogados": _abogados_activos(),
         "etapas": ETAPAS,
         "estados": ESTADOS,
         "filtros": filtros,
@@ -575,7 +572,6 @@ async def exportar_descargar(
         bloques = ["identificacion", "partes", "asunto", "indagacion", "investigacion", "cierre"]
 
     conn = get_db()
-    hoy = date.today().isoformat()
     filtros_sql, params = [], []
 
     # Filtros simples (compat con lista.html y dashboard)
@@ -611,23 +607,6 @@ async def exportar_descargar(
     if fecha_hasta:
         filtros_sql.append("fecha_radicado <= ?"); params.append(fecha_hasta)
 
-    # Filtros de alerta
-    if solo_vencidos:
-        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') < ?)
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') < ?))""")
-        params += [hoy, hoy]
-    if proximos_30:
-        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') BETWEEN ? AND date(?,'+ 30 days'))
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') BETWEEN ? AND date(?,'+ 30 days')))""")
-        params += [hoy, hoy, hoy, hoy]
-    if proximos_60:
-        filtros_sql.append("""estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO') AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind,'+6 months') BETWEEN ? AND date(?,'+ 60 days'))
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion,'+6 months') BETWEEN ? AND date(?,'+ 60 days')))""")
-        params += [hoy, hoy, hoy, hoy]
-
     where = ("WHERE " + " AND ".join(filtros_sql)) if filtros_sql else ""
     rows = conn.execute(
         f"SELECT * FROM expedientes {where} ORDER BY anio, CAST(n_expediente AS INTEGER)",
@@ -636,6 +615,23 @@ async def exportar_descargar(
     conn.close()
 
     datos = [_enriquecer(dict(r)) for r in rows]
+
+    # Filtros de alerta — misma fuente de verdad que la pantalla de Lista
+    # (clases calculadas por _enriquecer/calcular_alerta, que ya excluye
+    # expedientes cerrados y cubre indagación + investigación + prescripción).
+    def _alertas(d):
+        return (d["alerta_ind"], d["alerta_inv"], d["alerta_prescripcion"])
+
+    if solo_vencidos:
+        datos = [d for d in datos if any(a["clase"] == "vencido" for a in _alertas(d))]
+    if proximos_30:
+        datos = [d for d in datos if any(
+            a["dias"] is not None and 0 <= a["dias"] <= 30 for a in _alertas(d)
+        )]
+    if proximos_60:
+        datos = [d for d in datos if any(
+            a["dias"] is not None and 0 <= a["dias"] <= 60 for a in _alertas(d)
+        )]
 
     # Columnas según bloques seleccionados
     BLOQUES_DEF = {
@@ -737,6 +733,9 @@ async def exportar_descargar(
 
 @router.get("/importar", response_class=HTMLResponse)
 async def importar_form(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pi(user, _MOD):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     conn = get_db()
     total_bd = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     conn.close()
@@ -752,7 +751,7 @@ async def importar_form(request: Request, msg: str = ""):
 async def importar_post(request: Request):
     from fastapi import UploadFile, File
     user = getattr(request.state, "user", None)
-    if not _pw(user, _MOD):
+    if not _pi(user, _MOD):
         return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     try:
         import openpyxl
@@ -873,8 +872,21 @@ async def importar_post(request: Request):
             col_campo[ci] = campo
 
     conn = get_db()
+
+    # Respaldo de Seguimiento Mensual ANTES del wipe: el DELETE de abajo dispara
+    # ON DELETE CASCADE sobre seguimiento_mensual (FK a expedientes.id). Como el
+    # reimport asigna IDs nuevos, sin este respaldo se pierde TODO el historial
+    # de seguimiento de TODOS los expedientes en cada reimportación.
+    seguimiento_backup = [dict(r) for r in conn.execute("""
+        SELECT e.n_expediente, e.anio AS exp_anio,
+               sm.anio AS sm_anio, sm.mes, sm.descripcion, sm.created_by
+        FROM seguimiento_mensual sm
+        JOIN expedientes e ON e.id = sm.expediente_id
+    """).fetchall()]
+
     conn.execute("DELETE FROM expedientes")
     count = 0
+    nuevo_id_por_clave: dict[tuple, int] = {}
     try:
         for row in ws.iter_rows(min_row=2, values_only=True):
             if not any(v for v in row if v is not None):
@@ -884,18 +896,37 @@ async def importar_post(request: Request):
             if not datos.get("n_expediente"):
                 continue
             campos_ins = list(datos.keys())
-            conn.execute(
+            cur = conn.execute(
                 f"INSERT INTO expedientes ({', '.join(campos_ins)}) VALUES ({', '.join(['?']*len(campos_ins))})",
                 [datos[c] for c in campos_ins],
             )
+            nuevo_id_por_clave[(datos.get("n_expediente"), datos.get("anio"))] = cur.lastrowid
             count += 1
+
+        # Restaurar seguimiento mensual para los expedientes que sigan presentes
+        # en el Excel reimportado (mismo n_expediente + año), re-vinculado al nuevo id.
+        restaurados = 0
+        for sb in seguimiento_backup:
+            nuevo_id = nuevo_id_por_clave.get((sb["n_expediente"], sb["exp_anio"]))
+            if nuevo_id:
+                conn.execute(
+                    """INSERT INTO seguimiento_mensual
+                           (expediente_id, anio, mes, descripcion, created_by)
+                       VALUES (?,?,?,?,?)
+                       ON CONFLICT(expediente_id, anio, mes) DO UPDATE SET
+                           descripcion = excluded.descripcion,
+                           created_by  = excluded.created_by""",
+                    (nuevo_id, sb["sm_anio"], sb["mes"], sb["descripcion"], sb["created_by"]),
+                )
+                restaurados += 1
+
         conn.commit()
     except Exception:
         conn.rollback()
         conn.close()
         return RedirectResponse("/importar?msg=error_import", status_code=303)
     conn.close()
-    registrar_log(user, "IMPORTAR", _MOD, f"{count} expedientes")
+    registrar_log(user, "IMPORTAR", _MOD, f"{count} expedientes, {restaurados} seguimientos preservados")
     return RedirectResponse(f"/expedientes?msg=importado_{count}", status_code=303)
 
 

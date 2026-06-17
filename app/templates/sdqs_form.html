@@ -94,11 +94,11 @@
             </div>
 
             <div>
-                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA VENCIMIENTO</label>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA VENCIMIENTO{% if modo == 'nuevo' %} <span style="color:#dc3545">*</span>{% endif %}</label>
                 {% if es_ver %}
                 <div class="form-val">{{ registro.fecha_vencimiento or '—' }}</div>
                 {% else %}
-                <input type="date" name="fecha_vencimiento" class="form-control" value="{{ registro.fecha_vencimiento or '' }}">
+                <input type="date" name="fecha_vencimiento" class="form-control" value="{{ registro.fecha_vencimiento or '' }}" {% if modo == 'nuevo' %}required{% endif %}>
                 {% endif %}
             </div>
 

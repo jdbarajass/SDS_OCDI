@@ -24,20 +24,6 @@ ESTADOS_PROCESO = [
     "INHIBITORIO",
 ]
 
-ABOGADOS = [
-    "CARLOS ALFONSO PARRA MALAVER",
-    "CESAR IVAN RODRIGUEZ DAMIAN",
-    "DAVID FELIPE MORALES NOGUERA",
-    "JANIK HERNANDO DE LA HOZ RIOS",
-    "MABEL GICELLA HURTADO SANCHEZ",
-    "MARA LUCIA UCROS MERLANO",
-    "RODOLFO CARRILLO QUINTERO",
-    "ANDRES EDUARDO SANDOVAL MAYORGA",
-    "MAGDA XIMENA PAREDES LIEVANO",
-    "LUNA GICELL GUZMAN YATE",
-    "MARTHA PATRICIA AÑEZ MAESTRE",
-]
-
 RESP_MAP = {
     "CESAR RODRIGUEZ":       "CESAR IVAN RODRIGUEZ DAMIAN",
     "DAVID MORALES":         "DAVID FELIPE MORALES NOGUERA",
@@ -211,7 +197,7 @@ async def nuevo_post(
     if not _pw(user, _MOD):
         return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
 
-    obligatorios = [mes, fecha_asignacion, sdqs_num, quejoso, tema, competencia_ocdi, observaciones]
+    obligatorios = [mes, fecha_asignacion, fecha_vencimiento, sdqs_num, quejoso, tema, competencia_ocdi, observaciones]
     if any(not v.strip() for v in obligatorios):
         return RedirectResponse("/sdqs/nuevo?msg=error_obligatorios", status_code=303)
 
@@ -399,7 +385,7 @@ async def limpiar(request: Request):
 # ── Ver ───────────────────────────────────────────────────────────────────────
 
 @router.get("/{id}", response_class=HTMLResponse)
-async def ver(request: Request, id: int):
+async def ver(request: Request, id: int, msg: str = ""):
     conn = get_db()
     row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
     abogados = get_personal_oficina(conn)
@@ -413,6 +399,7 @@ async def ver(request: Request, id: int):
         meses=MESES,
         abogados=abogados,
         estados=ESTADOS_PROCESO,
+        msg=msg,
     ))
 
 

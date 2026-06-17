@@ -4,7 +4,8 @@ from pathlib import Path
 from app.template_utils import make_templates
 from datetime import date
 
-from app.database import get_db, calcular_alerta, row_to_dict
+from app.database import get_db, row_to_dict
+from app.routers.expedientes import _enriquecer
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
@@ -68,57 +69,31 @@ async def dashboard(request: Request):
     tendencia = tendencia_raw[-24:]
     tendencia_max = max((t["cantidad"] for t in tendencia), default=1)
 
-    # Alertas: vencimientos calculados via SQL (6 meses desde fecha_auto_apertura_ind / fecha_apertura_investigacion)
-    vencidos = conn.execute("""
-        SELECT COUNT(*) FROM expedientes
-        WHERE estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO')
-          AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind, '+6 months') < ?)
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion, '+6 months') < ?)
-          )
-    """, (hoy, hoy)).fetchone()[0]
+    # Alertas: misma fuente de verdad que Lista y Exportar-filtrado (_enriquecer/
+    # calcular_alerta), para que "vencidos" signifique exactamente lo mismo en
+    # todas las vistas — incluye indagación + investigación + prescripción, y
+    # excluye expedientes ya cerrados (AUTO DE ARCHIVO / ACUMULADO / INCORPORADO).
+    todos_enriquecidos = [_enriquecer(dict(r)) for r in conn.execute("SELECT * FROM expedientes").fetchall()]
 
-    prox30 = conn.execute("""
-        SELECT COUNT(*) FROM expedientes
-        WHERE estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO')
-          AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind, '+6 months') BETWEEN ? AND date(?, '+30 days'))
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion, '+6 months') BETWEEN ? AND date(?, '+30 days'))
-          )
-    """, (hoy, hoy, hoy, hoy)).fetchone()[0]
+    def _alertas(e):
+        return (e["alerta_ind"], e["alerta_inv"], e["alerta_prescripcion"])
 
-    prox60 = conn.execute("""
-        SELECT COUNT(*) FROM expedientes
-        WHERE estado_proceso NOT IN ('AUTO DE ARCHIVO','ACUMULADO','INCORPORADO')
-          AND (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind, '+6 months') BETWEEN date(?, '+31 days') AND date(?, '+60 days'))
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion, '+6 months') BETWEEN date(?, '+31 days') AND date(?, '+60 days'))
-          )
-    """, (hoy, hoy, hoy, hoy)).fetchone()[0]
+    vencidos = sum(1 for e in todos_enriquecidos if any(a["clase"] == "vencido" for a in _alertas(e)))
+    prox30 = sum(1 for e in todos_enriquecidos if any(
+        a["dias"] is not None and 0 <= a["dias"] <= 30 for a in _alertas(e)
+    ))
+    prox60 = sum(1 for e in todos_enriquecidos if any(
+        a["dias"] is not None and 31 <= a["dias"] <= 60 for a in _alertas(e)
+    ))
 
-    proximos_raw = conn.execute("""
-        SELECT *,
-            date(fecha_auto_apertura_ind, '+6 months')       AS fv_ind,
-            date(fecha_apertura_investigacion, '+6 months')  AS fv_inv
-        FROM expedientes
-        WHERE (
-            (fecha_auto_apertura_ind IS NOT NULL AND date(fecha_auto_apertura_ind, '+6 months') <= date(?, '+60 days'))
-            OR (fecha_apertura_investigacion IS NOT NULL AND date(fecha_apertura_investigacion, '+6 months') <= date(?, '+60 days'))
-        )
-        ORDER BY MIN(
-            COALESCE(date(fecha_auto_apertura_ind, '+6 months'), '9999-12-31'),
-            COALESCE(date(fecha_apertura_investigacion, '+6 months'), '9999-12-31')
-        ) ASC LIMIT 15
-    """, (hoy, hoy)).fetchall()
+    def _min_dias_indinv(e):
+        vals = [a["dias"] for a in (e["alerta_ind"], e["alerta_inv"]) if a["dias"] is not None]
+        return min(vals) if vals else None
 
-    proximos_lista = []
-    for r in proximos_raw:
-        exp = dict(r)
-        exp["fecha_vencimiento_ind"] = exp.pop("fv_ind", None)
-        exp["fecha_vencimiento_inv"] = exp.pop("fv_inv", None)
-        exp["alerta_ind"] = calcular_alerta(exp["fecha_vencimiento_ind"])
-        exp["alerta_inv"] = calcular_alerta(exp["fecha_vencimiento_inv"])
-        proximos_lista.append(exp)
+    proximos_lista = sorted(
+        (e for e in todos_enriquecidos if (_min_dias_indinv(e) is not None and _min_dias_indinv(e) <= 60)),
+        key=_min_dias_indinv,
+    )[:15]
 
     recientes = [row_to_dict(r) for r in conn.execute(
         "SELECT * FROM expedientes ORDER BY created_at DESC LIMIT 10"

@@ -165,6 +165,9 @@
         <strong>{{ partes[5] if partes|length > 5 else '0' }}</strong> SDQS —
         <strong>{{ partes[6] if partes|length > 6 else '0' }}</strong> oficios de correspondencia —
         <strong>{{ partes[7] if partes|length > 7 else '0' }}</strong> seguimientos mensuales.
+        {% if partes|length > 8 and partes[8]|int > 0 %}
+        <br><span style="color:#b45309">⚠️ {{ partes[8] }} SDQS no se importaron por tener un número de SDQS duplicado tras normalizar espacios — revise si son registros distintos.</span>
+        {% endif %}
     </div>
     {% elif msg == 'error_archivo' %}
     <div class="bk-flash-err">⚠️ No se pudo leer el archivo. Asegúrese de que sea un Excel (.xlsx) generado por este sistema.</div>

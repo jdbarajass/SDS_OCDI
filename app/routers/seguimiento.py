@@ -19,7 +19,7 @@ _MOD = "expedientes"
 
 
 @router.get("/seguimiento", response_class=HTMLResponse)
-async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q: str = ""):
+async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q: str = "", msg: str = ""):
     user = request.state.user
     if not user:
         return RedirectResponse("/login", status_code=302)
@@ -107,6 +107,7 @@ async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q
         "q": q,
         "meses": MESES,
         "acts_map": acts_map,
+        "msg": msg,
     })
 
 
@@ -120,13 +121,23 @@ async def seguimiento_guardar(request: Request):
         return RedirectResponse("/seguimiento?msg=sin_permiso", status_code=302)
 
     form = await request.form()
-    expediente_id = int(form.get("expediente_id", 0))
-    anio = int(form.get("anio", date.today().year))
+    try:
+        expediente_id = int(form.get("expediente_id", 0))
+        anio = int(form.get("anio", date.today().year))
+    except (TypeError, ValueError):
+        return RedirectResponse("/seguimiento?msg=error_datos", status_code=302)
     mes = (form.get("mes") or "").strip().upper()
     descripcion = (form.get("descripcion") or "").strip()
     created_by = (form.get("created_by") or user.get("nombre_completo") or "").strip()
 
+    if mes not in MESES:
+        return RedirectResponse(f"/seguimiento?anio={anio}&msg=error_datos", status_code=302)
+
     conn = get_db()
+    if not conn.execute("SELECT 1 FROM expedientes WHERE id=?", (expediente_id,)).fetchone():
+        conn.close()
+        return RedirectResponse(f"/seguimiento?anio={anio}&msg=error_datos", status_code=302)
+
     if descripcion:
         conn.execute(
             """INSERT INTO seguimiento_mensual

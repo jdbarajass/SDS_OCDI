@@ -37,21 +37,6 @@ TIPOS_RESPUESTA = [
 
 TERMINOS_DIAS = [3, 5, 10, 15, 30]
 
-ABOGADOS_RESPONSABLES = [
-    "ANDRES EDUARDO SANDOVAL MAYORGA",
-    "CARLOS ALFONSO PARRA MALAVER",
-    "CESAR IVAN RODRIGUEZ DAMIAN",
-    "DAVID FELIPE MORALES NOGUERA",
-    "JANIK HERNANDO DE LA HOZ RIOS",
-    "JOSE DE JESUS BARAJAS SOTELO",
-    "LUNA GICELL GUZMAN YATE",
-    "MABEL GICELLA HURTADO SANCHEZ",
-    "MAGDA XIMENA PAREDES LIEVANO",
-    "MARA LUCIA UCROS MERLANO",
-    "MARTHA PATRICIA AÑEZ MAESTRE",
-    "RODOLFO CARRILLO QUINTERO",
-]
-
 TIPOS_REQUERIMIENTO = [
     "DERECHO DE PETICION",
     "TUTELA",
@@ -241,7 +226,11 @@ def _calcular_semaforo_row(r: dict) -> dict:
             r["fecha_termino_respuesta"] = fecha_rev.isoformat()
             dias_restantes = (fecha_rev - date.today()).days
             r["dias_restantes"] = dias_restantes
-            r["dias_transcurridos"] = None
+            # dias_transcurridos (calendario, informativo) se mantiene disponible
+            # aunque haya término legal — lo usa el Dashboard para mostrar
+            # "lleva X días" sin afectar la clasificación verde/amarilla/roja,
+            # que siempre depende de dias_restantes en este caso.
+            r["dias_transcurridos"] = (date.today() - fi).days
             if dias_restantes >= 2:
                 r["semaforo"] = "verde"
             elif dias_restantes >= 0:
@@ -277,21 +266,20 @@ async def dashboard(request: Request):
 
     total = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
 
-    stats = conn.execute("""
-        SELECT
-            SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) AS respondidos,
-            SUM(CASE WHEN UPPER(TRIM(tipo_respuesta)) IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE') THEN 1
-                     WHEN (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
-                     AND (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-                     AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) <= 5 THEN 1 ELSE 0 END) AS verde,
-            SUM(CASE WHEN (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-                     AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
-                     AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) BETWEEN 6 AND 8 THEN 1 ELSE 0 END) AS amarilla,
-            SUM(CASE WHEN (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-                     AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '') AND fecha_ingreso IS NOT NULL
-                     AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9 THEN 1 ELSE 0 END) AS roja
-        FROM correspondencia
-    """).fetchone()
+    # Semáforo: misma fuente de verdad que la Lista (_calcular_semaforo_row),
+    # incluyendo el plazo legal en días hábiles cuando hay termino_dias.
+    # Antes este bloque tenía su propio SQL con días de calendario fijos
+    # (<=5/<=8/>=9) que ignoraba termino_dias por completo — los contadores
+    # del Dashboard no coincidían con lo que mostraba la Lista para los
+    # oficios que sí tienen plazo legal definido.
+    todas = [_calcular_semaforo_row(dict(r)) for r in conn.execute("SELECT * FROM correspondencia").fetchall()]
+
+    stats = {
+        "respondidos": sum(1 for d in todas if d.get("semaforo") == "respondido"),
+        "verde":       sum(1 for d in todas if d.get("semaforo") == "verde"),
+        "amarilla":    sum(1 for d in todas if d.get("semaforo") == "amarilla"),
+        "roja":        sum(1 for d in todas if d.get("semaforo") == "roja"),
+    }
 
     por_responsable = conn.execute("""
         SELECT responsable, COUNT(*) cant,
@@ -311,15 +299,26 @@ async def dashboard(request: Request):
             ELSE 99 END
     """).fetchall()
 
-    criticos = conn.execute("""
-        SELECT c.id, c.n_radicado, c.responsable, c.asunto, c.mes, c.fecha_ingreso,
-               CAST(julianday('now','localtime') - julianday(substr(c.fecha_ingreso,1,10)) AS INTEGER) AS dias_transcurridos
-        FROM correspondencia c
-        WHERE (c.fecha_radicado_salida IS NULL OR c.fecha_radicado_salida = '')
-        AND (c.tipo_respuesta IS NULL OR UPPER(TRIM(c.tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE','ANEXO AL EXPEDIENTE'))
-        AND c.fecha_ingreso IS NOT NULL
-        ORDER BY dias_transcurridos DESC LIMIT 20
-    """).fetchall()
+    # Críticos: pendientes (no respondidos, no anexo) con fecha de ingreso,
+    # ordenados por urgencia real — días restantes del plazo legal cuando
+    # existe, o días transcurridos cuando no hay término definido. Mismo
+    # alcance que el SQL original (todos los pendientes no-anexo), solo
+    # se corrige el criterio de orden y el semáforo que usa el template.
+    _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
+
+    def _es_anexo(d):
+        tr = (d.get("tipo_respuesta") or "").strip().upper()
+        return tr in _ANEXO_VALS
+
+    def _urgencia(d):
+        if d.get("dias_restantes") is not None:
+            return d["dias_restantes"]
+        return -(d.get("dias_transcurridos") or 0)
+
+    criticos = sorted(
+        (d for d in todas if d.get("pendiente") and d.get("fecha_ingreso") and not _es_anexo(d)),
+        key=_urgencia,
+    )[:20]
 
     conn.close()
 
@@ -327,7 +326,7 @@ async def dashboard(request: Request):
         "request": request,
         "active": "corr_dashboard",
         "total": total,
-        "stats": dict(stats) if stats else {},
+        "stats": stats,
         "por_responsable": [dict(r) for r in por_responsable],
         "por_mes": [dict(r) for r in por_mes],
         "criticos": [dict(r) for r in criticos],
@@ -541,7 +540,7 @@ async def exportar():
         "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
         "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
         "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
-        "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "OBSERVACIONES",
+        "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRÁMITE DE SALIDA",
         "FECHA DE VENCIMIENTO LEGAL",
         "FECHA REVISIÓN SUGERIDA (−2 días hábiles)",
         "DÍAS TRANSCURRIDOS",
@@ -1216,7 +1215,7 @@ async def verificar_radicado(
 # ── VER / EDITAR / ELIMINAR ────────────────────────────────────────────────────
 
 @router.get("/{reg_id}", response_class=HTMLResponse)
-async def ver(request: Request, reg_id: int, back: str = ""):
+async def ver(request: Request, reg_id: int, back: str = "", msg: str = ""):
     conn = get_db()
     row = conn.execute("SELECT * FROM correspondencia WHERE id=?", (reg_id,)).fetchone()
     if not row:
@@ -1232,6 +1231,7 @@ async def ver(request: Request, reg_id: int, back: str = ""):
         active="corr_lista", reg=reg,
         radicados=[dict(r) for r in radicados],
         back=back or "/correspondencia/",
+        msg=msg,
     ))
 
 

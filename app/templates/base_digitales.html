@@ -108,6 +108,8 @@
             {% elif msg == 'ab_duplicado' %}⚠️ Ya existe un abogado con ese nombre.
             {% elif msg == 'ab_vacio' %}⚠️ El nombre no puede estar vacío.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'error_com_obligatorios' %}⚠️ La Fecha de Envío es obligatoria para registrar una comunicación.
+            {% else %}{{ msg }}
             {% endif %}
         </div>
         <script>

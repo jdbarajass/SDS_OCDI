@@ -95,6 +95,7 @@
     padding: 6px 14px; border-top: 1px solid rgba(255,255,255,0.05);
 }
 .gf-row:hover { background: rgba(255,255,255,0.03); }
+.gf-row.gf-jugado { background: rgba(110,231,183,0.05); }
 .gf-fecha { color: var(--gold); font-size: 10px; font-weight: 700; min-width: 86px; flex-shrink: 0; }
 .gf-match { color: var(--text); flex: 1; font-size: 11.5px; }
 .gf-hora  { color: var(--text-muted); font-size: 10px; text-align: right; white-space: nowrap; flex-shrink: 0; }
@@ -452,11 +453,15 @@
         <div class="cal-lista" id="cal-lista-{{ bloque.sort_key }}">
             {% for p in bloque.partidos %}
             <div class="cal-fila {% if p.tbd %}tbd{% endif %}">
-                <span class="cal-hora">{{ p.h }}</span>
+                <span class="cal-hora">
+                    {% if p.marcador %}<span style="color:#6ee7b7">✅ FIN</span>{% else %}{{ p.h }}{% endif %}
+                </span>
                 <span class="cal-ronda {% if not p.tbd %}grupo{% endif %}">{{ p.label }}</span>
                 <span class="cal-equipos">
                     {% if p.tbd %}
                     <span style="color:var(--text-muted);font-style:italic">❓ Por definir</span>
+                    {% elif p.marcador %}
+                    {{ p.e1 }} <strong style="color:var(--gold)">{{ p.marcador }}</strong> {{ p.e2 }}
                     {% else %}
                     {{ p.e1 }} <span style="color:var(--gold);font-weight:400;font-size:11px"> vs </span> {{ p.e2 }}
                     {% endif %}
@@ -488,10 +493,15 @@
             <div class="grupo-fixtures">
                 {% for p in fixture_grupos %}
                 {% if p.g == letra %}
-                <div class="gf-row">
+                <div class="gf-row {% if p.marcador %}gf-jugado{% endif %}">
                     <span class="gf-fecha">{{ p.f }}</span>
+                    {% if p.marcador %}
+                    <span class="gf-match">{{ p.e1 }} <strong style="color:var(--gold)">{{ p.marcador }}</strong> {{ p.e2 }}</span>
+                    <span class="gf-hora" style="color:#6ee7b7">✅ FIN</span>
+                    {% else %}
                     <span class="gf-match">{{ p.e1 }} vs {{ p.e2 }}</span>
                     <span class="gf-hora">{{ p.h }}</span>
+                    {% endif %}
                 </div>
                 {% endif %}
                 {% endfor %}

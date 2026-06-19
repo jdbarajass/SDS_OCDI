@@ -75,12 +75,13 @@
         </div>
 
         {% if msg %}
-        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'ocupada' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Evento creado correctamente.
             {% elif msg == 'actualizado' %}✅ Evento actualizado.
             {% elif msg == 'eliminado' %}✅ Evento eliminado.
             {% elif msg == 'no_encontrado' %}⚠️ Evento no encontrado.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'franja_ocupada' %}⛔ Ya existe una reserva que se solapa con esa fecha y franja horaria. No se guardó.
             {% else %}{{ msg }}
             {% endif %}
         </div>

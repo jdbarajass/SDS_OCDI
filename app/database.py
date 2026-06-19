@@ -424,6 +424,19 @@ def init_db():
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_sdqs_sdqs ON sdqs(sdqs)")
     except Exception:
         pass
+
+    # Migración: índice único en expedientes(n_expediente, anio) — evita duplicar
+    # el mismo número de expediente dentro del mismo año (H11). Solo se aplica si
+    # no hay duplicados existentes; si los hubiera, queda documentado sin romper el arranque.
+    dups_exp = conn.execute("""
+        SELECT 1 FROM expedientes WHERE n_expediente IS NOT NULL AND anio IS NOT NULL
+        GROUP BY n_expediente, anio HAVING COUNT(*) > 1 LIMIT 1
+    """).fetchone()
+    if not dups_exp:
+        try:
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_expedientes_n_anio ON expedientes(n_expediente, anio)")
+        except Exception:
+            pass
     # Migración sdqs v2: renombrar fecha_radicado → fecha_asignacion, agregar fecha_vencimiento
     sdqs_cols = [r[1] for r in conn.execute("PRAGMA table_info(sdqs)").fetchall()]
     if "fecha_radicado" in sdqs_cols:

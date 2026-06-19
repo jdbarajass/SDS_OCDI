@@ -46,6 +46,9 @@
                 <tr style="background:#F9FBE7">
                     <td style="padding:14px;font-weight:700;color:#0d3060;font-size:15px">
                         {{ reg.expediente or '—' }}
+                        {% if reg.expediente_existe == false %}
+                        <span title="No se encontró un expediente con ese número y año en Base Expedientes" style="color:#b45309;cursor:help;font-size:13px">⚠️ No encontrado en Base Expedientes</span>
+                        {% endif %}
                     </td>
                     <td style="padding:14px;text-align:center">
                         {% if reg.numero_auto == 'DIGITAL' %}

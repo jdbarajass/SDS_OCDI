@@ -98,13 +98,14 @@
         </div>
 
         {% if msg %}
-        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
+        <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'duplicado' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Expediente creado correctamente.
             {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
             {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
             {% elif msg == 'error_datos' %}⚠️ Datos inválidos o incompletos — no se guardaron los cambios.
+            {% elif msg.startswith('duplicado_') %}⚠️ Ya existe un expediente N. {{ msg.split('_')[1] }} del año {{ msg.split('_')[2] }} — no se guardaron los cambios.
             {% else %}{{ msg }}
             {% endif %}
         </div>

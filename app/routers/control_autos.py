@@ -4,6 +4,7 @@ from pathlib import Path
 from app.template_utils import make_templates
 from datetime import date, datetime
 import io
+import re
 
 from app.database import get_db, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
@@ -54,6 +55,26 @@ def _v(val):
     if s in ("", "nan", "None", "#VALUE!", "#N/A", "#REF!", "—"):
         return None
     return s
+
+
+_RE_EXPEDIENTE = re.compile(r"^\s*0*(\d+)\s*-\s*(\d{4})\s*$")
+
+
+def _expediente_reconocido(conn, expediente: str | None) -> bool | None:
+    """Verifica si 'expediente' (formato NNN-AAAA) existe en Base Expedientes (H4).
+    Devuelve None si el texto no tiene ese formato (p. ej. 'N/A') — en ese caso
+    no se muestra ningún aviso, ya que es un valor legítimo, no un error."""
+    if not expediente:
+        return None
+    m = _RE_EXPEDIENTE.match(expediente)
+    if not m:
+        return None
+    n_exp, anio = m.group(1), int(m.group(2))
+    row = conn.execute(
+        "SELECT 1 FROM expedientes WHERE CAST(n_expediente AS INTEGER) = ? AND anio = ?",
+        (int(n_exp), anio),
+    ).fetchone()
+    return row is not None
 
 
 def _fecha(val):
@@ -120,11 +141,14 @@ async def ca_lista(
         "SELECT DISTINCT strftime('%Y', fecha_auto) AS a FROM control_autos_sustanciacion WHERE fecha_auto IS NOT NULL ORDER BY a DESC"
     ).fetchall()
     abogados = get_personal_oficina(conn)
+    rows_dict = [dict(r) for r in rows]
+    for r in rows_dict:
+        r["expediente_existe"] = _expediente_reconocido(conn, r.get("expediente"))
     conn.close()
 
     total_pages = max(1, (total + POR_PAGINA - 1) // POR_PAGINA)
     return templates.TemplateResponse("ca_lista.html", tpl(request, _MOD,
-        rows=[dict(r) for r in rows], total=total, page=page,
+        rows=rows_dict, total=total, page=page,
         total_pages=total_pages, q=q, abogado=abogado, anio=anio, mes=mes,
         asunto_auto=asunto_auto, tipo_contrato=tipo_contrato,
         abogados=abogados, asuntos=ASUNTOS_COMUNES,
@@ -418,11 +442,14 @@ async def ca_detalle(request: Request, reg_id: int, msg: str = ""):
     reg = conn.execute(
         "SELECT * FROM control_autos_sustanciacion WHERE id = ?", (reg_id,)
     ).fetchone()
-    conn.close()
     if not reg:
+        conn.close()
         return RedirectResponse("/control-autos/?msg=no_encontrado")
+    reg_dict = dict(reg)
+    reg_dict["expediente_existe"] = _expediente_reconocido(conn, reg_dict.get("expediente"))
+    conn.close()
     return templates.TemplateResponse("ca_detalle.html", tpl(request, _MOD,
-        reg=dict(reg), msg=msg, active="ca_lista",
+        reg=reg_dict, msg=msg, active="ca_lista",
     ))
 
 

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pathlib import Path
 from app.template_utils import make_templates
 from datetime import date, timedelta
+from urllib.parse import quote
 import calendar
 
 from app.database import get_db, get_personal_oficina
@@ -25,6 +26,33 @@ def _parse_franja(franja: str) -> tuple[str, str]:
     if franja and len(franja) >= 11 and franja[5] == "-":
         return franja[:5], franja[6:]
     return "", ""
+
+
+def _a_minutos(hhmm: str) -> int:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def _hay_solapamiento(conn, fecha: str, franja: str, excluir_id: int | None = None) -> bool:
+    """Revisa si (fecha, franja) se solapa con alguna reserva existente ese día (H22).
+    TODO EL DÍA choca con cualquier otra reserva del día. Dos franjas de hora
+    chocan si sus rangos se intersectan (no solo si el texto es idéntico)."""
+    rows = conn.execute(
+        "SELECT id, franja FROM sala_agenda WHERE fecha = ?", (fecha,)
+    ).fetchall()
+    nueva_inicio, nueva_fin = _parse_franja(franja)
+    for r in rows:
+        if excluir_id is not None and r["id"] == excluir_id:
+            continue
+        otra = r["franja"]
+        if franja == TODO_EL_DIA or otra == TODO_EL_DIA:
+            return True
+        otra_inicio, otra_fin = _parse_franja(otra)
+        if not (nueva_inicio and nueva_fin and otra_inicio and otra_fin):
+            continue
+        if _a_minutos(nueva_inicio) < _a_minutos(otra_fin) and _a_minutos(nueva_fin) > _a_minutos(otra_inicio):
+            return True
+    return False
 
 
 def _build_calendar(year: int, month: int, eventos: list[dict]) -> list[list[dict | None]]:
@@ -114,6 +142,7 @@ async def evento_nuevo_form(
     request: Request,
     fecha: str = "",
     franja: str = "",
+    msg: str = "",
 ):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
@@ -130,6 +159,7 @@ async def evento_nuevo_form(
         estados=ESTADOS, modo="nuevo",
         personal=personal,
         TODO_EL_DIA=TODO_EL_DIA,
+        msg=msg,
     ))
 
 
@@ -150,6 +180,9 @@ async def evento_nuevo_post(
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     franja = TODO_EL_DIA if todo_el_dia else f"{hora_inicio}-{hora_fin}"
     conn = get_db()
+    if _hay_solapamiento(conn, fecha, franja):
+        conn.close()
+        return RedirectResponse(f"/sala/evento/nuevo?fecha={fecha}&franja={quote(franja)}&msg=franja_ocupada", status_code=303)
     conn.execute("""
         INSERT INTO sala_agenda (fecha, franja, titulo, descripcion, estado, responsable)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -164,7 +197,7 @@ async def evento_nuevo_post(
 # ── Editar evento ──────────────────────────────────────────────────────────────
 
 @router.get("/evento/{ev_id}/editar", response_class=HTMLResponse)
-async def evento_editar_form(request: Request, ev_id: int):
+async def evento_editar_form(request: Request, ev_id: int, msg: str = ""):
     user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
@@ -180,6 +213,7 @@ async def evento_editar_form(request: Request, ev_id: int):
         active="sala", ev=ev_dict, estados=ESTADOS, modo="editar",
         personal=personal,
         TODO_EL_DIA=TODO_EL_DIA,
+        msg=msg,
     ))
 
 
@@ -201,6 +235,9 @@ async def evento_editar_post(
         return RedirectResponse("/sala/?msg=sin_permiso", status_code=303)
     franja = TODO_EL_DIA if todo_el_dia else f"{hora_inicio}-{hora_fin}"
     conn = get_db()
+    if _hay_solapamiento(conn, fecha, franja, excluir_id=ev_id):
+        conn.close()
+        return RedirectResponse(f"/sala/evento/{ev_id}/editar?msg=franja_ocupada", status_code=303)
     conn.execute("""
         UPDATE sala_agenda SET fecha=?, franja=?, titulo=?, descripcion=?, estado=?, responsable=?
         WHERE id=?

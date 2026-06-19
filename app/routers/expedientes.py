@@ -7,6 +7,7 @@ from calendar import monthrange
 from typing import Optional
 import json
 import io
+import sqlite3
 
 from app.database import get_db, calcular_alerta, row_to_dict
 from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log
@@ -391,12 +392,17 @@ async def nuevo_post(request: Request):
                 v = None
         vals.append(v)
 
-    conn.execute(
-        f"INSERT INTO expedientes ({', '.join(campos)}, created_by) VALUES ({', '.join(['?']*len(campos))}, ?)",
-        vals + [user.get("nombre_completo") if user else None],
-    )
     n_exp = f("n_expediente") or ""
-    conn.commit()
+    anio_val = f("anio") or ""
+    try:
+        conn.execute(
+            f"INSERT INTO expedientes ({', '.join(campos)}, created_by) VALUES ({', '.join(['?']*len(campos))}, ?)",
+            vals + [user.get("nombre_completo") if user else None],
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return RedirectResponse(f"/expedientes?msg=duplicado_{n_exp}_{anio_val}", status_code=303)
     conn.close()
     registrar_log(user, "CREAR", _MOD, f"Expediente {n_exp}")
     return RedirectResponse(f"/expedientes?msg=creado", status_code=303)
@@ -483,13 +489,18 @@ async def editar_post(request: Request, exp_id: int):
                 v = None
         vals.append(v)
 
-    conn = get_db()
-    conn.execute(
-        f"UPDATE expedientes SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?",
-        vals + [exp_id],
-    )
     n_exp = f("n_expediente") or str(exp_id)
-    conn.commit()
+    anio_val = f("anio") or ""
+    conn = get_db()
+    try:
+        conn.execute(
+            f"UPDATE expedientes SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?",
+            vals + [exp_id],
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return RedirectResponse(f"/expedientes?msg=duplicado_{n_exp}_{anio_val}", status_code=303)
     conn.close()
     registrar_log(user, "EDITAR", _MOD, f"Expediente {n_exp}")
     return RedirectResponse(f"/expedientes?msg=actualizado", status_code=303)

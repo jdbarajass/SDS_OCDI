@@ -1,0 +1,155 @@
+{% extends "base_equipos.html" %}
+{% set active = 'equipos_nuevo' if modo == 'nuevo' else 'equipos_lista' %}
+
+{% block title %}
+{% if modo == 'nuevo' %}Nuevo Préstamo{% else %}Editar Préstamo{% endif %}
+{% endblock %}
+
+{% block heading %}
+{% if modo == 'nuevo' %}Nuevo Préstamo de Equipo{% else %}Editar Préstamo #{{ reg.id }}{% endif %}
+{% endblock %}
+
+{% block header_actions %}
+{% if modo == 'editar' %}
+<a href="/equipos/{{ reg.id }}" class="btn btn-secondary">← Cancelar</a>
+{% else %}
+<a href="/equipos/" class="btn btn-secondary">← Volver a la lista</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% set form_action = '/equipos/nuevo' if modo == 'nuevo' else '/equipos/' ~ reg.id ~ '/editar' %}
+
+<form method="post" action="{{ form_action }}" style="display:flex;flex-direction:column;gap:24px;max-width:900px">
+
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            Datos del Equipo
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:16px">
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">SELECCIONAR DEL INVENTARIO DE BIENES MUEBLES</label>
+                <select id="sel_bien" class="form-control" onchange="onBienChange()">
+                    <option value="">— Seleccione un equipo del inventario —</option>
+                    {% for b in bienes %}
+                    <option value="{{ b.id }}" data-label="{{ b.label }}" {% if reg.bien_id == b.id %}selected{% endif %}>{{ b.label }}</option>
+                    {% endfor %}
+                    <option value="__otro__" {% if not reg.bien_id and reg.get('equipo_descripcion') %}selected{% endif %}>Otro (no está en el inventario)</option>
+                </select>
+                <div style="font-size:11px;color:#888;margin-top:4px">Si el equipo no aparece en la lista, seleccione "Otro" y descríbalo abajo.</div>
+            </div>
+
+            <input type="hidden" name="bien_id" id="hid_bien_id" value="{{ reg.bien_id or '' }}">
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">DESCRIPCIÓN DEL EQUIPO <span style="color:#dc3545">*</span></label>
+                <input type="text" name="equipo_descripcion" id="txt_equipo" class="form-control"
+                       value="{{ reg.equipo_descripcion or '' }}" required
+                       placeholder="Ej: COMPUTADOR PORTATIL DELL — Placa 22401010031550">
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            Datos del Préstamo
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FUNCIONARIO QUE RECIBE <span style="color:#dc3545">*</span></label>
+                <input type="text" name="funcionario" class="form-control" list="personal-datalist"
+                       value="{{ reg.funcionario or '' }}" required
+                       style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+                <datalist id="personal-datalist">
+                    {% for p in personal %}
+                    <option value="{{ p }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">ENTREGADO POR</label>
+                <input type="text" name="entregado_por" class="form-control" list="personal-datalist"
+                       value="{{ reg.entregado_por or '' }}"
+                       style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA DE PRÉSTAMO <span style="color:#dc3545">*</span></label>
+                <input type="date" name="fecha_prestamo" class="form-control" value="{{ reg.fecha_prestamo or '' }}" required>
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">HORA DE PRÉSTAMO</label>
+                <input type="time" name="hora_prestamo" class="form-control" value="{{ reg.hora_prestamo or '' }}">
+            </div>
+
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA DEVOLUCIÓN ESTIMADA</label>
+                <input type="date" name="fecha_devolucion_estimada" class="form-control" value="{{ reg.fecha_devolucion_estimada or '' }}">
+            </div>
+
+            {% if modo == 'editar' %}
+            <div>
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">ESTADO</label>
+                <select name="estado" class="form-control" id="sel_estado" onchange="onEstadoChange()">
+                    {% for e in estados %}
+                    <option value="{{ e }}" {% if reg.estado == e %}selected{% endif %}>{{ e }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="div_fecha_real" style="display:{% if reg.estado == 'Devuelto' %}block{% else %}none{% endif %}">
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">FECHA DEVOLUCIÓN REAL</label>
+                <input type="date" name="fecha_devolucion_real" class="form-control" value="{{ reg.fecha_devolucion_real or '' }}">
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <div class="card" style="padding:24px">
+        <div style="font-size:13px;font-weight:700;color:#1B4F8A;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e9ecef;padding-bottom:10px;margin-bottom:18px">
+            Observaciones
+        </div>
+        <textarea name="observaciones" class="form-control" rows="4" style="width:100%;resize:vertical">{{ reg.observaciones or '' }}</textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-bottom:16px">
+        <a href="/equipos/" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            {% if modo == 'nuevo' %}➕ Registrar Préstamo{% else %}💾 Guardar Cambios{% endif %}
+        </button>
+    </div>
+
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onBienChange() {
+    var sel = document.getElementById('sel_bien');
+    var hidBienId = document.getElementById('hid_bien_id');
+    var txtEquipo = document.getElementById('txt_equipo');
+    var opt = sel.options[sel.selectedIndex];
+    if (!sel.value || sel.value === '__otro__') {
+        hidBienId.value = '';
+        if (sel.value === '__otro__') { txtEquipo.value = ''; txtEquipo.focus(); }
+        return;
+    }
+    hidBienId.value = sel.value;
+    txtEquipo.value = opt.getAttribute('data-label') || '';
+}
+function onEstadoChange() {
+    var sel = document.getElementById('sel_estado');
+    var div = document.getElementById('div_fecha_real');
+    if (!sel || !div) return;
+    div.style.display = sel.value === 'Devuelto' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

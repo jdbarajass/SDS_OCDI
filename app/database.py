@@ -292,6 +292,47 @@ CREATE TABLE IF NOT EXISTS mundial_resultados (
     valor          TEXT NOT NULL,
     actualizado_en TEXT DEFAULT (datetime('now','localtime'))
 );
+
+-- ── BIENES MUEBLES OCDI Y PRÉSTAMO DE EQUIPOS ────────────────────────────────
+CREATE TABLE IF NOT EXISTS bienes_muebles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_placa TEXT,
+    numero_placa_fisica TEXT,
+    marca TEXT,
+    modelo TEXT,
+    numero_serial TEXT,
+    id_elemento TEXT,
+    descripcion_elemento TEXT,
+    descripcion_detallada TEXT,
+    interno_funcionario TEXT,
+    nombre_responsable TEXT,
+    numero_ingreso TEXT,
+    fecha_ingreso TEXT,
+    fecha_servicio TEXT,
+    identificacion_funcionario TEXT,
+    cantidad_vida_util INTEGER,
+    numero_contrato TEXT,
+    proveedor TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS prestamos_equipos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bien_id INTEGER REFERENCES bienes_muebles(id) ON DELETE SET NULL,
+    equipo_descripcion TEXT NOT NULL,
+    funcionario TEXT NOT NULL,
+    entregado_por TEXT,
+    fecha_prestamo TEXT NOT NULL,
+    hora_prestamo TEXT,
+    fecha_devolucion_estimada TEXT,
+    fecha_devolucion_real TEXT,
+    estado TEXT NOT NULL DEFAULT 'Prestado',
+    observaciones TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime')),
+    created_by TEXT
+);
 """
 
 
@@ -536,6 +577,23 @@ def init_db():
                 conn.execute("INSERT INTO personal_oficina (nombre, activo) VALUES (?, 1)", (nombre,))
             except Exception:
                 pass
+
+    # Migración: permisos por defecto del módulo "equipos" para usuarios ya
+    # existentes (creados antes de que este módulo existiera). admin/jefe no
+    # necesitan fila (bypasean permisos_modulo). secretario/auxiliar quedan
+    # con escritura habilitada por defecto, igual que el resto de módulos.
+    for u in conn.execute("SELECT id, rol FROM usuarios").fetchall():
+        if u["rol"] in ("admin", "jefe"):
+            continue
+        ya_existe = conn.execute(
+            "SELECT 1 FROM permisos_modulo WHERE user_id=? AND modulo='equipos'", (u["id"],)
+        ).fetchone()
+        if not ya_existe:
+            escribir = 1 if u["rol"] in ("secretario", "auxiliar") else 0
+            conn.execute(
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
+                (u["id"], "equipos", escribir),
+            )
 
     # Seed inicial de usuarios (solo si la tabla está vacía)
     if conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:

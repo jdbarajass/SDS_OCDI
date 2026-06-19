@@ -159,6 +159,23 @@
         </a>
         {% endif %}
 
+        <!-- MÓDULO 1E: Préstamo de Equipos -->
+        {% if not permisos or permisos.get('equipos', {}).get('puede_ver', True) %}
+        <a href="/equipos/" class="portal-tile">
+            <div class="tile-ico">💻</div>
+            <div class="tile-title">Préstamo de Equipos<br>y Bienes Muebles OCDI</div>
+            <div class="tile-desc">Registro de préstamos de equipos (portátiles, cámaras, videoproyectores) a funcionarios de la oficina, y reporte del inventario oficial de bienes muebles.</div>
+            {% if total_prestamos_activos > 0 %}
+            <span class="tile-stat tile-stat-warn">📦 {{ total_prestamos_activos }} equipo{{ 's' if total_prestamos_activos != 1 else '' }} prestado{{ 's' if total_prestamos_activos != 1 else '' }}</span>
+            {% elif total_bienes > 0 %}
+            <span class="tile-stat">🗄️ {{ total_bienes }} bienes registrados</span>
+            {% else %}
+            <span class="tile-stat">💻 Sin datos aún — importar Excel</span>
+            {% endif %}
+            <span class="tile-cta">Abrir módulo →</span>
+        </a>
+        {% endif %}
+
         <!-- ══ SEPARADOR ══ -->
         <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,0.15);margin:4px 0"></div>
 

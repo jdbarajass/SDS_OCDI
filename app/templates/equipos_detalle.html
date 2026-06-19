@@ -1,0 +1,64 @@
+{% extends "base_equipos.html" %}
+{% set active = 'equipos_lista' %}
+
+{% block title %}Préstamo #{{ reg.id }}{% endblock %}
+{% block heading %}Préstamo #{{ reg.id }}{% endblock %}
+
+{% block header_actions %}
+{% if request.state.permisos.get('equipos', {}).get('puede_escribir', False) %}
+<a href="/equipos/{{ reg.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+{% endif %}
+<a href="/equipos/" class="btn btn-secondary">← Volver a la lista</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="card" style="padding:24px;max-width:700px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Equipo</div>
+            <div style="font-size:17px;font-weight:700;color:#0d3060">{{ reg.equipo_descripcion }}</div>
+        </div>
+        {% if reg.estado == 'Prestado' %}
+        <span style="background:#fff3cd;color:#856404;padding:4px 14px;border-radius:14px;font-size:13px;font-weight:700;white-space:nowrap">📦 Prestado</span>
+        {% else %}
+        <span style="background:#d4edda;color:#155724;padding:4px 14px;border-radius:14px;font-size:13px;font-weight:700;white-space:nowrap">✅ Devuelto</span>
+        {% endif %}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Funcionario que recibe</div>
+            <div style="font-size:14px;font-weight:600">{{ reg.funcionario }}</div>
+        </div>
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Entregado por</div>
+            <div style="font-size:14px">{{ reg.entregado_por or '—' }}</div>
+        </div>
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Fecha de préstamo</div>
+            <div style="font-size:14px">{{ reg.fecha_prestamo | fmt_fecha }}{% if reg.hora_prestamo %} — {{ reg.hora_prestamo }}{% endif %}</div>
+        </div>
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Devolución estimada</div>
+            <div style="font-size:14px">{{ (reg.fecha_devolucion_estimada | fmt_fecha) or '—' }}</div>
+        </div>
+        <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Devolución real</div>
+            <div style="font-size:14px">{{ (reg.fecha_devolucion_real | fmt_fecha) or '—' }}</div>
+        </div>
+    </div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e9ecef">
+        <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px">Observaciones</div>
+        <div style="font-size:13.5px;white-space:pre-wrap">{{ reg.observaciones or '—' }}</div>
+    </div>
+
+    {% if reg.estado == 'Prestado' and request.state.permisos.get('equipos', {}).get('puede_escribir', False) %}
+    <form method="post" action="/equipos/{{ reg.id }}/devolver" style="margin-top:18px" onsubmit="return confirm('¿Marcar este equipo como devuelto hoy?')">
+        <button type="submit" class="btn btn-primary">↩️ Marcar como Devuelto</button>
+    </form>
+    {% endif %}
+</div>
+
+{% endblock %}

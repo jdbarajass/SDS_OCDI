@@ -97,6 +97,7 @@
             <th style="padding:9px 10px;white-space:nowrap">QUEJOSO</th>
             <th style="padding:9px 10px">TEMA</th>
             <th style="padding:9px 10px;text-align:center;white-space:nowrap">COMP. OCDI</th>
+            <th style="padding:9px 10px;text-align:center;white-space:nowrap">BPM</th>
             <th style="padding:9px 10px;white-space:nowrap">RESPONSABLE</th>
             <th style="padding:9px 10px;white-space:nowrap">RAD. SALIDA</th>
             <th style="padding:9px 10px;white-space:nowrap">ESTADO</th>
@@ -153,6 +154,9 @@
             <span style="background:#e9ecef;color:#6c757d;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700">NO</span>
             {% endif %}
         </td>
+        <td style="padding:8px 10px;text-align:center;font-size:12px;white-space:nowrap;font-weight:{% if reg.bpm %}600{% else %}400{% endif %};color:{% if reg.bpm %}#0d3060{% else %}#aaa{% endif %}">
+            {{ reg.bpm or '—' }}
+        </td>
         <td style="padding:8px 10px;font-size:12px">{{ reg.responsable or '—' }}</td>
         <td style="padding:8px 10px;white-space:nowrap;font-size:12px">
             {% if reg.url_rad_salida and reg.rad_salida %}
@@ -186,7 +190,7 @@
     </tr>
     {% else %}
     <tr>
-        <td colspan="13" style="padding:32px;text-align:center;color:#aaa;font-style:italic">No se encontraron registros.</td>
+        <td colspan="14" style="padding:32px;text-align:center;color:#aaa;font-style:italic">No se encontraron registros.</td>
     </tr>
     {% endfor %}
     </tbody>

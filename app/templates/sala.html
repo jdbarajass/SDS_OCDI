@@ -63,13 +63,18 @@
             <div class="sala-franja sala-{{ ev.estado | lower | replace(' ', '-') }}"
                  data-evento="{{ ev | tojson | forceescape }}"
                  onclick="abrirDetalle(this)"
-                 title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}">
+                 title="{{ ev.franja }}: {{ ev.titulo or ev.estado }}{% if ev.responsable %} — {{ ev.responsable }}{% endif %}">
               {% if ev.franja == 'TODO EL DÍA' %}
               <span class="sala-franja-hora">🌐</span>
               {% else %}
               <span class="sala-franja-hora">{{ ev.franja[:5] }}</span>
               {% endif %}
-              <span class="sala-franja-label">{{ ev.titulo or ev.estado }}</span>
+              <div style="min-width:0;overflow:hidden">
+                <div class="sala-franja-label">{{ ev.titulo or ev.estado }}</div>
+                {% if ev.responsable %}
+                <div class="sala-franja-resp">{{ ev.responsable }}</div>
+                {% endif %}
+              </div>
             </div>
             {% endfor %}
           {% else %}
@@ -123,6 +128,7 @@
 .sala-franja:hover { opacity: .8; }
 .sala-franja-hora { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 .sala-franja-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sala-franja-resp  { font-size: 9px; opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
 
 .sala-disponible { background: #dcfce7; color: #15803d; }
 .sala-ocupado    { background: #fee2e2; color: #dc2626; }

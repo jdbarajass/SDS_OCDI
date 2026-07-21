@@ -346,9 +346,9 @@ def get_db():
 
 
 def get_personal_oficina(conn):
-    """Devuelve lista de nombres activos de personal_oficina, ordenados alfabéticamente."""
+    """Devuelve lista de nombres activos desde la tabla usuarios, ordenados alfabéticamente."""
     return [r[0] for r in conn.execute(
-        "SELECT nombre FROM personal_oficina WHERE activo=1 ORDER BY nombre"
+        "SELECT nombre_completo FROM usuarios WHERE activo=1 ORDER BY nombre_completo"
     ).fetchall()]
 
 

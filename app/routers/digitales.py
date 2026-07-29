@@ -252,15 +252,9 @@ async def dashboard(request: Request):
 # ── Nuevo ──────────────────────────────────────────────────────────────────────
 
 def _get_abogados(conn) -> list[str]:
-    """Retorna lista de nombres desde el catálogo, sincronizando primero con exp_digitales."""
-    conn.execute("""
-        INSERT OR IGNORE INTO abogados_digitales (nombre)
-        SELECT DISTINCT abogado FROM exp_digitales
-        WHERE abogado IS NOT NULL AND TRIM(abogado) != ''
-    """)
-    conn.commit()
+    """Retorna lista de abogados activos desde la tabla usuarios."""
     return [r[0] for r in conn.execute(
-        "SELECT nombre FROM abogados_digitales ORDER BY nombre"
+        "SELECT nombre_completo FROM usuarios WHERE activo=1 ORDER BY nombre_completo"
     ).fetchall()]
 
 
@@ -750,7 +744,6 @@ async def com_eliminar(request: Request, com_id: int):
 @router.get("/abogados", response_class=HTMLResponse)
 async def abogados_lista(request: Request, msg: str = ""):
     conn = get_db()
-    _get_abogados(conn)  # sincroniza exp_digitales → abogados_digitales
     abogados = conn.execute(
         "SELECT id, nombre FROM abogados_digitales ORDER BY nombre"
     ).fetchall()

@@ -296,16 +296,17 @@ async def exportar(
 
     SEM_COLORS = {"verde": "D4EDDA", "amarillo": "FFF3CD", "rojo": "F8D7DA"}
     link_font = Font(color="0563C1", underline="single")
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
 
     for d in rows_data:
         ws.append([
-            d.get("mes"), d.get("fecha_asignacion"), d.get("sdqs"),
-            d.get("fecha_vencimiento"), d.get("estado_dias"),
-            d.get("quejoso"), d.get("correo"), d.get("tema"),
-            d.get("competencia_ocdi"), d.get("bpm"), d.get("responsable"),
-            d.get("rad_salida"), d.get("fecha_respuesta"), d.get("observaciones"),
-            d.get("estado_proceso"), d.get("hecho_corrupto"),
-            d.get("valor_institucional"), d.get("tipologia"), d.get("url_sdqs"),
+            _na(d.get("mes")), _na(d.get("fecha_asignacion")), _na(d.get("sdqs")),
+            _na(d.get("fecha_vencimiento")), _na(d.get("estado_dias")),
+            _na(d.get("quejoso")), _na(d.get("correo")), _na(d.get("tema")),
+            _na(d.get("competencia_ocdi")), _na(d.get("bpm")), _na(d.get("responsable")),
+            _na(d.get("rad_salida")), _na(d.get("fecha_respuesta")), _na(d.get("observaciones")),
+            _na(d.get("estado_proceso")), _na(d.get("hecho_corrupto")),
+            _na(d.get("valor_institucional")), _na(d.get("tipologia")), _na(d.get("url_sdqs")),
         ])
         ri = ws.max_row
         sem = d.get("semaforo_sdqs")

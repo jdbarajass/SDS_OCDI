@@ -556,19 +556,21 @@ async def exportar():
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center")
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     for exp in exps:
         ed = dict(exp)
         exp_coms = coms_por_exp.get(ed["id"], [])
         primera_com = exp_coms[0] if exp_coms else {}
 
         row = [
-            ed.get("n_expediente"), ed.get("anio"), ed.get("abogado"), ed.get("etapa"),
-            ed.get("queja_inicial"), ed.get("radicado_auto"), ed.get("nombre_auto"), ed.get("fecha_auto"),
-            ed.get("observaciones"), ultima_rev_por_exp.get(ed["id"]),
-            primera_com.get("radicado_comunicacion"), primera_com.get("dependencia"),
-            primera_com.get("fecha_envio"), primera_com.get("fecha_seguimiento"),
-            primera_com.get("radicado_respuesta"), primera_com.get("fecha_respuesta"),
-            primera_com.get("responsable"), primera_com.get("observaciones"),
+            _na(ed.get("n_expediente")), _na(ed.get("anio")), _na(ed.get("abogado")), _na(ed.get("etapa")),
+            _na(ed.get("queja_inicial")), _na(ed.get("radicado_auto")), _na(ed.get("nombre_auto")), _na(ed.get("fecha_auto")),
+            _na(ed.get("observaciones")), _na(ultima_rev_por_exp.get(ed["id"])),
+            _na(primera_com.get("radicado_comunicacion")), _na(primera_com.get("dependencia")),
+            _na(primera_com.get("fecha_envio")), _na(primera_com.get("fecha_seguimiento")),
+            _na(primera_com.get("radicado_respuesta")), _na(primera_com.get("fecha_respuesta")),
+            _na(primera_com.get("responsable")), _na(primera_com.get("observaciones")),
         ]
         ws.append(row)
 
@@ -576,10 +578,10 @@ async def exportar():
             sub_row = [
                 None, None, None, None, None, None, None, None,
                 None, None,
-                com.get("radicado_comunicacion"), com.get("dependencia"),
-                com.get("fecha_envio"), com.get("fecha_seguimiento"),
-                com.get("radicado_respuesta"), com.get("fecha_respuesta"),
-                com.get("responsable"), com.get("observaciones"),
+                _na(com.get("radicado_comunicacion")), _na(com.get("dependencia")),
+                _na(com.get("fecha_envio")), _na(com.get("fecha_seguimiento")),
+                _na(com.get("radicado_respuesta")), _na(com.get("fecha_respuesta")),
+                _na(com.get("responsable")), _na(com.get("observaciones")),
             ]
             ws.append(sub_row)
             for cell in ws[ws.max_row]:

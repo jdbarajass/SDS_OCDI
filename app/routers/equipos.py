@@ -471,9 +471,11 @@ async def bienes_exportar():
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     for r in rows:
         d = dict(r)
-        ws.append([d.get(c) for c in campos])
+        ws.append([_na(d.get(c)) for c in campos])
 
     ws.freeze_panes = "A2"
     for i in range(1, len(headers) + 1):

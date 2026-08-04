@@ -552,6 +552,8 @@ async def exportar():
         cell.alignment = center
     ws.row_dimensions[1].height = 36
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     for ri, row in enumerate(rows, 2):
         d = _calcular_semaforo_row(dict(row))
         fill = alt_fill if ri % 2 == 0 else None
@@ -561,26 +563,26 @@ async def exportar():
         first_url = next((u for u in urls_list if u), None)
 
         vals = [
-            d.get("anio"),
-            d.get("mes"),
-            d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-            d.get("n_radicado"),
-            d.get("origen"),
-            d.get("correo_remitente"),
-            d.get("asunto"),
-            d.get("sinproc_personeria"),
-            d.get("tipo_requerimiento"),
-            d.get("termino_dias"),
-            d.get("tipo_documento"),
-            d.get("responsable"),
-            d.get("caso_bmp"),
-            d.get("radicados_salida"),           # col 14 — N RADICADO SALIDA
-            d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
-            d.get("tipo_respuesta"),
-            d.get("tramite_salida"),
-            d.get("fecha_vencimiento"),           # col 18 — plazo legal real
-            d.get("fecha_termino_respuesta"),     # col 19 — fecha revisión sugerida
-            d.get("dias_transcurridos"),
+            _na(d.get("anio")),
+            _na(d.get("mes")),
+            _na(d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None),
+            _na(d.get("n_radicado")),
+            _na(d.get("origen")),
+            _na(d.get("correo_remitente")),
+            _na(d.get("asunto")),
+            _na(d.get("sinproc_personeria")),
+            _na(d.get("tipo_requerimiento")),
+            d.get("termino_dias") if d.get("termino_dias") is not None else "N/A",
+            _na(d.get("tipo_documento")),
+            _na(d.get("responsable")),
+            _na(d.get("caso_bmp")),
+            _na(d.get("radicados_salida")),      # col 14 — N RADICADO SALIDA
+            _na(d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None),
+            _na(d.get("tipo_respuesta")),
+            _na(d.get("tramite_salida")),
+            _na(d.get("fecha_vencimiento")),     # col 18 — plazo legal real
+            _na(d.get("fecha_termino_respuesta")),  # col 19 — fecha revisión sugerida
+            d.get("dias_transcurridos") if d.get("dias_transcurridos") is not None else "N/A",
         ]
         for ci, v in enumerate(vals, 1):
             cell = ws.cell(row=ri, column=ci, value=v)

@@ -360,17 +360,19 @@ async def ca_exportar(
     ws.row_dimensions[6].height = 30
     ws.freeze_panes = "B7"
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     # Datos desde fila 7
     for ri, row in enumerate(rows, 7):
         d = dict(row)
         fill = alt_fill if ri % 2 == 0 else None
         vals = [
-            d.get("expediente"),
-            d.get("numero_auto"),
-            d.get("fecha_auto"),
-            d.get("asunto_auto"),
-            d.get("abogado_responsable"),
-            d.get("observaciones"),
+            _na(d.get("expediente")),
+            _na(d.get("numero_auto")),
+            _na(d.get("fecha_auto")),
+            _na(d.get("asunto_auto")),
+            _na(d.get("abogado_responsable")),
+            _na(d.get("observaciones")),
         ]
         for ci, v in enumerate(vals, 2):
             cell = ws.cell(row=ri, column=ci, value=v)

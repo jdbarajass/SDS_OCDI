@@ -8,20 +8,44 @@
 <a href="/control-autos/importar" class="btn btn-secondary" style="margin-left:8px">📥 Importar</a>
 <script>
 function exportarCA() {
-    var form = document.querySelector('form[action="/control-autos/"]');
-    var q      = form.querySelector('[name="q"]').value;
-    var ab     = form.querySelector('[name="abogado"]').value;
-    var an     = form.querySelector('[name="anio"]').value;
-    var mes    = form.querySelector('[name="mes"]').value;
-    var asunto = form.querySelector('[name="asunto_auto"]').value;
-    var tipo   = form.querySelector('[name="tipo_contrato"]').value;
-    var url = '/control-autos/exportar?q=' + encodeURIComponent(q)
-            + '&abogado=' + encodeURIComponent(ab)
-            + '&anio='    + encodeURIComponent(an)
-            + '&mes='     + encodeURIComponent(mes)
-            + '&asunto_auto=' + encodeURIComponent(asunto)
-            + '&tipo_contrato=' + encodeURIComponent(tipo);
-    window.location.href = url;
+    var form   = document.querySelector('form[action="/control-autos/"]');
+    var qEl    = form.querySelector('[name="q"]');
+    var abEl   = form.querySelector('[name="abogado"]');
+    var anEl   = form.querySelector('[name="anio"]');
+    var mesEl  = form.querySelector('[name="mes"]');
+    var asEl   = form.querySelector('[name="asunto_auto"]');
+    var tipoEl = form.querySelector('[name="tipo_contrato"]');
+    var q = qEl.value, ab = abEl.value, an = anEl.value;
+    var mes = mesEl.value, asunto = asEl.value, tipo = tipoEl.value;
+
+    var filtros = [];
+    if (q)      filtros.push('Búsqueda: "' + q + '"');
+    if (ab)     filtros.push(abEl.options[abEl.selectedIndex].text);
+    if (an)     filtros.push('Año: ' + an);
+    if (mes)    filtros.push(mesEl.options[mesEl.selectedIndex].text);
+    if (asunto) { var t = asEl.options[asEl.selectedIndex].text; filtros.push(t.length > 45 ? t.substring(0,45)+'…' : t); }
+    if (tipo)   filtros.push(tipoEl.options[tipoEl.selectedIndex].text);
+
+    mostrarToast(filtros);
+    window.location.href = '/control-autos/exportar?q=' + encodeURIComponent(q)
+        + '&abogado=' + encodeURIComponent(ab) + '&anio=' + encodeURIComponent(an)
+        + '&mes=' + encodeURIComponent(mes) + '&asunto_auto=' + encodeURIComponent(asunto)
+        + '&tipo_contrato=' + encodeURIComponent(tipo);
+}
+function mostrarToast(filtros) {
+    var t = document.createElement('div');
+    t.innerHTML = '⏳ Preparando Excel…';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1B4F8A;color:#fff;padding:16px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35);max-width:420px;line-height:1.6';
+    document.body.appendChild(t);
+    setTimeout(function() {
+        if (filtros.length) {
+            t.style.background = '#0d3060';
+            t.innerHTML = '✅ <strong>Descargado con filtros:</strong><br><span style="font-weight:400;font-size:12px">' + filtros.join(' &nbsp;·&nbsp; ') + '</span>';
+        } else {
+            t.innerHTML = '✅ <strong>Descargado completo</strong><br><span style="font-weight:400;font-size:12px">Sin filtros — contiene todos los registros</span>';
+        }
+    }, 1200);
+    setTimeout(function() { t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 450); }, 7000);
 }
 </script>
 {% endblock %}

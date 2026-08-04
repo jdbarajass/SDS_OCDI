@@ -9,17 +9,43 @@
 <button type="button" class="btn btn-secondary" onclick="exportarSDQS()">📤 Exportar Excel</button>
 <script>
 function exportarSDQS() {
-    var form = document.querySelector('form[action="/sdqs/"]');
-    var mes  = form.querySelector('[name="mes"]').value;
-    var comp = form.querySelector('[name="competencia_ocdi"]').value;
-    var resp = form.querySelector('[name="responsable"]').value;
-    var sem  = form.querySelector('[name="semaforo"]').value;
-    var q    = form.querySelector('[name="q"]').value;
+    var form   = document.querySelector('form[action="/sdqs/"]');
+    var mesEl  = form.querySelector('[name="mes"]');
+    var compEl = form.querySelector('[name="competencia_ocdi"]');
+    var respEl = form.querySelector('[name="responsable"]');
+    var semEl  = form.querySelector('[name="semaforo"]');
+    var qEl    = form.querySelector('[name="q"]');
+    var mes = mesEl.value, comp = compEl.value, resp = respEl.value;
+    var sem = semEl.value, q = qEl.value;
+
+    var filtros = [];
+    if (mes)  filtros.push('Mes: ' + mesEl.options[mesEl.selectedIndex].text);
+    if (comp) filtros.push('Competencia: ' + comp);
+    if (resp) filtros.push(resp);
+    if (sem)  filtros.push(semEl.options[semEl.selectedIndex].text.replace(/^[🟢🟡🔴]\s*/,''));
+    if (q)    filtros.push('Búsqueda: "' + q + '"');
+
+    mostrarToast(filtros);
     window.location.href = '/sdqs/exportar?mes=' + encodeURIComponent(mes)
         + '&competencia_ocdi=' + encodeURIComponent(comp)
         + '&responsable='      + encodeURIComponent(resp)
         + '&q='                + encodeURIComponent(q)
         + '&semaforo='         + encodeURIComponent(sem);
+}
+function mostrarToast(filtros) {
+    var t = document.createElement('div');
+    t.innerHTML = '⏳ Preparando Excel…';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1B4F8A;color:#fff;padding:16px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35);max-width:420px;line-height:1.6';
+    document.body.appendChild(t);
+    setTimeout(function() {
+        if (filtros.length) {
+            t.style.background = '#0d3060';
+            t.innerHTML = '✅ <strong>Descargado con filtros:</strong><br><span style="font-weight:400;font-size:12px">' + filtros.join(' &nbsp;·&nbsp; ') + '</span>';
+        } else {
+            t.innerHTML = '✅ <strong>Descargado completo</strong><br><span style="font-weight:400;font-size:12px">Sin filtros — contiene todos los registros</span>';
+        }
+    }, 1200);
+    setTimeout(function() { t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 450); }, 7000);
 }
 </script>
 {% endblock %}

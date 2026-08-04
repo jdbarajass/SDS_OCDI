@@ -219,18 +219,53 @@ async def ca_nuevo_post(
 # ── Exportar ───────────────────────────────────────────────────────────────────
 
 @router.get("/exportar")
-async def ca_exportar():
+async def ca_exportar(
+    q: str = "",
+    abogado: str = "",
+    anio: str = "",
+    mes: str = "",
+    asunto_auto: str = "",
+    tipo_contrato: str = "",
+):
     try:
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     except ImportError:
         return RedirectResponse("/control-autos/?msg=error_openpyxl")
 
+    # Aplicar los mismos filtros que la lista
+    where, params = [], []
+    if q:
+        where.append("(expediente LIKE ? OR numero_auto LIKE ? OR asunto_auto LIKE ? OR abogado_responsable LIKE ?)")
+        params += [f"%{q}%"] * 4
+    if abogado:
+        where.append("abogado_responsable = ?")
+        params.append(abogado)
+    if anio:
+        where.append("strftime('%Y', fecha_auto) = ?")
+        params.append(anio)
+    if mes:
+        where.append("strftime('%m', fecha_auto) = ?")
+        params.append(mes.zfill(2))
+    if asunto_auto:
+        where.append("asunto_auto = ?")
+        params.append(asunto_auto)
+    if tipo_contrato:
+        where.append(
+            "abogado_responsable IN (SELECT nombre_completo FROM usuarios WHERE tipo_contrato = ?)"
+        )
+        params.append(tipo_contrato)
+
+    cond = ("WHERE " + " AND ".join(where)) if where else ""
+
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
+        f"SELECT * FROM control_autos_sustanciacion {cond} ORDER BY fecha_auto ASC, id ASC",
+        params,
     ).fetchall()
     conn.close()
+
+    hay_filtros = bool(where)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -292,8 +327,30 @@ async def ca_exportar():
     c.font = Font(size=8, italic=True); c.alignment = left_v; c.border = borde; c.fill = fill_meta
     ws.row_dimensions[4].height = 16
 
-    # Fila 5 — vacía de separación
-    ws.row_dimensions[5].height = 6
+    # Fila 5 — resumen de filtros activos (o separación vacía si no hay filtros)
+    if hay_filtros:
+        _meses_nom = {
+            "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+            "05": "Mayo",  "06": "Junio",   "07": "Julio", "08": "Agosto",
+            "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre",
+        }
+        partes = []
+        if abogado:      partes.append(f"Abogado: {abogado}")
+        if anio:         partes.append(f"Año: {anio}")
+        if mes:          partes.append(f"Mes: {_meses_nom.get(mes.zfill(2), mes)}")
+        if asunto_auto:  partes.append(f"Asunto: {asunto_auto}")
+        if tipo_contrato: partes.append(f"Tipo contrato: {tipo_contrato.capitalize()}")
+        if q:            partes.append(f'Búsqueda: "{q}"')
+        ws.merge_cells("B5:G5")
+        c = ws["B5"]
+        c.value = f"Filtros aplicados — {' · '.join(partes)} · Total exportado: {len(rows)} registro(s)"
+        c.font = Font(bold=True, size=9, color="856404")
+        c.fill = PatternFill("solid", fgColor="FFF3CD")
+        c.alignment = left_v
+        c.border = borde
+        ws.row_dimensions[5].height = 16
+    else:
+        ws.row_dimensions[5].height = 6
 
     # Fila 6 — encabezados de columna
     headers = ["EXPEDIENTE", "NÚMERO DEL AUTO", "FECHA DEL AUTO", "ASUNTO AUTO", "ABOGADO RESPONSABLE", "OBSERVACIONES"]
@@ -329,10 +386,11 @@ async def ca_exportar():
     output.seek(0)
 
     hoy = date.today().strftime("%Y%m%d")
+    sufijo = "_FILTRADO" if hay_filtros else ""
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=SDS-CDO-FT-001_Control_Autos_{hoy}.xlsx"},
+        headers={"Content-Disposition": f"attachment; filename=SDS-CDO-FT-001_Control_Autos_{hoy}{sufijo}.xlsx"},
     )
 
 

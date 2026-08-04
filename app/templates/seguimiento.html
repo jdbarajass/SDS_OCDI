@@ -3,7 +3,18 @@
 {% block heading %}Seguimiento Mensual {{ anio_sel }}{% endblock %}
 
 {% block header_actions %}
-<a href="/seguimiento/exportar?anio={{ anio_sel }}&abogado={{ abogado_sel | urlencode }}&q={{ q | urlencode }}" class="btn btn-outline">📤 Exportar Excel</a>
+<button type="button" class="btn btn-outline" onclick="exportarSeg()">📤 Exportar Excel</button>
+<script>
+function exportarSeg() {
+    var form  = document.querySelector('form[action="/seguimiento"]');
+    var anio  = form.querySelector('[name="anio"]').value;
+    var ab    = form.querySelector('[name="abogado"]').value;
+    var q     = form.querySelector('[name="q"]').value;
+    window.location.href = '/seguimiento/exportar?anio=' + encodeURIComponent(anio)
+        + '&abogado=' + encodeURIComponent(ab)
+        + '&q='       + encodeURIComponent(q);
+}
+</script>
 {% endblock %}
 
 {% block content %}

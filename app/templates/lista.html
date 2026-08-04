@@ -4,8 +4,25 @@
 
 {% block header_actions %}
 <a href="/expediente/nuevo" class="btn btn-primary">➕ Nuevo Expediente</a>
-<a href="/exportar-filtrado/descargar?q={{ q }}&anio={{ anio }}&mes={{ mes }}&abogado={{ abogado }}&etapa={{ etapa }}&estado={{ estado }}" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
+<button type="button" class="btn btn-secondary" style="margin-left:8px" onclick="exportarExp()">📤 Exportar Excel</button>
 <a href="/importar" class="btn btn-secondary" style="margin-left:8px">📥 Importar</a>
+<script>
+function exportarExp() {
+    var form = document.querySelector('form[action="/expedientes"]');
+    var q      = form.querySelector('[name="q"]').value;
+    var anio   = form.querySelector('[name="anio"]').value;
+    var mes    = form.querySelector('[name="mes"]').value;
+    var ab     = form.querySelector('[name="abogado"]').value;
+    var etapa  = form.querySelector('[name="etapa"]').value;
+    var estado = form.querySelector('[name="estado"]').value;
+    window.location.href = '/exportar-filtrado/descargar?q=' + encodeURIComponent(q)
+        + '&anio='    + encodeURIComponent(anio)
+        + '&mes='     + encodeURIComponent(mes)
+        + '&abogado=' + encodeURIComponent(ab)
+        + '&etapa='   + encodeURIComponent(etapa)
+        + '&estado='  + encodeURIComponent(estado);
+}
+</script>
 {% endblock %}
 
 {% block content %}

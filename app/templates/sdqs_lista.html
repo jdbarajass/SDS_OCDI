@@ -6,7 +6,22 @@
 
 {% block header_actions %}
 <a href="/sdqs/nuevo" class="btn btn-primary">➕ Nuevo SDQS</a>
-<a href="/sdqs/exportar?mes={{ fil_mes }}&competencia_ocdi={{ fil_competencia }}&responsable={{ fil_responsable }}&q={{ fil_q }}&semaforo={{ fil_semaforo }}" class="btn btn-secondary">📤 Exportar Excel</a>
+<button type="button" class="btn btn-secondary" onclick="exportarSDQS()">📤 Exportar Excel</button>
+<script>
+function exportarSDQS() {
+    var form = document.querySelector('form[action="/sdqs/"]');
+    var mes  = form.querySelector('[name="mes"]').value;
+    var comp = form.querySelector('[name="competencia_ocdi"]').value;
+    var resp = form.querySelector('[name="responsable"]').value;
+    var sem  = form.querySelector('[name="semaforo"]').value;
+    var q    = form.querySelector('[name="q"]').value;
+    window.location.href = '/sdqs/exportar?mes=' + encodeURIComponent(mes)
+        + '&competencia_ocdi=' + encodeURIComponent(comp)
+        + '&responsable='      + encodeURIComponent(resp)
+        + '&q='                + encodeURIComponent(q)
+        + '&semaforo='         + encodeURIComponent(sem);
+}
+</script>
 {% endblock %}
 
 {% block content %}

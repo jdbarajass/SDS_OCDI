@@ -4,8 +4,26 @@
 
 {% block header_actions %}
 <a href="/control-autos/nuevo" class="btn btn-primary">➕ Nuevo Auto</a>
-<a href="/control-autos/exportar?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&asunto_auto={{ asunto_auto }}&tipo_contrato={{ tipo_contrato }}" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
+<button type="button" class="btn btn-secondary" style="margin-left:8px" onclick="exportarCA()">📤 Exportar Excel</button>
 <a href="/control-autos/importar" class="btn btn-secondary" style="margin-left:8px">📥 Importar</a>
+<script>
+function exportarCA() {
+    var form = document.querySelector('form[action="/control-autos/"]');
+    var q      = form.querySelector('[name="q"]').value;
+    var ab     = form.querySelector('[name="abogado"]').value;
+    var an     = form.querySelector('[name="anio"]').value;
+    var mes    = form.querySelector('[name="mes"]').value;
+    var asunto = form.querySelector('[name="asunto_auto"]').value;
+    var tipo   = form.querySelector('[name="tipo_contrato"]').value;
+    var url = '/control-autos/exportar?q=' + encodeURIComponent(q)
+            + '&abogado=' + encodeURIComponent(ab)
+            + '&anio='    + encodeURIComponent(an)
+            + '&mes='     + encodeURIComponent(mes)
+            + '&asunto_auto=' + encodeURIComponent(asunto)
+            + '&tipo_contrato=' + encodeURIComponent(tipo);
+    window.location.href = url;
+}
+</script>
 {% endblock %}
 
 {% block content %}

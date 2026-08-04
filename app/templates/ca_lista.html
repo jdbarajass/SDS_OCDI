@@ -4,7 +4,7 @@
 
 {% block header_actions %}
 <a href="/control-autos/nuevo" class="btn btn-primary">➕ Nuevo Auto</a>
-<a href="/control-autos/exportar" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
+<a href="/control-autos/exportar?q={{ q }}&abogado={{ abogado }}&anio={{ anio }}&mes={{ mes }}&asunto_auto={{ asunto_auto }}&tipo_contrato={{ tipo_contrato }}" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
 <a href="/control-autos/importar" class="btn btn-secondary" style="margin-left:8px">📥 Importar</a>
 {% endblock %}
 

@@ -239,15 +239,17 @@ async def seguimiento_exportar(request: Request, anio: int = 0, abogado: str = "
         cell.alignment = center
         cell.border = border
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     for exp in expedientes:
         row_data = [
-            exp["n_expediente"],
-            exp.get("anio", ""),
-            exp["nombre_abogado"] or "",
-            exp["etapa"] or "",
+            _na(exp["n_expediente"]),
+            _na(exp.get("anio", "")),
+            _na(exp["nombre_abogado"] or ""),
+            _na(exp["etapa"] or ""),
         ]
         for mes_completo in MESES:
-            row_data.append(acts_map.get((exp["id"], mes_completo), ""))
+            row_data.append(_na(acts_map.get((exp["id"], mes_completo), "")))
         ws.append(row_data)
         row_idx = ws.max_row
         for col_idx in range(1, len(encabezados) + 1):

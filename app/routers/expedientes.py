@@ -716,10 +716,12 @@ async def exportar_descargar(
         cell.fill = fill_h; cell.font = h_font; cell.alignment = center
     ws.row_dimensions[1].height = 42
 
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
+
     for ri, d in enumerate(datos, 2):
         fill = alt_fill if ri % 2 == 0 else None
         for ci, campo in enumerate(campos_out, 1):
-            cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+            cell = ws.cell(row=ri, column=ci, value=_na(d.get(campo)))
             cell.alignment = Alignment(vertical="center")
             if fill:
                 cell.fill = fill

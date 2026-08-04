@@ -836,6 +836,7 @@ async def backup_zip():
     center   = Alignment(horizontal="center", vertical="center", wrap_text=True)
     alt_fill = PatternFill("solid", fgColor="EBF1F8")
     sub_fill = PatternFill("solid", fgColor="dbeafe")
+    _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
 
     def make_wb_base() -> io.BytesIO:
         wb = openpyxl.Workbook()
@@ -886,7 +887,7 @@ async def backup_zip():
             d = dict(row)
             rf = alt_fill if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
-                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell = ws.cell(row=ri, column=ci, value=_na(d.get(campo)))
                 cell.alignment = Alignment(vertical="center")
                 if rf: cell.fill = rf
         for col in ws.columns:
@@ -905,9 +906,9 @@ async def backup_zip():
         for ri, row in enumerate(seg_rows, 2):
             d = dict(row)
             rf = alt_fill if ri % 2 == 0 else None
-            vals = [d.get("anio"), d.get("mes"), d.get("n_expediente"), d.get("exp_anio"),
-                    d.get("abogado_asignado"), d.get("descripcion"),
-                    d.get("created_by"), d.get("created_at")]
+            vals = [_na(d.get("anio")), _na(d.get("mes")), _na(d.get("n_expediente")), _na(d.get("exp_anio")),
+                    _na(d.get("abogado_asignado")), _na(d.get("descripcion")),
+                    _na(d.get("created_by")), _na(d.get("created_at"))]
             for ci, v in enumerate(vals, 1):
                 cell = ws_seg.cell(row=ri, column=ci, value=v)
                 cell.alignment = Alignment(vertical="center", wrap_text=(ci == 6))
@@ -949,7 +950,7 @@ async def backup_zip():
             d = _calcular_semaforo_sdqs(dict(row))
             rf = alt_fill if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
-                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell = ws.cell(row=ri, column=ci, value=_na(d.get(campo)))
                 cell.alignment = Alignment(vertical="center", wrap_text=(ci == 9))
                 if rf: cell.fill = rf
             sem = d.get("semaforo_sdqs")
@@ -998,17 +999,18 @@ async def backup_zip():
             urls_list = [u.strip() for u in urls_str.split(" | ")] if urls_str.strip() else []
             first_url = next((u for u in urls_list if u), None)
             vals = [
-                d.get("anio"), d.get("mes"),
-                d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-                d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
-                d.get("sinproc_personeria"), d.get("tipo_requerimiento"), d.get("termino_dias"),
-                d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
-                d.get("radicados_salida"),           # col 14 — N RADICADO SALIDA
-                d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None,
-                d.get("tipo_respuesta"), d.get("tramite_salida"),
-                d.get("fecha_vencimiento"),           # col 18 — plazo legal real
-                d.get("fecha_termino_respuesta"),     # col 19 — fecha revisión sugerida
-                d.get("dias_transcurridos"),
+                _na(d.get("anio")), _na(d.get("mes")),
+                _na(d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None),
+                _na(d.get("n_radicado")), _na(d.get("origen")), _na(d.get("correo_remitente")), _na(d.get("asunto")),
+                _na(d.get("sinproc_personeria")), _na(d.get("tipo_requerimiento")),
+                d.get("termino_dias") if d.get("termino_dias") is not None else "N/A",
+                _na(d.get("tipo_documento")), _na(d.get("responsable")), _na(d.get("caso_bmp")),
+                _na(d.get("radicados_salida")),      # col 14 — N RADICADO SALIDA
+                _na(d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None),
+                _na(d.get("tipo_respuesta")), _na(d.get("tramite_salida")),
+                _na(d.get("fecha_vencimiento")),     # col 18 — plazo legal real
+                _na(d.get("fecha_termino_respuesta")),  # col 19 — fecha revisión sugerida
+                d.get("dias_transcurridos") if d.get("dias_transcurridos") is not None else "N/A",
             ]
             for ci, v in enumerate(vals, 1):
                 cell = ws.cell(row=ri, column=ci, value=v)
@@ -1048,20 +1050,20 @@ async def backup_zip():
             exp_coms = coms_por_exp.get(ed["id"], [])
             primera = exp_coms[0] if exp_coms else {}
             ws.append([
-                ed.get("n_expediente"), ed.get("anio"), ed.get("abogado"), ed.get("etapa"),
-                ed.get("queja_inicial"), ed.get("radicado_auto"), ed.get("nombre_auto"), ed.get("fecha_auto"),
-                ed.get("observaciones"), ultima_rev.get(ed["id"]),
-                primera.get("radicado_comunicacion"), primera.get("dependencia"),
-                primera.get("fecha_envio"), primera.get("fecha_seguimiento"),
-                primera.get("radicado_respuesta"), primera.get("fecha_respuesta"),
-                primera.get("responsable"), primera.get("observaciones"),
+                _na(ed.get("n_expediente")), _na(ed.get("anio")), _na(ed.get("abogado")), _na(ed.get("etapa")),
+                _na(ed.get("queja_inicial")), _na(ed.get("radicado_auto")), _na(ed.get("nombre_auto")), _na(ed.get("fecha_auto")),
+                _na(ed.get("observaciones")), _na(ultima_rev.get(ed["id"])),
+                _na(primera.get("radicado_comunicacion")), _na(primera.get("dependencia")),
+                _na(primera.get("fecha_envio")), _na(primera.get("fecha_seguimiento")),
+                _na(primera.get("radicado_respuesta")), _na(primera.get("fecha_respuesta")),
+                _na(primera.get("responsable")), _na(primera.get("observaciones")),
             ])
             for com in exp_coms[1:]:
                 sr = [None]*10 + [
-                    com.get("radicado_comunicacion"), com.get("dependencia"),
-                    com.get("fecha_envio"), com.get("fecha_seguimiento"),
-                    com.get("radicado_respuesta"), com.get("fecha_respuesta"),
-                    com.get("responsable"), com.get("observaciones"),
+                    _na(com.get("radicado_comunicacion")), _na(com.get("dependencia")),
+                    _na(com.get("fecha_envio")), _na(com.get("fecha_seguimiento")),
+                    _na(com.get("radicado_respuesta")), _na(com.get("fecha_respuesta")),
+                    _na(com.get("responsable")), _na(com.get("observaciones")),
                 ]
                 ws.append(sr)
                 for cell in ws[ws.max_row]: cell.fill = sub_fill
@@ -1086,7 +1088,7 @@ async def backup_zip():
             d = dict(row)
             rf = alt_fill if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
-                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell = ws.cell(row=ri, column=ci, value=_na(d.get(campo)))
                 cell.alignment = Alignment(vertical="center")
                 if rf: cell.fill = rf
         col_widths = [14, 16, 30, 40, 12, 25, 20]
@@ -1114,7 +1116,7 @@ async def backup_zip():
             d = dict(row)
             rf = alt_autos if ri % 2 == 0 else None
             for ci, campo in enumerate(campos, 1):
-                cell = ws.cell(row=ri, column=ci, value=d.get(campo))
+                cell = ws.cell(row=ri, column=ci, value=_na(d.get(campo)))
                 cell.alignment = Alignment(vertical="center")
                 if rf: cell.fill = rf
         col_widths = [18, 16, 16, 48, 22, 30, 20, 20, 20]

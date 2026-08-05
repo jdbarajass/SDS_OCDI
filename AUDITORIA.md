@@ -1011,3 +1011,68 @@ H1, H2, H3, H6, H7, H8, H9, H10, H13, H14, H17, H18, H19 (parte de código), H20
 3. Este documento (`AUDITORIA.md`) queda como registro permanente de todo lo investigado, corregido y decidido — léelo primero si retomas este trabajo más adelante, especialmente las secciones de Fase 1 (arquitectura) y esta Fase 14 (resumen ejecutivo) si necesitas el panorama completo sin leer las 13 fases intermedias.
 
 **AUDITORÍA COMPLETA — 2026-06-10 a 2026-06-17.**
+
+---
+
+## SESIONES POST-AUDITORÍA — Mejoras y correcciones (2026-07 a 2026-08)
+
+> Esta sección registra los cambios realizados en sesiones posteriores a la auditoría, ordenados cronológicamente. No son hallazgos de la auditoría original sino mejoras funcionales solicitadas por el usuario.
+
+---
+
+### 2026-07-21 · Cuatro mejoras (commit ddb0254 + c1cdc21 + 573b209)
+
+**1. Dropdowns de personal unificados a tabla `usuarios`**
+- **Problema:** Los módulos SDQS, Control Autos, Sala, Correspondencia y Equipos obtenían la lista de abogados de la tabla estática `personal_oficina`. Un usuario nuevo creado en el panel de Administración no aparecía en ningún dropdown.
+- **Corrección:** `get_personal_oficina(conn)` en `database.py` ahora consulta `usuarios WHERE activo=1 ORDER BY nombre_completo`. Mismo fix en `_get_abogados()` en `digitales.py` (consultaba su propia tabla `abogados_digitales`). Fuente única de verdad: la tabla `usuarios`.
+- **Archivos:** `app/database.py`, `app/routers/digitales.py`
+
+**2. Columna BPM en lista SDQS**
+- Se muestra el número BPM junto a la columna COMP. OCDI en `sdqs_lista.html`. Si el campo tiene valor se muestra en azul y negrita; si está vacío muestra `—`.
+- **Archivo:** `app/templates/sdqs_lista.html`
+
+**3. Responsable visible en chips del calendario — Sala de Audiencias**
+- El nombre del responsable ahora aparece en el chip del calendario directamente (no solo en el popup de detalle). CSS clase `.sala-franja-resp` (9px, opacidad 0.8).
+- **Archivo:** `app/templates/sala.html`
+
+**4. Eliminación módulo Polla Mundial FIFA 2026**
+- Verificado que el módulo no tenía dependencias externas ni estaba en `MODULOS_SISTEMA`. Eliminados: `app/routers/mundial.py`, `app/templates/mundial.html`, `app/templates/base_mundial.html`. Removidas las referencias en `app/main.py` y el tile en `app/templates/portal.html`.
+- Las 3 tablas (`mundial_predicciones`, `mundial_sorteo`, `mundial_resultados`) permanecen en `data/ocdi.db` pero son inaccesibles.
+
+**5. Tile Juego OCDI en Portal (commit c1cdc21)**
+- Nuevo tile en sección "OCDI Extra" del portal que abre `https://juego-ocdi.vercel.app/` en nueva pestaña (`target="_blank" rel="noopener noreferrer"`).
+- **Archivo:** `app/templates/portal.html`
+
+---
+
+### 2026-08-04 · Exportaciones mejoradas (commits 580a046 + 3855e14)
+
+**1. Control Autos — Exportar respeta filtros activos**
+- `ca_exportar()` en `control_autos.py` acepta los mismos parámetros de filtro que `ca_lista()` (`q`, `abogado`, `anio`, `mes`, `asunto_auto`, `tipo_contrato`). Cuando hay filtros activos: añade fila 5 amarilla con resumen de filtros y sufijo `_FILTRADO` al nombre del archivo Excel.
+- **Archivos:** `app/routers/control_autos.py`, `app/templates/ca_lista.html`
+
+**2. N/A en celdas vacías — todos los exportadores**
+- Helper `_na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"` aplicado en los 8 exportadores: SDQS, Control Autos, Correspondencia, Expedientes, Expedientes Digitales, Equipos, Seguimiento Mensual, Backup ZIP (7 hojas internas).
+- Campos numéricos como `termino_dias=0` y `dias_transcurridos=0` se preservan como entero (no se convierten a "N/A"). En Digitales, los `None` estructurales de sub-filas (cols 1-10) se mantienen intactos.
+- **Archivos:** `app/routers/sdqs.py`, `control_autos.py`, `correspondencia.py`, `digitales.py`, `expedientes.py`, `equipos.py`, `seguimiento.py`, `backup.py`
+
+---
+
+### 2026-08-05 · UX exportaciones + Sala de Audiencias (commits 114ba36 + 02e7eef + 4f0e539 + d72a08b)
+
+**1. Botones "Exportar Excel" leen filtros en tiempo real**
+- **Problema:** Los botones de exportar eran links `<a href="...{{ jinja_var }}...">`. Si el usuario cambiaba los dropdowns sin presionar "Filtrar" primero, los parámetros llegaban vacíos al exportar.
+- **Corrección:** Los botones se convirtieron en `<button onclick="exportar*()">` con JS que lee los valores actuales del formulario en el momento del clic (`form.querySelector('[name="campo"]').value`), construye la URL y navega. No requiere que el usuario filtre antes de exportar.
+- **Módulos corregidos:** Control Autos (`ca_lista.html`), SDQS (`sdqs_lista.html`), Base Expedientes (`lista.html`), Seguimiento Mensual (`seguimiento.html`).
+
+**2. Toast informativo al exportar**
+- Al hacer clic en "Exportar Excel" aparece un toast en la esquina inferior derecha con dos fases:
+  - Inmediata: "⏳ Preparando Excel…"
+  - Después de 1.2 s: "✅ Descargado completo — Sin filtros, contiene todos los registros" **o** "✅ Descargado con filtros: [lista de filtros activos]" (usa el texto legible del `<option>` seleccionado, no el value).
+  - Se desvanece a los 7 s.
+- **Archivos:** `app/templates/ca_lista.html`, `sdqs_lista.html`, `lista.html`, `seguimiento.html`
+
+**3. Sala de Audiencias — rango de horas completo en chips del calendario**
+- **Problema:** El chip del calendario solo mostraba `ev.franja[:5]` (hora de inicio). El campo `franja` se guarda como `"HH:MM-HH:MM"` (p.ej. `"09:00-12:30"`), por lo que la hora de fin nunca era visible sin abrir el popup.
+- **Corrección:** El chip ahora muestra hora inicio en negrita y hora fin debajo (`ev.franja[6:]`) en texto más pequeño (10px, opacidad 0.8) mediante clase `.sala-franja-hora-fin`. Los eventos "Todo el día" no cambian (siguen mostrando 🌐).
+- **Archivo:** `app/templates/sala.html`

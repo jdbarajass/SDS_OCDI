@@ -344,12 +344,16 @@ async def lista(
     mes: str = "",
     anio: str = "",
     tipo_contrato: str = "",
+    tipo_resp: str = "",
     page: int = 1,
     por_pagina: int = 25,
     msg: str = "",
 ):
     conn = get_db()
     responsables, tipos_doc = _get_catalogos(conn)
+    tipos_respuesta_bd = [r[0] for r in conn.execute(
+        "SELECT nombre FROM corr_tipos_respuesta ORDER BY rowid"
+    ).fetchall()]
 
     filtros = ["1=1"]
     params: list = []
@@ -417,6 +421,12 @@ async def lista(
     elif semaforo:
         all_rows = [r for r in all_rows if r.get("semaforo") == semaforo]
 
+    # Apply tipo_respuesta filter in Python
+    if tipo_resp == "pendiente":
+        all_rows = [r for r in all_rows if not (r.get("tipo_respuesta") or "").strip()]
+    elif tipo_resp:
+        all_rows = [r for r in all_rows if (r.get("tipo_respuesta") or "").strip().upper() == tipo_resp.strip().upper()]
+
     total = len(all_rows)
     total_pages = max(1, (total + por_pagina - 1) // por_pagina)
     offset = (page - 1) * por_pagina
@@ -426,8 +436,8 @@ async def lista(
         active="corr_lista",
         rows=rows, total=total, page=page, total_pages=total_pages,
         por_pagina=por_pagina, q=q, semaforo=semaforo, responsable=responsable,
-        mes=mes, anio=anio, tipo_contrato=tipo_contrato,
-        responsables=responsables, meses=MESES,
+        mes=mes, anio=anio, tipo_contrato=tipo_contrato, tipo_resp=tipo_resp,
+        responsables=responsables, meses=MESES, tipos_respuesta=tipos_respuesta_bd,
         anios=anios_bd, msg=msg,
         radicados_duplicados=radicados_duplicados,
         duplicados_info=duplicados_info,

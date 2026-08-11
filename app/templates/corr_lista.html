@@ -51,12 +51,20 @@
     <option value="contratista" {% if tipo_contrato == 'contratista' %}selected{% endif %}>📋 Contratista</option>
   </select>
 
+  <select name="tipo_resp" class="filter-select">
+    <option value="">Todos los tipos de respuesta</option>
+    <option value="pendiente" {% if tipo_resp == 'pendiente' %}selected{% endif %}>⏳ PENDIENTE (sin tipo)</option>
+    {% for tr in tipos_respuesta %}
+    <option value="{{ tr }}" {% if tipo_resp == tr %}selected{% endif %}>{{ tr }}</option>
+    {% endfor %}
+  </select>
+
   <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
   <a href="/correspondencia/" class="btn btn-outline">✕ Limpiar</a>
 </form>
 
 <!-- Badges de filtro activo -->
-{% if semaforo or responsable or mes or anio or tipo_contrato %}
+{% if semaforo or responsable or mes or anio or tipo_contrato or tipo_resp %}
 <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
   {% if anio %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📆 {{ anio }}</span>{% endif %}
   {% if semaforo %}
@@ -68,6 +76,7 @@
   {% if mes %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📅 {{ mes }}</span>{% endif %}
   {% if tipo_contrato == 'planta' %}<span style="background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">🏛 Planta</span>{% endif %}
   {% if tipo_contrato == 'contratista' %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📋 Contratista</span>{% endif %}
+  {% if tipo_resp %}<span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600">📋 {% if tipo_resp == 'pendiente' %}PENDIENTE (sin tipo respuesta){% else %}{{ tipo_resp }}{% endif %}</span>{% endif %}
 </div>
 {% endif %}
 
@@ -223,7 +232,13 @@
           {% endif %}
         </td>
         <td style="white-space:nowrap">{{ r.fecha_radicado_salida | fmt_fecha or '—' }}</td>
-        <td class="td-clip" title="{{ r.tipo_respuesta or '' }}">{{ r.tipo_respuesta or '—' }}</td>
+        <td class="td-clip" title="{{ r.tipo_respuesta or 'Sin tipo de respuesta' }}">
+          {% if r.tipo_respuesta %}
+            {{ r.tipo_respuesta }}
+          {% else %}
+            <span style="background:#fef9c3;color:#92400e;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">PENDIENTE</span>
+          {% endif %}
+        </td>
         <td class="td-clip" title="{{ r.tramite_salida or '' }}" style="font-size:11px">{{ r.tramite_salida or '—' }}</td>
 
         <!-- Días / Fecha límite -->
@@ -259,7 +274,7 @@
 <!-- Paginación -->
 {% if total_pages > 1 %}
 <div class="pagination" style="margin-top:16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-  {% set base_url = '/correspondencia/?q=' ~ q ~ '&responsable=' ~ responsable ~ '&mes=' ~ mes ~ '&anio=' ~ anio ~ '&semaforo=' ~ semaforo ~ '&tipo_contrato=' ~ tipo_contrato ~ '&por_pagina=' ~ por_pagina %}
+  {% set base_url = '/correspondencia/?q=' ~ q ~ '&responsable=' ~ responsable ~ '&mes=' ~ mes ~ '&anio=' ~ anio ~ '&semaforo=' ~ semaforo ~ '&tipo_contrato=' ~ tipo_contrato ~ '&tipo_resp=' ~ tipo_resp ~ '&por_pagina=' ~ por_pagina %}
   {% if page > 1 %}
   <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline" style="padding:4px 10px">‹</a>
   {% endif %}

@@ -45,6 +45,9 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
     conn.close()
 
     necesita_bk, ultimo_bk = backup_necesario()
+    dia_semana = hoy.weekday()  # 1=martes, 3=jueves
+    es_dia_reporte = dia_semana in (1, 3)
+    nombre_dia = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"][dia_semana]
 
     return templates.TemplateResponse("portal.html", tpl(request, None,
         total_base=total_base, total_digitales=total_digitales,
@@ -58,4 +61,6 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
         backup_estado=backup,
         necesita_backup=necesita_bk,
         ultimo_backup=ultimo_bk,
+        es_dia_reporte=es_dia_reporte,
+        nombre_dia=nombre_dia,
     ))

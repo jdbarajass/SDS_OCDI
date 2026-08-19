@@ -78,6 +78,7 @@
         {% endif %}
 
         <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a href="/reportes/vencimientos" class="btn-backup-zip" style="background:rgba(220,38,38,.75);border-color:rgba(220,38,38,.5)" title="Descarga Excel con amarillos y rojos de Correspondencia y SDQS">📊 Reporte de Vencimientos</a>
             <a href="/backup/zip" class="btn-backup-zip">📦 Descargar Backup Completo (.zip)</a>
             <a href="/backup/restauracion" class="btn-backup-zip">🔄 Guía de Restauración</a>
             {% if current_user and current_user.rol in ('admin','jefe') %}
@@ -85,6 +86,23 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- ══ BANNER REPORTE VENCIMIENTOS (martes y jueves) ══ -->
+    {% if es_dia_reporte %}
+    <div style="background:linear-gradient(90deg,#7f1d1d,#dc2626);color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.25);flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-size:28px">📊</span>
+            <div>
+                <div style="font-weight:800;font-size:15px">Hoy es {{ nombre_dia }} — día de revisión de vencimientos</div>
+                <div style="font-size:12px;opacity:.9;margin-top:2px">Descarga el reporte de correspondencia y SDQS con amarillos, rojos y sin plazo definido.</div>
+            </div>
+        </div>
+        <a href="/reportes/vencimientos"
+           style="background:#fff;color:#7f1d1d;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2);display:inline-block">
+            📥 Descargar reporte ahora
+        </a>
+    </div>
+    {% endif %}
 
     <!-- ══ BANNER BACKUP ══ -->
     {% if backup_estado == 'ok' %}

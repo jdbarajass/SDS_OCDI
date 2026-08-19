@@ -2,45 +2,54 @@
 title Configurar Tarea Programada - Backup OCDI
 echo.
 echo ==========================================
-echo   CONFIGURAR BACKUP AUTOMATICO DIARIO
+echo   CONFIGURAR BACKUP AUTOMATICO
 echo   Sistema OCDI
 echo ==========================================
 echo.
-echo Esta tarea ejecutara el backup de lunes a viernes a las 04:00 PM.
-echo La tarea se llamara: OCDI_Backup_Diario
+echo Horario: Lunes a Viernes a las 4:00 PM
+echo Si el PC estaba apagado, el backup corre al encender.
 echo.
 
 set APP_DIR=c:\Users\JJBarajas\Downloads\SSD\APLICACION_SDS_OCDI
 set SCRIPT=%APP_DIR%\backup_diario.py
 
-:: Eliminar la tarea si ya existe (para actualizarla)
-schtasks /delete /tn "OCDI_Backup_Diario" /f >nul 2>&1
+:: Buscar el ejecutable de Python
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    set PYTHON_EXE=%%P
+    goto :found_python
+)
+echo ERROR: No se encontro Python en el PATH.
+echo Instala Python y marca "Add Python to PATH".
+pause
+exit /b 1
+:found_python
 
-:: Crear la tarea programada (lunes a viernes, 4:00 PM)
-schtasks /create ^
-  /tn "OCDI_Backup_Diario" ^
-  /tr "python \"%SCRIPT%\"" ^
-  /sc weekly ^
-  /d MON,TUE,WED,THU,FRI ^
-  /st 16:00 ^
-  /ru "%USERNAME%" ^
-  /f
+echo Usando Python: %PYTHON_EXE%
+echo.
+
+:: Crear la tarea via PowerShell (soporta StartWhenAvailable)
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+"Unregister-ScheduledTask -TaskName 'OCDI_Backup_Diario' -Confirm:$false -ErrorAction SilentlyContinue; ^
+$action   = New-ScheduledTaskAction -Execute '%PYTHON_EXE%' -Argument '\"%SCRIPT%\"'; ^
+$trigger  = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '16:00'; ^
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew; ^
+Register-ScheduledTask -TaskName 'OCDI_Backup_Diario' -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force | Out-Null; ^
+Write-Host 'OK'"
 
 if %ERRORLEVEL% == 0 (
     echo.
     echo Tarea programada creada exitosamente.
-    echo    Nombre  : OCDI_Backup_Diario
-    echo    Horario : Lunes a Viernes a las 4:00 PM
-    echo    Script  : %SCRIPT%
-    echo    Destino : G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO
-    echo              \Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI
+    echo    Nombre   : OCDI_Backup_Diario
+    echo    Horario  : Lunes a Viernes a las 4:00 PM
+    echo    Recupera : Si el PC estaba apagado, ejecuta al encender
+    echo    Script   : %SCRIPT%
     echo.
-    echo Puedes verificarla en: Panel de control ^> Herramientas administrativas
-    echo                        ^> Programador de tareas
+    echo Puedes verificarla en:
+    echo   Panel de control ^> Herramientas administrativas ^> Programador de tareas
 ) else (
     echo.
-    echo ERROR al crear la tarea. Intentando con privilegios elevados...
-    echo Ejecuta este archivo como Administrador si el error persiste.
+    echo ERROR al crear la tarea.
+    echo Ejecuta este archivo como Administrador (clic derecho ^> Ejecutar como administrador).
 )
 echo.
 pause

@@ -79,6 +79,7 @@
 
         <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
             <a href="/backup/zip" class="btn-backup-zip">📦 Descargar Backup Completo (.zip)</a>
+            <a href="/backup/restauracion" class="btn-backup-zip">🔄 Guía de Restauración</a>
             {% if current_user and current_user.rol in ('admin','jefe') %}
             <a href="/admin/usuarios" class="btn-backup-zip">👥 Usuarios y Permisos</a>
             {% endif %}

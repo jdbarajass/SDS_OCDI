@@ -1,0 +1,3 @@
+# Dependencias solo para desarrollo/tests — no se instalan en el PC servidor
+-r requirements.txt
+pytest>=8.0

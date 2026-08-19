@@ -7,9 +7,60 @@ from datetime import date
 from app.database import get_db
 from app.auth_utils import tpl
 from app.routers.backup import backup_necesario
+from app.routers.expedientes import _enriquecer as _enriquecer_expediente
+from app.routers.sdqs import _calcular_semaforo_sdqs
+from app.routers.correspondencia import _calcular_semaforo_row
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
+
+_UMBRAL_DIAS = 3
+
+
+def _contar_vencimientos_proximos(conn) -> dict:
+    """
+    Cuenta cuántos casos activos vencen en <= _UMBRAL_DIAS días (o ya vencieron),
+    reutilizando los mismos cálculos que usan la Lista/Dashboard/Reporte de cada
+    módulo, para que el banner nunca diverja de lo que se ve en pantalla.
+    """
+    n_exp = 0
+    for row in conn.execute("SELECT * FROM expedientes").fetchall():
+        exp = _enriquecer_expediente(dict(row))
+        alertas = (exp.get("alerta_ind"), exp.get("alerta_inv"),
+                   exp.get("alerta_prescripcion"), exp.get("alerta_prorroga"))
+        if any(a and a.get("dias") is not None and a["dias"] <= _UMBRAL_DIAS for a in alertas):
+            n_exp += 1
+
+    n_sdqs = 0
+    hoy = date.today()
+    for row in conn.execute("SELECT * FROM sdqs WHERE rad_salida IS NULL OR rad_salida = ''").fetchall():
+        reg = _calcular_semaforo_sdqs(dict(row))
+        fv = reg.get("fecha_vencimiento")
+        if not fv:
+            continue
+        try:
+            dias_restantes = (date.fromisoformat(str(fv)[:10]) - hoy).days
+        except ValueError:
+            continue
+        if dias_restantes <= _UMBRAL_DIAS:
+            n_sdqs += 1
+
+    n_corr = 0
+    for row in conn.execute("""
+        SELECT * FROM correspondencia
+        WHERE fecha_radicado_salida IS NULL OR fecha_radicado_salida = ''
+    """).fetchall():
+        reg = _calcular_semaforo_row(dict(row))
+        if reg.get("termino_dias"):
+            if reg.get("dias_restantes") is not None and reg["dias_restantes"] <= _UMBRAL_DIAS:
+                n_corr += 1
+        elif reg.get("semaforo") == "roja":
+            n_corr += 1
+
+    return {
+        "expedientes": n_exp, "sdqs": n_sdqs, "correspondencia": n_corr,
+        "total": n_exp + n_sdqs + n_corr,
+    }
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -42,6 +93,8 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
         AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9
     """).fetchone()[0]
 
+    vencimientos_proximos = _contar_vencimientos_proximos(conn)
+
     conn.close()
 
     necesita_bk, ultimo_bk = backup_necesario()
@@ -63,4 +116,5 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
         ultimo_backup=ultimo_bk,
         es_dia_reporte=es_dia_reporte,
         nombre_dia=nombre_dia,
+        vencimientos_proximos=vencimientos_proximos,
     ))

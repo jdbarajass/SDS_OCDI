@@ -199,6 +199,9 @@
           {% if r.pendiente %}
           <br><span title="Sin fecha de salida — pendiente de respuesta" style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;font-weight:700;letter-spacing:.3px">PEND</span>
           {% endif %}
+          {% if r.pendiente and not r.termino_dias %}
+          <br><span title="⚠️ No tiene Término definido — el semáforo usa estimación genérica de 5/8 días. Define el plazo real para un control preciso." style="font-size:9px;background:#fce7f3;color:#9d174d;border-radius:3px;padding:1px 4px;font-weight:700;letter-spacing:.3px;cursor:help">⚠️ Sin plazo</span>
+          {% endif %}
         </td>
 
         <td style="white-space:nowrap">{{ r.mes or '—' }}</td>

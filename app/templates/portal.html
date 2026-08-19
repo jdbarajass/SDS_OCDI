@@ -87,6 +87,15 @@
         </div>
     </div>
 
+    <!-- ══ BÚSQUEDA GLOBAL ══ -->
+    <form method="get" action="/buscar" style="max-width:520px;width:100%;margin:0 auto 20px;display:flex;gap:8px">
+        <input type="text" name="q" placeholder="🔍 Buscar por número, radicado o nombre…"
+               style="flex:1;padding:12px 16px;font-size:14px;border-radius:8px;border:none;outline:none">
+        <button type="submit" style="padding:12px 20px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
+            Buscar
+        </button>
+    </form>
+
     <!-- ══ BANNER REPORTE VENCIMIENTOS (martes y jueves) ══ -->
     {% if es_dia_reporte %}
     <div style="background:linear-gradient(90deg,#7f1d1d,#dc2626);color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.25);flex-wrap:wrap">

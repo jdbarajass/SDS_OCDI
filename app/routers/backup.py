@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pathlib import Path
 from app.template_utils import make_templates
 from datetime import date
+import asyncio
 import io
 import zipfile
 
@@ -14,6 +15,21 @@ _MOD = "backup"
 
 router = APIRouter(prefix="/backup")
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
+
+_APP_DIR          = Path(__file__).resolve().parent.parent.parent
+_ULTIMO_BACKUP    = _APP_DIR / "data" / "ultimo_backup.txt"
+
+
+def backup_necesario() -> tuple[bool, str]:
+    """True si hoy (Lun-Vie) no se ha hecho backup. Devuelve (necesario, fecha_ultimo)."""
+    hoy = date.today()
+    if hoy.weekday() >= 5:  # sábado=5, domingo=6
+        return False, ""
+    try:
+        ultimo = _ULTIMO_BACKUP.read_text(encoding="utf-8").strip()
+    except Exception:
+        ultimo = ""
+    return (ultimo != hoy.isoformat()), ultimo
 
 
 def _v(val):
@@ -57,6 +73,23 @@ async def backup_home(request: Request, msg: str = ""):
 @router.get("/restauracion", response_class=HTMLResponse)
 async def backup_restauracion(request: Request):
     return templates.TemplateResponse("restauracion.html", {"request": request})
+
+
+# ── Ejecutar backup desde la plataforma ───────────────────────────────────────
+
+@router.post("/ejecutar")
+async def backup_ejecutar(request: Request):
+    import sys, importlib.util
+    spec = importlib.util.spec_from_file_location("backup_diario", _APP_DIR / "backup_diario.py")
+    mod  = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    loop = asyncio.get_event_loop()
+    ok, mensaje = await loop.run_in_executor(None, mod.hacer_backup)
+
+    estado = "ok" if ok else "error"
+    import urllib.parse
+    return RedirectResponse(f"/?backup={estado}&msg={urllib.parse.quote(mensaje)}", status_code=303)
 
 
 # ── Exportar Excel completo (3 hojas) ─────────────────────────────────────────

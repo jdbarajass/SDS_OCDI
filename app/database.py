@@ -308,6 +308,35 @@ CREATE TABLE IF NOT EXISTS prestamos_equipos (
 );
 """
 
+# Índices — ejecutados al final de init_db(), después de que todas las
+# migraciones ALTER TABLE hayan corrido. CREATE INDEX IF NOT EXISTS es
+# idempotente, no necesita try/except.
+INDEXES = """
+CREATE INDEX IF NOT EXISTS ix_sesiones_token ON sesiones(token);
+
+CREATE INDEX IF NOT EXISTS ix_expedientes_n_expediente ON expedientes(n_expediente);
+CREATE INDEX IF NOT EXISTS ix_expedientes_anio ON expedientes(anio);
+CREATE INDEX IF NOT EXISTS ix_expedientes_etapa_actual ON expedientes(etapa_actual);
+CREATE INDEX IF NOT EXISTS ix_expedientes_estado_proceso ON expedientes(estado_proceso);
+
+CREATE INDEX IF NOT EXISTS ix_sdqs_fecha_vencimiento ON sdqs(fecha_vencimiento);
+
+CREATE INDEX IF NOT EXISTS ix_correspondencia_n_radicado ON correspondencia(n_radicado);
+CREATE INDEX IF NOT EXISTS ix_correspondencia_responsable ON correspondencia(responsable);
+CREATE INDEX IF NOT EXISTS ix_correspondencia_anio ON correspondencia(anio);
+CREATE INDEX IF NOT EXISTS ix_corr_radicados_salida_corr_id ON correspondencia_radicados_salida(correspondencia_id);
+
+CREATE INDEX IF NOT EXISTS ix_exp_digitales_n_expediente ON exp_digitales(n_expediente);
+CREATE INDEX IF NOT EXISTS ix_exp_digitales_anio ON exp_digitales(anio);
+CREATE INDEX IF NOT EXISTS ix_exp_comunicaciones_exp_digital_id ON exp_comunicaciones(exp_digital_id);
+
+CREATE INDEX IF NOT EXISTS ix_control_autos_abogado ON control_autos_sustanciacion(abogado_responsable);
+
+CREATE INDEX IF NOT EXISTS ix_sala_agenda_fecha ON sala_agenda(fecha);
+
+CREATE INDEX IF NOT EXISTS ix_logs_actividad_modulo_created ON logs_actividad(modulo, created_at);
+"""
+
 
 def get_db():
     DB_PATH.parent.mkdir(exist_ok=True)
@@ -575,6 +604,8 @@ def init_db():
     # Datos demo (solo si la tabla de expedientes está vacía)
     if conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0] == 0:
         _seed_expedientes_demo(conn)
+
+    conn.executescript(INDEXES)
 
     conn.commit()
     conn.close()

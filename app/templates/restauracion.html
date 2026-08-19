@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Restauración — OCDI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background: linear-gradient(135deg, #0d3060 0%, #1B4F8A 60%, #2e6da4 100%); min-height: 100vh; }
+        .rs-wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 60px; }
+
+        .rs-topbar { display:flex; align-items:center; gap:16px; margin-bottom:28px; }
+        .rs-back {
+            display:inline-flex; align-items:center; gap:6px;
+            background:rgba(255,255,255,.15); color:#fff;
+            padding:7px 16px; border-radius:6px; font-size:13px; font-weight:600;
+            text-decoration:none; transition:background .15s;
+        }
+        .rs-back:hover { background:rgba(255,255,255,.25); text-decoration:none; }
+        .rs-title { color:#fff; font-size:22px; font-weight:800; }
+        .rs-sub   { color:rgba(255,255,255,.7); font-size:13px; margin-top:2px; }
+
+        .rs-card {
+            background:#fff; border-radius:12px;
+            box-shadow:0 8px 32px rgba(0,0,0,.2);
+            padding:26px 32px; margin-bottom:18px;
+        }
+        .rs-card-title {
+            font-size:16px; font-weight:800; color:#0d3060;
+            display:flex; align-items:center; gap:10px; margin-bottom:14px;
+            border-bottom:2px solid #e9ecef; padding-bottom:10px;
+        }
+        .rs-step-num {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:30px; height:30px; border-radius:50%;
+            background:#1B4F8A; color:#fff; font-size:14px; font-weight:800;
+            flex-shrink:0;
+        }
+
+        .rs-list { margin:0; padding-left:0; list-style:none; }
+        .rs-list li {
+            padding:8px 0 8px 22px; border-bottom:1px solid #f1f3f5;
+            font-size:13.5px; color:#374151; line-height:1.6;
+            position:relative;
+        }
+        .rs-list li:last-child { border-bottom:none; }
+        .rs-list li::before { content:"›"; position:absolute; left:6px; color:#1B4F8A; font-weight:700; }
+
+        .rs-code {
+            background:#1e293b; color:#e2e8f0; border-radius:8px;
+            padding:14px 18px; font-family:monospace; font-size:13px;
+            line-height:1.6; margin:12px 0; overflow-x:auto;
+            white-space:pre;
+        }
+
+        .rs-path {
+            background:#f0f7ff; border:1px solid #bfdbfe; border-left:4px solid #1B4F8A;
+            border-radius:6px; padding:10px 14px; font-family:monospace;
+            font-size:12.5px; color:#1e3a5f; margin:10px 0; word-break:break-all;
+        }
+
+        .rs-warning {
+            background:#fff3cd; border:1px solid #ffc107; border-left:5px solid #f59e0b;
+            border-radius:8px; padding:13px 16px; margin:12px 0;
+            font-size:13px; color:#856404; line-height:1.6;
+        }
+
+        .rs-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+        .rs-table th { background:#f1f5f9; color:#0d3060; font-weight:700; padding:9px 14px; text-align:left; border-bottom:2px solid #dee2e6; }
+        .rs-table td { padding:9px 14px; border-bottom:1px solid #f1f3f5; color:#374151; vertical-align:top; }
+        .rs-table tr:last-child td { border-bottom:none; }
+
+        .rs-chip-ok   { display:inline-block; background:#d1fae5; color:#065f46; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+
+        .rs-zip-contents {
+            background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;
+            padding:14px 18px; margin:10px 0; font-size:13px;
+        }
+        .rs-zip-contents .zf { display:flex; align-items:center; gap:10px; padding:5px 0; }
+        .rs-zip-contents .zf-icon { font-size:18px; flex-shrink:0; }
+        .rs-zip-contents .zf-name { font-family:monospace; font-weight:700; color:#1B4F8A; }
+        .rs-zip-contents .zf-desc { font-size:12px; color:#6c757d; }
+
+        .rs-banner-auto {
+            background:linear-gradient(90deg, #0d3060, #1B4F8A);
+            color:#fff; border-radius:10px; padding:16px 22px;
+            display:flex; align-items:center; gap:14px; margin-bottom:18px;
+        }
+        .rs-banner-auto .ba-icon { font-size:32px; }
+        .rs-banner-auto .ba-text { font-size:13.5px; line-height:1.6; }
+        .rs-banner-auto strong { font-size:15px; display:block; margin-bottom:2px; }
+    </style>
+</head>
+<body>
+<div class="rs-wrap">
+
+    <!-- Barra superior -->
+    <div class="rs-topbar">
+        <a href="/backup" class="rs-back">← Volver al Backup</a>
+        <div>
+            <div class="rs-title">🔄 Guía de Restauración del Sistema</div>
+            <div class="rs-sub">Pasos para recuperar el sistema en caso de falla o cambio de equipo</div>
+        </div>
+    </div>
+
+    <!-- Banner backup automático -->
+    <div class="rs-banner-auto">
+        <div class="ba-icon">🕓</div>
+        <div class="ba-text">
+            <strong>Backup automático activo</strong>
+            El sistema crea una copia de seguridad automáticamente de <strong>lunes a viernes a las 4:00 PM</strong>
+            en Google Drive. Se conservan los últimos 30 backups.
+        </div>
+    </div>
+
+    <!-- Paso 0: Prerrequisitos -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">0</span>
+            Requisitos previos (instalar en el PC nuevo)
+        </div>
+        <ul class="rs-list">
+            <li><strong>Python 3.10 o superior</strong> — en python.org/downloads — marcar ✅ "Add Python to PATH" durante la instalación</li>
+            <li><strong>Git</strong> — en git-scm.com/download/win</li>
+            <li><strong>Google Drive para escritorio</strong> — en drive.google.com/drive/download — iniciar sesión con la cuenta de la oficina para que monte la unidad <code>G:</code></li>
+        </ul>
+    </div>
+
+    <!-- Paso 1: Código fuente -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">1</span>
+            Obtener el código fuente
+        </div>
+        <p style="font-size:13px;color:#374151;margin-bottom:10px;">
+            Abre una terminal (CMD o PowerShell) y ejecuta:
+        </p>
+        <div class="rs-code">git clone https://github.com/jdbarajass/SDS_OCDI.git
+cd SDS_OCDI</div>
+    </div>
+
+    <!-- Paso 2: Dependencias -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">2</span>
+            Instalar dependencias
+        </div>
+        <div class="rs-code">pip install -r requirements.txt</div>
+    </div>
+
+    <!-- Paso 3: Restaurar datos -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">3</span>
+            Restaurar la base de datos y archivos de referencia
+        </div>
+
+        <p style="font-size:13px;color:#374151;margin:0 0 10px;">
+            <strong>3.1</strong> — Abre esta carpeta en Google Drive y ordena por fecha (más reciente primero):
+        </p>
+        <div class="rs-path">G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO\Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI\</div>
+
+        <p style="font-size:13px;color:#374151;margin:14px 0 8px;">
+            <strong>3.2</strong> — Cada archivo ZIP contiene:
+        </p>
+        <div class="rs-zip-contents">
+            <div class="zf"><span class="zf-icon">🗄️</span><div><div class="zf-name">ocdi.db</div><div class="zf-desc">Base de datos completa — expedientes, SDQS, correspondencia, sala, autos, usuarios</div></div></div>
+            <div class="zf"><span class="zf-icon">📄</span><div><div class="zf-name">Tipologias_Json.txt</div><div class="zf-desc">Catálogo de tipologías disciplinarias</div></div></div>
+            <div class="zf"><span class="zf-icon">📄</span><div><div class="zf-name">EntidadesDependencias_Json.txt</div><div class="zf-desc">Catálogo de entidades y dependencias</div></div></div>
+        </div>
+
+        <div class="rs-warning">
+            ⚠️ <strong>Descomprime el ZIP más reciente</strong> y copia los tres archivos según se indica abajo.
+        </div>
+
+        <p style="font-size:13px;color:#374151;margin:12px 0 6px;">
+            <strong>3.3</strong> — Copia <code>ocdi.db</code> a la carpeta <code>data\</code> del proyecto:
+        </p>
+        <div class="rs-code">SDS_OCDI\data\ocdi.db</div>
+        <p style="font-size:12px;color:#6c757d;margin:4px 0 12px;">Si la carpeta <code>data\</code> no existe: <code>mkdir data</code></p>
+
+        <p style="font-size:13px;color:#374151;margin:12px 0 6px;">
+            <strong>3.4</strong> — Copia los archivos JSON a la raíz del proyecto:
+        </p>
+        <div class="rs-code">SDS_OCDI\Tipologias_Json.txt
+SDS_OCDI\EntidadesDependencias_Json.txt</div>
+    </div>
+
+    <!-- Paso 4: Arrancar servidor -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">4</span>
+            Arrancar el servidor
+        </div>
+        <div class="rs-code">python -m uvicorn app.main:app --host 0.0.0.0 --port 8000</div>
+        <p style="font-size:13px;color:#374151;margin:10px 0 4px;">
+            Abre el navegador en: <strong><a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a></strong>
+        </p>
+        <p style="font-size:12px;color:#6c757d;">
+            Para acceso desde otros equipos en la red: <code>http://192.168.X.X:8000</code> (usa la IP local del nuevo PC)
+        </p>
+    </div>
+
+    <!-- Paso 5: Reactivar backup -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            <span class="rs-step-num">5</span>
+            Reactivar el backup automático
+        </div>
+        <ul class="rs-list">
+            <li>Haz doble clic en <strong>configurar_tarea_backup.bat</strong> (en la raíz del proyecto)</li>
+            <li>El backup volverá a correr automáticamente de <strong>lunes a viernes a las 4:00 PM</strong></li>
+        </ul>
+    </div>
+
+    <!-- Verificación -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            ✅ Verificación rápida
+        </div>
+        <table class="rs-table">
+            <thead>
+                <tr><th>Qué revisar</th><th>Cómo</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>La app arranca</td><td>Abre <a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a> — debe mostrar el portal OCDI</td></tr>
+                <tr><td>Los datos están</td><td>Entra a <strong>Base Expedientes</strong> y verifica que aparezcan los registros</td></tr>
+                <tr><td>Los usuarios están</td><td>Cierra sesión e inicia con tu usuario habitual</td></tr>
+                <tr><td>El backup funciona</td><td>Ejecuta <strong>ejecutar_backup.bat</strong> manualmente — debe crear un <code>.zip</code> en la carpeta de Google Drive</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Credenciales por defecto -->
+    <div class="rs-card">
+        <div class="rs-card-title">
+            🔑 Credenciales de acceso
+        </div>
+        <p style="font-size:13px;color:#374151;margin:0 0 10px;">
+            Las credenciales están dentro del backup (<code>ocdi.db</code>) — se restauran automáticamente.<br>
+            Usuario administrador por defecto <em>solo si se inicia desde cero sin backup</em>:
+        </p>
+        <ul class="rs-list">
+            <li><strong>Usuario:</strong> admin</li>
+            <li><strong>Contraseña:</strong> admin123</li>
+        </ul>
+    </div>
+
+</div>
+</body>
+</html>

@@ -52,6 +52,13 @@ async def backup_home(request: Request, msg: str = ""):
     })
 
 
+# ── Página de restauración ────────────────────────────────────────────────────
+
+@router.get("/restauracion", response_class=HTMLResponse)
+async def backup_restauracion(request: Request):
+    return templates.TemplateResponse("restauracion.html", {"request": request})
+
+
 # ── Exportar Excel completo (3 hojas) ─────────────────────────────────────────
 
 @router.get("/exportar")

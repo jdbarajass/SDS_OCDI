@@ -1,0 +1,35 @@
+{# Historial de cambios de un registro — incluir con {% include "_historial.html" %}
+   cuando el contexto trae `historial` (lista de dicts: nombre_usuario, rol, accion,
+   detalle, created_at). Reutiliza logs_actividad vía historial_registro(). #}
+{% if historial %}
+<div class="card" style="margin-top:20px">
+    <h3 style="font-size:14px;font-weight:800;color:#334155;margin-bottom:10px">🕓 Historial de cambios</h3>
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead>
+                <tr style="background:#f1f5f9;text-align:left">
+                    <th style="padding:6px 10px">Fecha</th>
+                    <th style="padding:6px 10px">Usuario</th>
+                    <th style="padding:6px 10px">Acción</th>
+                    <th style="padding:6px 10px">Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historial %}
+                <tr style="border-top:1px solid #e2e8f0">
+                    <td style="padding:6px 10px;white-space:nowrap">{{ h.created_at | fmt_fecha }}</td>
+                    <td style="padding:6px 10px">{{ h.nombre_usuario }}{% if h.rol %} <span style="color:#94a3b8">({{ h.rol }})</span>{% endif %}</td>
+                    <td style="padding:6px 10px">
+                        {% if h.accion|upper == 'CREAR' %}<span style="color:#047857;font-weight:700">🆕 Creado</span>
+                        {% elif h.accion|upper == 'EDITAR' %}<span style="color:#b45309;font-weight:700">✏️ Editado</span>
+                        {% elif h.accion|upper == 'ELIMINAR' %}<span style="color:#b91c1c;font-weight:700">🗑️ Eliminado</span>
+                        {% else %}{{ h.accion }}{% endif %}
+                    </td>
+                    <td style="padding:6px 10px;color:#64748b">{{ h.detalle or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}

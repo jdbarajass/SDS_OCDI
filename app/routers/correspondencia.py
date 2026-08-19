@@ -8,7 +8,7 @@ import io
 from urllib.parse import quote_plus as _quote_plus
 
 from app.database import get_db, get_personal_oficina
-from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
 
 _MOD = "correspondencia"
 
@@ -509,7 +509,7 @@ async def nuevo_post(
     conn.commit()
     conn.close()
     registrar_log(user, "crear", _MOD, f"Oficio #{new_id} — {_v(n_radicado)}",
-                  request.client.host if request.client else None)
+                  request.client.host if request.client else None, registro_id=new_id)
     return RedirectResponse(f"/correspondencia/{new_id}/editar?msg=creado", status_code=303)
 
 
@@ -1237,6 +1237,7 @@ async def ver(request: Request, reg_id: int, back: str = "", msg: str = ""):
         "SELECT * FROM correspondencia_radicados_salida WHERE correspondencia_id=? ORDER BY id",
         (reg_id,),
     ).fetchall()
+    historial = historial_registro(conn, _MOD, reg_id)
     conn.close()
     reg = _calcular_semaforo_row(dict(row))
     return templates.TemplateResponse("corr_detalle.html", tpl(request, _MOD,
@@ -1244,6 +1245,7 @@ async def ver(request: Request, reg_id: int, back: str = "", msg: str = ""):
         radicados=[dict(r) for r in radicados],
         back=back or "/correspondencia/",
         msg=msg,
+        historial=historial,
     ))
 
 
@@ -1322,7 +1324,7 @@ async def editar_post(
     conn.commit()
     conn.close()
     registrar_log(user, "editar", _MOD, f"Oficio #{reg_id} — {_v(n_radicado)}",
-                  request.client.host if request.client else None)
+                  request.client.host if request.client else None, registro_id=reg_id)
     return RedirectResponse(f"/correspondencia/{reg_id}/editar?msg=actualizado", status_code=303)
 
 
@@ -1336,7 +1338,7 @@ async def eliminar(request: Request, reg_id: int):
     conn.commit()
     conn.close()
     registrar_log(user, "eliminar", _MOD, f"Oficio #{reg_id}",
-                  request.client.host if request.client else None)
+                  request.client.host if request.client else None, registro_id=reg_id)
     return RedirectResponse("/correspondencia/?msg=eliminado", status_code=303)
 
 

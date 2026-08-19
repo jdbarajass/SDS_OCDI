@@ -335,6 +335,7 @@ CREATE INDEX IF NOT EXISTS ix_control_autos_abogado ON control_autos_sustanciaci
 CREATE INDEX IF NOT EXISTS ix_sala_agenda_fecha ON sala_agenda(fecha);
 
 CREATE INDEX IF NOT EXISTS ix_logs_actividad_modulo_created ON logs_actividad(modulo, created_at);
+CREATE INDEX IF NOT EXISTS ix_logs_actividad_modulo_registro ON logs_actividad(modulo, registro_id);
 """
 
 
@@ -397,6 +398,10 @@ def init_db():
         pass
     try:
         conn.execute("ALTER TABLE permisos_modulo ADD COLUMN puede_importar INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE logs_actividad ADD COLUMN registro_id INTEGER")
     except Exception:
         pass
     # Migrar corr_responsables a nombres completos oficiales

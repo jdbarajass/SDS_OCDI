@@ -6,7 +6,7 @@ from datetime import date, datetime
 import io
 
 from app.database import get_db, row_to_dict, get_personal_oficina
-from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
 
 _MOD = "sdqs"
 
@@ -203,8 +203,9 @@ async def nuevo_post(
 
     import sqlite3 as _sqlite3
     conn = get_db()
+    new_id = None
     try:
-        conn.execute(
+        cur = conn.execute(
             """INSERT INTO sdqs
                (mes, fecha_asignacion, sdqs, url_sdqs, fecha_vencimiento, quejoso, correo, tema,
                 competencia_ocdi, bpm, responsable, rad_salida, url_rad_salida,
@@ -222,12 +223,13 @@ async def nuevo_post(
              user.get("nombre_completo") if user else None),
         )
         conn.commit()
+        new_id = cur.lastrowid
     except _sqlite3.IntegrityError:
         conn.rollback()
         return RedirectResponse("/sdqs/nuevo?msg=error_sdqs_duplicado", status_code=303)
     finally:
         conn.close()
-    registrar_log(user, "crear", _MOD, f"SDQS: {sdqs_num}")
+    registrar_log(user, "crear", _MOD, f"SDQS: {sdqs_num}", registro_id=new_id)
     return RedirectResponse("/sdqs/?msg=creado", status_code=303)
 
 
@@ -390,9 +392,11 @@ async def ver(request: Request, id: int, msg: str = ""):
     conn = get_db()
     row = conn.execute("SELECT * FROM sdqs WHERE id = ?", (id,)).fetchone()
     abogados = get_personal_oficina(conn)
-    conn.close()
     if not row:
+        conn.close()
         return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
+    historial = historial_registro(conn, _MOD, id)
+    conn.close()
     registro = _calcular_semaforo_sdqs(row_to_dict(row))
     return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
         modo="ver",
@@ -401,6 +405,7 @@ async def ver(request: Request, id: int, msg: str = ""):
         abogados=abogados,
         estados=ESTADOS_PROCESO,
         msg=msg,
+        historial=historial,
     ))
 
 
@@ -473,7 +478,7 @@ async def editar_post(
     )
     conn.commit()
     conn.close()
-    registrar_log(user, "editar", _MOD, f"ID: {id}")
+    registrar_log(user, "editar", _MOD, f"ID: {id}", registro_id=id)
     return RedirectResponse(f"/sdqs/{id}?msg=actualizado", status_code=303)
 
 
@@ -488,7 +493,7 @@ async def eliminar(request: Request, id: int):
     conn.execute("DELETE FROM sdqs WHERE id = ?", (id,))
     conn.commit()
     conn.close()
-    registrar_log(user, "eliminar", _MOD, f"ID: {id}")
+    registrar_log(user, "eliminar", _MOD, f"ID: {id}", registro_id=id)
     return RedirectResponse("/sdqs/?msg=eliminado", status_code=303)
 
 

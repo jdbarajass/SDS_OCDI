@@ -7,7 +7,7 @@ import io
 
 from urllib.parse import quote_plus as _quote_plus
 from app.database import get_db
-from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log
+from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
 
 _MOD = "digitales"
 
@@ -301,6 +301,7 @@ async def nuevo_post(
     conn.commit()
     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
+    registrar_log(user, "crear", _MOD, f"Expediente digital {_texto(n_expediente) or new_id}", registro_id=new_id)
     return RedirectResponse(f"/digitales/{new_id}?msg=creado", status_code=303)
 
 
@@ -856,6 +857,7 @@ async def detalle(request: Request, exp_id: int, msg: str = "", back: str = ""):
         "SELECT * FROM exp_revisiones WHERE exp_digital_id = ? ORDER BY fecha_revision DESC",
         (exp_id,)
     ).fetchall()
+    historial = historial_registro(conn, _MOD, exp_id)
     conn.close()
     return templates.TemplateResponse("digitales_detalle.html", {
         "request": request,
@@ -865,6 +867,7 @@ async def detalle(request: Request, exp_id: int, msg: str = "", back: str = ""):
         "revisiones": [dict(r) for r in revisiones],
         "msg": msg,
         "back": back,
+        "historial": historial,
     })
 
 
@@ -943,6 +946,7 @@ async def editar_post(
     ))
     conn.commit()
     conn.close()
+    registrar_log(user, "editar", _MOD, f"Expediente digital {_texto(n_expediente) or exp_id}", registro_id=exp_id)
     return RedirectResponse(f"/digitales/{exp_id}?msg=actualizado", status_code=303)
 
 
@@ -958,6 +962,7 @@ async def eliminar(request: Request, exp_id: int):
         conn.execute("DELETE FROM exp_digitales WHERE id = ?", (exp_id,))
         conn.commit()
         conn.close()
+        registrar_log(user, "eliminar", _MOD, f"Expediente digital {n}", registro_id=exp_id)
         return RedirectResponse(f"/digitales/?msg=eliminado_{n}", status_code=303)
     conn.close()
     return RedirectResponse("/digitales/?msg=no_encontrado", status_code=303)

@@ -7,7 +7,7 @@ import io
 import re
 
 from app.database import get_db, get_personal_oficina
-from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
 
 _MOD = "control_autos"
 
@@ -195,7 +195,7 @@ async def ca_nuevo_post(
     if not _pw(user, _MOD):
         return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    conn.execute(
+    cur = conn.execute(
         """INSERT INTO control_autos_sustanciacion
            (expediente, numero_auto, fecha_auto, asunto_auto, abogado_responsable, observaciones, created_by)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -209,10 +209,11 @@ async def ca_nuevo_post(
             created_by.strip() or None,
         ],
     )
+    new_id = cur.lastrowid
     conn.commit()
     conn.close()
     registrar_log(user, "crear", _MOD, f"Auto #{numero_auto} — {expediente}",
-                  request.client.host if request.client else None)
+                  request.client.host if request.client else None, registro_id=new_id)
     return RedirectResponse("/control-autos/?msg=creado", status_code=303)
 
 
@@ -507,9 +508,10 @@ async def ca_detalle(request: Request, reg_id: int, msg: str = ""):
         return RedirectResponse("/control-autos/?msg=no_encontrado")
     reg_dict = dict(reg)
     reg_dict["expediente_existe"] = _expediente_reconocido(conn, reg_dict.get("expediente"))
+    historial = historial_registro(conn, _MOD, reg_id)
     conn.close()
     return templates.TemplateResponse("ca_detalle.html", tpl(request, _MOD,
-        reg=reg_dict, msg=msg, active="ca_lista",
+        reg=reg_dict, msg=msg, active="ca_lista", historial=historial,
     ))
 
 
@@ -568,6 +570,7 @@ async def ca_editar_post(
     )
     conn.commit()
     conn.close()
+    registrar_log(user, "editar", _MOD, f"Auto #{numero_auto or reg_id} — {expediente}", registro_id=reg_id)
     return RedirectResponse(f"/control-autos/{reg_id}?msg=actualizado", status_code=303)
 
 
@@ -583,5 +586,5 @@ async def ca_eliminar(request: Request, reg_id: int):
     conn.commit()
     conn.close()
     registrar_log(user, "eliminar", _MOD, f"Auto #{reg_id}",
-                  request.client.host if request.client else None)
+                  request.client.host if request.client else None, registro_id=reg_id)
     return RedirectResponse("/control-autos/?msg=eliminado", status_code=303)

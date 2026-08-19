@@ -180,4 +180,6 @@
 <div style="margin-top:20px;font-size:11px;color:var(--text-muted)">
   Registrado: {{ reg.created_at | fmt_fecha or '—' }} &nbsp;·&nbsp; Actualizado: {{ reg.updated_at | fmt_fecha or '—' }}
 </div>
+
+{% include "_historial.html" %}
 {% endblock %}

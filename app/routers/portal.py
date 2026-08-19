@@ -19,10 +19,10 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
     total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
     total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
 
-    hoy = date.today().isoformat()
+    hoy = date.today()
     prox_sala = conn.execute(
         "SELECT fecha, franja, titulo, estado FROM sala_agenda WHERE fecha >= ? ORDER BY fecha, franja LIMIT 1",
-        (hoy,)
+        (hoy.isoformat(),)
     ).fetchone()
 
     total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]

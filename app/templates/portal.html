@@ -86,6 +86,44 @@
         </div>
     </div>
 
+    <!-- ══ BANNER BACKUP ══ -->
+    {% if backup_estado == 'ok' %}
+    <div style="background:linear-gradient(90deg,#065f46,#047857);color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)">
+        <span style="font-size:28px">✅</span>
+        <div>
+            <div style="font-weight:800;font-size:15px">Backup completado correctamente</div>
+            <div style="font-size:12px;opacity:.85;margin-top:2px">Los datos quedaron guardados en Google Drive y se sincronizarán automáticamente.</div>
+        </div>
+    </div>
+    {% elif backup_estado == 'error' %}
+    <div style="background:linear-gradient(90deg,#7f1d1d,#b91c1c);color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)">
+        <span style="font-size:28px">⚠️</span>
+        <div>
+            <div style="font-weight:800;font-size:15px">Error al hacer el backup</div>
+            <div style="font-size:12px;opacity:.9;margin-top:2px">Verifica que Google Drive esté abierto y la unidad G: esté disponible, luego intenta de nuevo.</div>
+        </div>
+    </div>
+    {% elif necesita_backup %}
+    <div style="background:linear-gradient(90deg,#78350f,#d97706);color:#fff;border-radius:10px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.25);flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-size:28px">💾</span>
+            <div>
+                <div style="font-weight:800;font-size:15px">Backup pendiente para hoy</div>
+                <div style="font-size:12px;opacity:.9;margin-top:2px">
+                    {% if ultimo_backup %}Último backup: {{ ultimo_backup }}{% else %}Aún no se ha realizado ningún backup{% endif %}
+                </div>
+            </div>
+        </div>
+        <form method="post" action="/backup/ejecutar" style="margin:0">
+            <button type="submit"
+                onclick="this.disabled=true;this.innerHTML='⏳ Haciendo backup…';this.form.submit()"
+                style="background:#fff;color:#92400e;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)">
+                💾 Hacer backup ahora
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="portal-tiles">
 
         <!-- ══ GRUPO: BASE GENERAL ══ -->

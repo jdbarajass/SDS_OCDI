@@ -6,13 +6,14 @@ from datetime import date
 
 from app.database import get_db
 from app.auth_utils import tpl
+from app.routers.backup import backup_necesario
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
-async def hub(request: Request, msg: str = ""):
+async def hub(request: Request, msg: str = "", backup: str = ""):
     conn = get_db()
 
     total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
@@ -43,6 +44,8 @@ async def hub(request: Request, msg: str = ""):
 
     conn.close()
 
+    necesita_bk, ultimo_bk = backup_necesario()
+
     return templates.TemplateResponse("portal.html", tpl(request, None,
         total_base=total_base, total_digitales=total_digitales,
         prox_sala=dict(prox_sala) if prox_sala else None,
@@ -52,4 +55,7 @@ async def hub(request: Request, msg: str = ""):
         total_prestamos_activos=total_prestamos_activos,
         total_bienes=total_bienes,
         msg=msg,
+        backup_estado=backup,
+        necesita_backup=necesita_bk,
+        ultimo_backup=ultimo_bk,
     ))

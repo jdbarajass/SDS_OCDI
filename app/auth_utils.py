@@ -182,8 +182,11 @@ def registrar_log(
     modulo: str | None = None,
     detalle: str | None = None,
     ip: str | None = None,
+    registro_id: int | None = None,
 ):
-    """Inserta un registro en logs_actividad."""
+    """Inserta un registro en logs_actividad. registro_id (opcional) referencia
+    el id del registro afectado en su tabla de origen — permite construir un
+    historial "qué cambió y cuándo" por registro individual (ver historial_registro)."""
     from app.database import get_db
     conn = get_db()
     nombre = user["nombre_completo"] if user else "Sistema"
@@ -191,9 +194,23 @@ def registrar_log(
     uid = user.get("id") if user else None
     conn.execute(
         """INSERT INTO logs_actividad
-           (user_id, nombre_usuario, rol, accion, modulo, detalle, ip)
-           VALUES (?,?,?,?,?,?,?)""",
-        (uid, nombre, rol, accion, modulo, detalle, ip),
+           (user_id, nombre_usuario, rol, accion, modulo, detalle, ip, registro_id)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (uid, nombre, rol, accion, modulo, detalle, ip, registro_id),
     )
     conn.commit()
     conn.close()
+
+
+def historial_registro(conn, modulo: str, registro_id: int) -> list[dict]:
+    """Devuelve el historial de acciones (crear/editar/eliminar) sobre un registro
+    específico, más reciente primero. Reutiliza logs_actividad — no es una tabla
+    de auditoría nueva."""
+    rows = conn.execute(
+        """SELECT nombre_usuario, rol, accion, detalle, created_at
+           FROM logs_actividad
+           WHERE modulo = ? AND registro_id = ?
+           ORDER BY created_at DESC, id DESC""",
+        (modulo, registro_id),
+    ).fetchall()
+    return [dict(r) for r in rows]

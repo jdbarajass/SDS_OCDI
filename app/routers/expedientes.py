@@ -10,7 +10,7 @@ import io
 import sqlite3
 
 from app.database import get_db, calcular_alerta, row_to_dict
-from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log
+from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
 
 _MOD = "expedientes"
 _ROOT = Path(__file__).parent.parent.parent
@@ -395,16 +395,17 @@ async def nuevo_post(request: Request):
     n_exp = f("n_expediente") or ""
     anio_val = f("anio") or ""
     try:
-        conn.execute(
+        cur = conn.execute(
             f"INSERT INTO expedientes ({', '.join(campos)}, created_by) VALUES ({', '.join(['?']*len(campos))}, ?)",
             vals + [user.get("nombre_completo") if user else None],
         )
         conn.commit()
+        new_id = cur.lastrowid
     except sqlite3.IntegrityError:
         conn.close()
         return RedirectResponse(f"/expedientes?msg=duplicado_{n_exp}_{anio_val}", status_code=303)
     conn.close()
-    registrar_log(user, "CREAR", _MOD, f"Expediente {n_exp}")
+    registrar_log(user, "CREAR", _MOD, f"Expediente {n_exp}", registro_id=new_id)
     return RedirectResponse(f"/expedientes?msg=creado", status_code=303)
 
 
@@ -414,9 +415,11 @@ async def nuevo_post(request: Request):
 async def detalle(request: Request, exp_id: int):
     conn = get_db()
     row = conn.execute("SELECT * FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
-    conn.close()
     if not row:
+        conn.close()
         return RedirectResponse("/expedientes?msg=no_encontrado", status_code=303)
+    historial = historial_registro(conn, _MOD, exp_id)
+    conn.close()
     exp = _enriquecer(dict(row))
     ctx = _ctx_base()
     ctx.update({
@@ -424,6 +427,7 @@ async def detalle(request: Request, exp_id: int):
         "r": exp,
         "modo": "ver",
         "active": "lista",
+        "historial": historial,
     })
     return templates.TemplateResponse("form.html", ctx)
 
@@ -502,7 +506,7 @@ async def editar_post(request: Request, exp_id: int):
         conn.close()
         return RedirectResponse(f"/expedientes?msg=duplicado_{n_exp}_{anio_val}", status_code=303)
     conn.close()
-    registrar_log(user, "EDITAR", _MOD, f"Expediente {n_exp}")
+    registrar_log(user, "EDITAR", _MOD, f"Expediente {n_exp}", registro_id=exp_id)
     return RedirectResponse(f"/expedientes?msg=actualizado", status_code=303)
 
 
@@ -519,7 +523,7 @@ async def eliminar(request: Request, exp_id: int):
     conn.execute("DELETE FROM expedientes WHERE id = ?", (exp_id,))
     conn.commit()
     conn.close()
-    registrar_log(user, "ELIMINAR", _MOD, f"Expediente {n_exp}")
+    registrar_log(user, "ELIMINAR", _MOD, f"Expediente {n_exp}", registro_id=exp_id)
     return RedirectResponse(f"/expedientes?msg=eliminado_{n_exp}", status_code=303)
 
 

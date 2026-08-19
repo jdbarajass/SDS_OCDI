@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar — OCDI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        body { background: #f1f5f9; }
+        .buscar-wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
+        .buscar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        .buscar-titulo { font-size: 22px; font-weight: 800; color: #0d3060; }
+        .buscar-form { display: flex; gap: 10px; margin-bottom: 28px; }
+        .buscar-form input[type=text] {
+            flex: 1; padding: 12px 16px; font-size: 14px; border: 1px solid #cbd5e1;
+            border-radius: 8px; outline: none;
+        }
+        .buscar-form input[type=text]:focus { border-color: #1B4F8A; }
+        .buscar-grupo { margin-bottom: 22px; }
+        .buscar-grupo h3 {
+            font-size: 13px; font-weight: 800; color: #334155; text-transform: uppercase;
+            letter-spacing: .04em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+        }
+        .buscar-item {
+            display: block; padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 8px; margin-bottom: 8px; text-decoration: none; color: inherit;
+            transition: border-color .12s, box-shadow .12s;
+        }
+        .buscar-item:hover { border-color: #1B4F8A; box-shadow: 0 2px 10px rgba(0,0,0,.06); text-decoration: none; }
+        .buscar-item-titulo { font-weight: 700; color: #0d3060; font-size: 13.5px; }
+        .buscar-item-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .buscar-vacio { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="buscar-wrap">
+    <div class="buscar-header">
+        <div class="buscar-titulo">🔍 Búsqueda global</div>
+        <a href="/" class="btn btn-secondary">← Volver al portal</a>
+    </div>
+
+    <form class="buscar-form" method="get" action="/buscar">
+        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por número de expediente, SDQS, radicado o nombre…" autofocus>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+
+    {% if q and q|length < 2 %}
+    <div class="buscar-vacio">Escribe al menos 2 caracteres para buscar.</div>
+    {% elif q and total == 0 %}
+    <div class="buscar-vacio">Sin resultados para "<strong>{{ q }}</strong>".</div>
+    {% elif not q %}
+    <div class="buscar-vacio">Busca por número de expediente, SDQS, radicado de correspondencia o nombre de investigado/quejoso.</div>
+    {% endif %}
+
+    {% if resultados.expedientes %}
+    <div class="buscar-grupo">
+        <h3>📁 Base Expedientes ({{ resultados.expedientes | length }})</h3>
+        {% for r in resultados.expedientes %}
+        <a class="buscar-item" href="/expediente/{{ r.id }}">
+            <div class="buscar-item-titulo">Expediente {{ r.n_expediente }}{% if r.anio %} / {{ r.anio }}{% endif %}</div>
+            <div class="buscar-item-sub">{{ r.nombre_investigado or 'Sin investigado' }} — {{ r.quejoso or 'Sin quejoso' }}{% if r.etapa_actual %} · {{ r.etapa_actual }}{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resultados.sdqs %}
+    <div class="buscar-grupo">
+        <h3>📩 SDQS ({{ resultados.sdqs | length }})</h3>
+        {% for r in resultados.sdqs %}
+        <a class="buscar-item" href="/sdqs/{{ r.id }}">
+            <div class="buscar-item-titulo">SDQS {{ r.sdqs }}</div>
+            <div class="buscar-item-sub">{{ r.quejoso or 'Sin quejoso' }}{% if r.tema %} · {{ r.tema }}{% endif %}{% if r.mes %} · {{ r.mes }}{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resultados.correspondencia %}
+    <div class="buscar-grupo">
+        <h3>📋 Correspondencia ({{ resultados.correspondencia | length }})</h3>
+        {% for r in resultados.correspondencia %}
+        <a class="buscar-item" href="/correspondencia/{{ r.id }}">
+            <div class="buscar-item-titulo">Radicado {{ r.n_radicado or '—' }}{% if r.anio %} / {{ r.anio }}{% endif %}</div>
+            <div class="buscar-item-sub">{{ r.origen or 'Sin entidad' }}{% if r.asunto %} · {{ r.asunto[:80] }}{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if resultados.digitales %}
+    <div class="buscar-grupo">
+        <h3>💻 Exp. Digitales ({{ resultados.digitales | length }})</h3>
+        {% for r in resultados.digitales %}
+        <a class="buscar-item" href="/digitales/{{ r.id }}">
+            <div class="buscar-item-titulo">Expediente {{ r.n_expediente }}{% if r.anio %} / {{ r.anio }}{% endif %}</div>
+            <div class="buscar-item-sub">{{ r.abogado or 'Sin asignar' }}{% if r.etapa %} · {{ r.etapa }}{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

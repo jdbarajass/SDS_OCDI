@@ -1,6 +1,7 @@
 # Guía de Restauración — Sistema OCDI
 
 > Sigue estos pasos exactamente en caso de que el PC falle o necesites instalar el sistema en un equipo nuevo.
+> Esta misma guía está disponible dentro del sistema en: **http://localhost:8000/backup/restauracion**
 
 ---
 
@@ -37,18 +38,29 @@ pip install -r requirements.txt
 
 ---
 
-## Paso 3 — Restaurar la base de datos
+## Paso 3 — Restaurar la base de datos y archivos de referencia
 
 1. Abre la carpeta de backups en Google Drive:
    ```
-   G:\Mi unidad\OCDI_Backup\
+   G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO\Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI\
    ```
-2. Ordena los archivos por **fecha de modificación** (más reciente primero)
-3. Copia el archivo más reciente (`ocdi_backup_YYYYMMDD_HHMMSS.db`) a:
+2. Ordena los archivos ZIP por **fecha de modificación** (más reciente primero)
+3. Descomprime el ZIP más reciente (`ocdi_backup_YYYYMMDD_HHMMSS.zip`) — contiene:
+   - `ocdi.db` → base de datos completa
+   - `Tipologias_Json.txt` → catálogo de tipologías
+   - `EntidadesDependencias_Json.txt` → catálogo de entidades
+
+4. Copia `ocdi.db` a la carpeta `data\` del proyecto:
    ```
    SDS_OCDI\data\ocdi.db
    ```
    ⚠️ El archivo debe llamarse exactamente `ocdi.db` (sin fecha).
+
+5. Copia `Tipologias_Json.txt` y `EntidadesDependencias_Json.txt` a la raíz del proyecto:
+   ```
+   SDS_OCDI\Tipologias_Json.txt
+   SDS_OCDI\EntidadesDependencias_Json.txt
+   ```
 
 Si la carpeta `data\` no existe, créala primero:
 ```bash
@@ -74,10 +86,10 @@ http://192.168.X.X:8000
 
 ## Paso 5 — Configurar el backup automático en el nuevo PC
 
-Una vez que el sistema esté funcionando, activa el backup diario:
+Una vez que el sistema esté funcionando, activa el backup automático:
 
 1. Ejecuta (doble clic) → `configurar_tarea_backup.bat`
-2. Desde ese momento el backup correrá todos los días a las 8:00 AM
+2. El backup correrá automáticamente de **lunes a viernes a las 4:00 PM**
 
 ---
 
@@ -87,20 +99,26 @@ Una vez que el sistema esté funcionando, activa el backup diario:
 |---|---|
 | La app arranca | Abre http://localhost:8000 — debe mostrar el portal |
 | Los datos están | Entra a Base Expedientes y revisa que aparezcan los expedientes |
-| El backup funciona | Ejecuta `ejecutar_backup.bat` manualmente y verifica que cree un `.db` en `G:\Mi unidad\OCDI_Backup\` |
+| El backup funciona | Ejecuta `ejecutar_backup.bat` manualmente y verifica que cree un `.zip` en la carpeta de Google Drive |
 
 ---
 
 ## Estructura de backups
 
 ```
-G:\Mi unidad\OCDI_Backup\
-  ocdi_backup_20260819_080000.db   ← más reciente
-  ocdi_backup_20260818_080000.db
-  ocdi_backup_20260817_080000.db
-  ...  (últimos 30 días)
-  backup_log.txt                   ← historial de backups
+G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO\
+  Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI\
+    ocdi_backup_20260819_160000.zip   ← más reciente (contiene ocdi.db + JSONs)
+    ocdi_backup_20260818_160000.zip
+    ocdi_backup_20260815_160000.zip
+    ...  (últimos 30 backups — lunes a viernes)
+    backup_log.txt                    ← historial de backups
 ```
+
+Cada ZIP contiene:
+- `ocdi.db` — snapshot consistente de TODOS los datos de la plataforma
+- `Tipologias_Json.txt` — catálogo de tipologías disciplinarias
+- `EntidadesDependencias_Json.txt` — catálogo de entidades y dependencias
 
 ---
 

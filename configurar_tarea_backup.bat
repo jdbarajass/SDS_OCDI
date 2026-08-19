@@ -6,7 +6,7 @@ echo   CONFIGURAR BACKUP AUTOMATICO DIARIO
 echo   Sistema OCDI
 echo ==========================================
 echo.
-echo Esta tarea ejecutara el backup todos los dias a las 08:00 AM.
+echo Esta tarea ejecutara el backup de lunes a viernes a las 04:00 PM.
 echo La tarea se llamara: OCDI_Backup_Diario
 echo.
 
@@ -16,21 +16,24 @@ set SCRIPT=%APP_DIR%\backup_diario.py
 :: Eliminar la tarea si ya existe (para actualizarla)
 schtasks /delete /tn "OCDI_Backup_Diario" /f >nul 2>&1
 
-:: Crear la tarea programada
+:: Crear la tarea programada (lunes a viernes, 4:00 PM)
 schtasks /create ^
   /tn "OCDI_Backup_Diario" ^
   /tr "python \"%SCRIPT%\"" ^
-  /sc daily ^
-  /st 08:00 ^
+  /sc weekly ^
+  /d MON,TUE,WED,THU,FRI ^
+  /st 16:00 ^
   /ru "%USERNAME%" ^
   /f
 
 if %ERRORLEVEL% == 0 (
     echo.
-    echo ✅ Tarea programada creada exitosamente.
-    echo    Nombre : OCDI_Backup_Diario
-    echo    Horario: Todos los dias a las 08:00 AM
-    echo    Script : %SCRIPT%
+    echo Tarea programada creada exitosamente.
+    echo    Nombre  : OCDI_Backup_Diario
+    echo    Horario : Lunes a Viernes a las 4:00 PM
+    echo    Script  : %SCRIPT%
+    echo    Destino : G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO
+    echo              \Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI
     echo.
     echo Puedes verificarla en: Panel de control ^> Herramientas administrativas
     echo                        ^> Programador de tareas

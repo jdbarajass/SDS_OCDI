@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).parent
 app = FastAPI(
     title="OCDI - Sistema de Gestión Disciplinaria",
     description="Secretaría Distrital de Salud - Oficina de Control Disciplinario Interno",
-    version="3.0.0",
+    version="5.2.0",
 )
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

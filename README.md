@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v3.2** — Última actualización: 2026-04-23
+> **Versión actual: v5.2** — Última actualización: 2026-08-19
 
 ---
 
@@ -311,6 +311,65 @@ Los 7 abogados inician sesión por dropdown (sin contraseña).
 - `app/templates/login.html` — pantalla dual.
 - `app/templates/base_admin.html`, `admin_usuarios.html`, `admin_logs.html`.
 
+### Módulo 7 — SDQS: QUEJAS Y SOLICITUDES (`/sdqs/`)
+
+Módulo para el control de quejas, denuncias y solicitudes ciudadanas (SDQS) recibidas por la oficina, con semáforo de vencimiento basado en `fecha_asignacion` y `fecha_vencimiento`.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Lista de SDQS** — Semáforo 🟢/🟡/🔴 por fila (según proporción de plazo transcurrido y días restantes), filtros por semáforo/responsable/mes/año/texto | ✅ v3 |
+| 2 | **Gestión de SDQS** — Crear, ver, editar, eliminar. Campos: quejoso, correo (opcional), tema, competencia OCDI, BPM, responsable, radicado de salida, observaciones, tipología, valor institucional | ✅ v3 |
+| 3 | **Hipervínculos** — `url_sdqs` y `url_rad_salida` opcionales, se muestran como enlaces clicables | ✅ v3 |
+| 4 | **Importar/Exportar Excel** — 19+ columnas, detección de encabezado tolerante al reordenamiento, upsert por número de SDQS, round-trip completo (exporta e importa sin pérdida de datos) | ✅ v3 |
+| 5 | **Reporte de vencimientos críticos** — Ver Módulo 10 | ✅ |
+| 6 | **Integrado en Backup General** — Hoja SDQS en export/import y en el ZIP | ✅ |
+
+**Regla de negocio — semáforo:** sin `fecha_vencimiento` no hay semáforo (se muestra "Sin plazo definido"). Verde = primera mitad del plazo. Amarillo = segunda mitad, con más de 2 días restantes. Rojo = 2 días o menos, o vencido.
+
+---
+
+### Módulo 8 — HERRAMIENTAS PDF (`/pdf-tools/`)
+
+Utilidades de procesamiento de PDF/Word que corren **100% en local**, sin guardar ningún archivo subido en el servidor ni en la base de datos — se procesan en memoria y se devuelven directamente al navegador.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | Unir varios PDF en uno solo | ✅ |
+| 2 | Extraer páginas específicas | ✅ |
+| 3 | Eliminar páginas específicas | ✅ |
+| 4 | Rotar páginas | ✅ |
+| 5 | Comprimir (niveles: leve/fuerte) | ✅ |
+| 6 | Convertir PDF → Word y Word → PDF | ✅ |
+| 7 | Agregar sello/marca de agua | ✅ |
+
+**Dependencias:** `pypdf`, `PyMuPDF`, `pdf2docx`, `docx2pdf`.
+
+---
+
+### Módulo 9 — PRÉSTAMO DE EQUIPOS Y BIENES MUEBLES (`/equipos/`)
+
+Control de préstamos de equipos de cómputo de la oficina y catálogo de bienes muebles asignados.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Lista de préstamos** — Estado (Prestado/Devuelto), filtros | ✅ |
+| 2 | **CRUD de préstamos** — Crear, ver, editar, marcar devolución, eliminar. Puede vincularse a un bien del catálogo | ✅ |
+| 3 | **Catálogo de bienes muebles** (`/equipos/bienes/lista`) — Placa, serial, marca, modelo, responsable, importar/exportar Excel | ✅ |
+| 4 | **Tile en portal** — Conteo de préstamos activos y total de bienes | ✅ |
+
+---
+
+### Módulo 10 — REPORTES DE VENCIMIENTOS (`/reportes/`)
+
+Reporte Excel de revisión periódica (pensado para martes y jueves — ver banner en el portal) con los casos críticos de Correspondencia y SDQS.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Reporte de vencimientos críticos** (`GET /reportes/vencimientos`) — Excel de 2 hojas: Correspondencia y SDQS, cada una con los registros 🔴 vencidos, 🟡 por vencer y ⚠️ sin plazo/fecha definida, coloreados por fila | ✅ |
+| 2 | **Banner Mar/Jue en el portal** — Recordatorio visual con botón de descarga directa | ✅ |
+
+Reutiliza las mismas funciones de cálculo de semáforo que los módulos de origen (`_calcular_semaforo_row` de Correspondencia y `_calcular_semaforo_sdqs` de SDQS) para que el reporte nunca diverja de lo que se ve en pantalla.
+
 ---
 
 ### Portal Hub (`/`)
@@ -339,11 +398,58 @@ Los 7 abogados inician sesión por dropdown (sin contraseña).
 | 8 | v2.5 — Módulo Control de Autos SDS-CDO-FT-001 + mejoras Correspondencia (3 campos, semáforo dual, URLs) | ✅ | 2026-04-21 |
 | 9 | v3.1 — Sistema completo de autenticación y autorización (login dual, sesiones, permisos por módulo, panel admin, logs) | ✅ | 2026-04-23 |
 | 10 | v3.2 — Formato de fechas DD/MM/YYYY en toda la interfaz | ✅ | 2026-04-23 |
-| 11 | Fase 3 — Pruebas con usuarios reales + ajustes | ⏳ Pendiente | — |
+| 11 | Fase 3 — Pruebas con usuarios reales + ajustes | ✅ En curso desde mayo 2026 | — |
+| 12 | v3.3–v4.15 — Módulo SDQS, Herramientas PDF, formato de fechas, consecutivos y filtros en Control de Autos | ✅ | 2026-04 a 2026-05 |
+| 13 | Auditoría integral del sistema (32 hallazgos, 24 corregidos) — ver `AUDITORIA.md` | ✅ | 2026-06-10 a 2026-06-17 |
+| 14 | v5.0–v5.1 — Módulo Préstamo de Equipos y Bienes Muebles, eliminación de Mundial FIFA (código muerto), N/A en exportadores, mejoras UX (toasts, exportar en tiempo real), backup automático v2 (sqlite3.backup + ZIP + página de restauración), reporte de vencimientos críticos | ✅ | 2026-07 a 2026-08-19 |
+| 15 | v5.2 — Índices de BD, tests de regresión, historial de cambios, papelera de reciclaje, búsqueda global, banner de vencimientos próximos | ✅ | 2026-08-19 |
 
 ---
 
 ### Changelog detallado
+
+#### v5.2 — 2026-08-19
+
+**Mejoras de robustez y funcionalidad (revisión integral del sistema)**
+
+- **Índices en las 26 tablas de la BD** — evita table scans en los filtros de Expedientes/SDQS/Correspondencia/Digitales y en la verificación de sesión de cada request (la consulta más frecuente de todo el sistema).
+- **Tests automatizados** (`tests/`) — cobertura de regresión sobre los cálculos de semáforo y fechas de vencimiento que ya causaron bugs reales documentados en `AUDITORIA.md`, más un smoke test de orden de rutas.
+- **Historial de cambios por registro** — en Expedientes, SDQS, Correspondencia, Digitales y Control de Autos, la vista de detalle muestra quién creó/editó/eliminó el registro y cuándo (reutiliza `logs_actividad`).
+- **Papelera de reciclaje** — en los mismos 5 módulos, "Eliminar" ahora mueve el registro a una papelera restaurable en vez de borrarlo definitivamente. Solo admin/jefe pueden purgar en definitiva.
+- **Búsqueda global** (`/buscar`) — un solo cuadro de búsqueda por número o nombre a través de Expedientes, SDQS, Correspondencia y Digitales.
+- **Banner de vencimientos próximos en el portal** — aviso al entrar si hay indagaciones, investigaciones, SDQS o correspondencia venciendo en los próximos 3 días.
+- Versión de la app en `main.py` y este README alineadas con la realidad del sistema (venían desactualizadas desde v3.2).
+
+---
+
+#### v5.0–v5.1 — 2026-07 a 2026-08-19
+
+- **Nuevo módulo: Préstamo de Equipos y Bienes Muebles** (`/equipos/`) — control de préstamos + catálogo de bienes, importar/exportar Excel.
+- **Eliminación de la Polla Mundial FIFA 2026** — módulo experimental retirado como código muerto (decisión confirmada del usuario, no se revive).
+- **N/A en celdas vacías** en todos los exportadores Excel del sistema (Expedientes, SDQS, Correspondencia, Digitales, Control de Autos, Equipos, Seguimiento, Backup).
+- **Exportar con filtros en tiempo real** — los botones "Exportar Excel" de Control de Autos, SDQS, Expedientes y Seguimiento leen los filtros actuales del formulario en el momento del clic (antes requerían presionar "Filtrar" primero).
+- **Badge PENDIENTE + filtro por Tipo de Respuesta** en Correspondencia.
+- **Sistema de backup automático v2** — `backup_diario.py` reescrito con `sqlite3.backup()` (seguro en modo WAL), ZIP con la BD + catálogos JSON, tarea programada Lunes–Viernes 4PM, página de restauración dentro de la plataforma (`/backup/restauracion`) y banner en el portal cuando el backup del día está pendiente.
+- **Reporte de vencimientos críticos** (`/reportes/vencimientos`) — Excel de Correspondencia + SDQS para revisión Mar/Jue, con banner en el portal.
+
+---
+
+#### Auditoría integral — 2026-06-10 a 2026-06-17
+
+Revisión exhaustiva de los 11 módulos de negocio + arquitectura + barrido de rutas, actuando como auditor senior. **32 hallazgos (H1–H32), 24 corregidos** con cambios de código verificados contra datos reales. Documento completo: [`AUDITORIA.md`](AUDITORIA.md).
+
+Patrones sistémicos corregidos en todo el código: colisión de rutas por orden de registro en FastAPI, Dashboard con cálculo divergente de su propia Lista, rutas de detalle sin propagar mensajes de confirmación. Pendientes de acción manual del usuario (no son bugs de código): corregir un número de auto duplicado en Control de Autos, y revisar ~136 SDQS históricos sin fecha de vencimiento.
+
+---
+
+#### v3.3–v4.15 — 2026-04 a 2026-05
+
+- **Nuevo módulo: SDQS — Quejas y Solicitudes** (`/sdqs/`) con semáforo de vencimiento propio, importar/exportar Excel de 19+ columnas y hipervínculos opcionales.
+- **Nuevo módulo: Herramientas PDF** (`/pdf-tools/`) — unir, extraer, eliminar páginas, rotar, comprimir, convertir PDF↔Word, agregar sello. Procesamiento 100% local, sin almacenamiento de archivos subidos.
+- **Control de Autos** — número de auto consecutivo sugerido automáticamente, lista ordenada por más reciente, exportación con filtros.
+- **Correcciones de datos** — normalización de nombres de auto (ej. "VINCULACIÓN A INVESTIGACIÓN DISCIPLINARIA"), fix de fechas en importador de Expedientes, fix de crash por UNIQUE en SDQS.
+
+---
 
 #### v3.2 — 2026-04-23
 
@@ -548,12 +654,15 @@ SDS_OCDI/
 │   │   ├── dashboard.py                    # /dashboard — métricas BASE 2023U
 │   │   ├── importar.py                     # /importar — cargue masivo Excel BASE
 │   │   ├── seguimiento.py                  # /seguimiento — actuaciones mensuales
-│   │   ├── autos.py                        # /autos — control de autos BASE
 │   │   ├── digitales.py                    # /digitales/* — módulo completo digitales 2025-2026
 │   │   ├── sala.py                         # /sala/* — sala de audiencias
-│   │   ├── backup.py                       # /backup/* — exportar/importar general (4 hojas) + ZIP
+│   │   ├── backup.py                       # /backup/* — exportar/importar general (7 hojas) + ZIP (6 carpetas)
 │   │   ├── correspondencia.py              # /correspondencia/* — lista de reparto abogados
-│   │   └── control_autos.py               # /control-autos/* — autos de sustanciación SDS-CDO-FT-001
+│   │   ├── control_autos.py               # /control-autos/* — autos de sustanciación SDS-CDO-FT-001
+│   │   ├── sdqs.py                         # /sdqs/* — quejas y solicitudes ciudadanas
+│   │   ├── pdf_tools.py                    # /pdf-tools/* — utilidades PDF/Word locales, sin almacenamiento
+│   │   ├── equipos.py                      # /equipos/* — préstamo de equipos + catálogo de bienes muebles
+│   │   └── reportes.py                     # /reportes/vencimientos — reporte Excel de críticos
 │   ├── static/
 │   │   ├── css/style.css                   # Estilos completos (sin dependencias externas)
 │   │   └── js/app.js                       # Lógica de formulario, tabs, escaneos dinámicos
@@ -595,7 +704,13 @@ SDS_OCDI/
 │       ├── ca_lista.html                   # /control-autos/ lista con filtros
 │       ├── ca_form.html                    # Crear/editar auto (encabezado oficial SDS)
 │       ├── ca_detalle.html                 # /control-autos/{id} detalle
-│       └── ca_importar.html               # Importar Excel formato original y exportado
+│       ├── ca_importar.html                # Importar Excel formato original y exportado
+│       ├── base_sdqs.html, sdqs_lista.html, sdqs_form.html, sdqs_importar.html      # Módulo SDQS
+│       ├── base_pdf_tools.html, pdf_tools.html                                     # Módulo Herramientas PDF
+│       ├── base_equipos.html, equipos_lista.html, equipos_form.html,
+│       │   equipos_detalle.html, bienes_lista.html, bienes_importar.html           # Préstamo de Equipos / Bienes
+│       ├── restauracion.html               # /backup/restauracion — guía de recuperación
+│       └── digitales_abogados.html         # Catálogo de abogados de Digitales (editable)
 ├── data/
 │   └── ocdi.db                             # Base de datos SQLite (se crea al iniciar)
 ├── iniciar.bat                             # Script Windows — libera puerto 8000 e inicia
@@ -686,6 +801,10 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 | `python-multipart` | 0.0.9+ | Subida de archivos (importar Excel) |
 | `openpyxl` | 3.1.5 | Leer y generar archivos `.xlsx` con estilos |
 | `aiofiles` | 23.2+ | Servicio de archivos estáticos asíncronos |
+| `pypdf` | 4.0+ | Unir, extraer, eliminar páginas y rotar PDF (Módulo Herramientas PDF) |
+| `PyMuPDF` | 1.23+ | Comprimir PDF y agregar sello/marca de agua |
+| `pdf2docx` | 0.5.6+ | Convertir PDF → Word |
+| `docx2pdf` | 0.1.8+ | Convertir Word → PDF |
 
 ---
 

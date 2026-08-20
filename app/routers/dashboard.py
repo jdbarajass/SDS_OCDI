@@ -26,36 +26,36 @@ async def dashboard(request: Request):
     conn = get_db()
     hoy = date.today().isoformat()
 
-    total = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
 
     por_etapa = [{"etapa": r[0] or "Sin etapa", "cantidad": r[1]}
         for r in conn.execute(
-            "SELECT etapa_actual, COUNT(*) FROM expedientes GROUP BY etapa_actual ORDER BY COUNT(*) DESC"
+            "SELECT etapa_actual, COUNT(*) FROM expedientes WHERE eliminado_en IS NULL GROUP BY etapa_actual ORDER BY COUNT(*) DESC"
         ).fetchall()]
 
     por_estado = [{"estado": r[0] or "Sin estado", "cantidad": r[1]}
         for r in conn.execute(
-            "SELECT estado_proceso, COUNT(*) FROM expedientes GROUP BY estado_proceso ORDER BY COUNT(*) DESC"
+            "SELECT estado_proceso, COUNT(*) FROM expedientes WHERE eliminado_en IS NULL GROUP BY estado_proceso ORDER BY COUNT(*) DESC"
         ).fetchall()]
 
     por_abogado = [{"abogado": r[0] or "Sin asignar", "cantidad": r[1]}
         for r in conn.execute(
-            "SELECT abogado_asignado, COUNT(*) FROM expedientes GROUP BY abogado_asignado ORDER BY COUNT(*) DESC"
+            "SELECT abogado_asignado, COUNT(*) FROM expedientes WHERE eliminado_en IS NULL GROUP BY abogado_asignado ORDER BY COUNT(*) DESC"
         ).fetchall()]
 
     por_anio = [{"anio": r[0] or "Sin año", "cantidad": r[1]}
         for r in conn.execute(
-            "SELECT anio, COUNT(*) FROM expedientes GROUP BY anio ORDER BY anio DESC"
+            "SELECT anio, COUNT(*) FROM expedientes WHERE eliminado_en IS NULL GROUP BY anio ORDER BY anio DESC"
         ).fetchall()]
 
     por_tipologia = [{"tipologia": r[0] or "Sin especificar", "cantidad": r[1]}
         for r in conn.execute(
-            "SELECT tipologia, COUNT(*) FROM expedientes WHERE tipologia IS NOT NULL GROUP BY tipologia ORDER BY COUNT(*) DESC LIMIT 8"
+            "SELECT tipologia, COUNT(*) FROM expedientes WHERE tipologia IS NOT NULL AND eliminado_en IS NULL GROUP BY tipologia ORDER BY COUNT(*) DESC LIMIT 8"
         ).fetchall()]
 
     filas_tendencia = conn.execute("""
         SELECT anio, mes, COUNT(*) as cantidad FROM expedientes
-        WHERE anio IS NOT NULL AND mes IS NOT NULL GROUP BY anio, mes
+        WHERE anio IS NOT NULL AND mes IS NOT NULL AND eliminado_en IS NULL GROUP BY anio, mes
     """).fetchall()
     tendencia_raw = []
     for r in filas_tendencia:
@@ -73,7 +73,9 @@ async def dashboard(request: Request):
     # calcular_alerta), para que "vencidos" signifique exactamente lo mismo en
     # todas las vistas — incluye indagación + investigación + prescripción, y
     # excluye expedientes ya cerrados (AUTO DE ARCHIVO / ACUMULADO / INCORPORADO).
-    todos_enriquecidos = [_enriquecer(dict(r)) for r in conn.execute("SELECT * FROM expedientes").fetchall()]
+    todos_enriquecidos = [_enriquecer(dict(r)) for r in conn.execute(
+        "SELECT * FROM expedientes WHERE eliminado_en IS NULL"
+    ).fetchall()]
 
     def _alertas(e):
         return (e["alerta_ind"], e["alerta_inv"], e["alerta_prescripcion"])
@@ -96,7 +98,7 @@ async def dashboard(request: Request):
     )[:15]
 
     recientes = [row_to_dict(r) for r in conn.execute(
-        "SELECT * FROM expedientes ORDER BY created_at DESC LIMIT 10"
+        "SELECT * FROM expedientes WHERE eliminado_en IS NULL ORDER BY created_at DESC LIMIT 10"
     ).fetchall()]
 
     conn.close()

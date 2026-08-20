@@ -78,7 +78,7 @@ async def lista(
 ):
     conn = get_db()
 
-    filtros = ["1=1"]
+    filtros = ["e.eliminado_en IS NULL"]
     params: list = []
 
     if q.strip():
@@ -142,13 +142,13 @@ async def lista(
     ).fetchall()
 
     abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL ORDER BY abogado"
+        "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL AND eliminado_en IS NULL ORDER BY abogado"
     ).fetchall()]
     etapas_list = [r[0] for r in conn.execute(
-        "SELECT DISTINCT etapa FROM exp_digitales WHERE etapa IS NOT NULL ORDER BY etapa"
+        "SELECT DISTINCT etapa FROM exp_digitales WHERE etapa IS NOT NULL AND eliminado_en IS NULL ORDER BY etapa"
     ).fetchall()]
     anios = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM exp_digitales WHERE anio IS NOT NULL ORDER BY anio DESC"
+        "SELECT DISTINCT anio FROM exp_digitales WHERE anio IS NOT NULL AND eliminado_en IS NULL ORDER BY anio DESC"
     ).fetchall()]
 
     conn.close()
@@ -185,49 +185,55 @@ async def lista(
 async def dashboard(request: Request):
     conn = get_db()
 
-    total = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM exp_digitales WHERE eliminado_en IS NULL").fetchone()[0]
 
     por_etapa = conn.execute("""
         SELECT etapa, COUNT(*) cant FROM exp_digitales
-        WHERE etapa IS NOT NULL GROUP BY etapa ORDER BY cant DESC
+        WHERE etapa IS NOT NULL AND eliminado_en IS NULL GROUP BY etapa ORDER BY cant DESC
     """).fetchall()
 
     por_abogado = conn.execute("""
         SELECT abogado, COUNT(*) cant FROM exp_digitales
-        WHERE abogado IS NOT NULL GROUP BY abogado ORDER BY cant DESC
+        WHERE abogado IS NOT NULL AND eliminado_en IS NULL GROUP BY abogado ORDER BY cant DESC
     """).fetchall()
 
     sin_respuesta = conn.execute("""
-        SELECT COUNT(*) FROM exp_comunicaciones
-        WHERE fecha_respuesta IS NULL OR fecha_respuesta = ''
+        SELECT COUNT(*) FROM exp_comunicaciones c
+        JOIN exp_digitales e ON e.id = c.exp_digital_id
+        WHERE (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '') AND e.eliminado_en IS NULL
     """).fetchone()[0]
 
-    total_coms = conn.execute("SELECT COUNT(*) FROM exp_comunicaciones").fetchone()[0]
+    total_coms = conn.execute("""
+        SELECT COUNT(*) FROM exp_comunicaciones c
+        JOIN exp_digitales e ON e.id = c.exp_digital_id
+        WHERE e.eliminado_en IS NULL
+    """).fetchone()[0]
 
     queja_si = conn.execute(
-        "SELECT COUNT(*) FROM exp_digitales WHERE queja_inicial = 'Sí' OR queja_inicial = 'Si' OR queja_inicial = 'SI'"
+        "SELECT COUNT(*) FROM exp_digitales WHERE (queja_inicial = 'Sí' OR queja_inicial = 'Si' OR queja_inicial = 'SI') AND eliminado_en IS NULL"
     ).fetchone()[0]
 
     por_anio = conn.execute("""
         SELECT anio, COUNT(*) cant FROM exp_digitales
-        WHERE anio IS NOT NULL GROUP BY anio ORDER BY anio DESC
+        WHERE anio IS NOT NULL AND eliminado_en IS NULL GROUP BY anio ORDER BY anio DESC
     """).fetchall()
 
     _dias_base = """
-        (fecha_respuesta IS NULL OR fecha_respuesta = '')
-        AND fecha_envio IS NOT NULL AND fecha_envio != ''
-        AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER)
+        (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
+        AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
+        AND e.eliminado_en IS NULL
+        AND CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER)
     """
     alerta_azul = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones
-        WHERE {_dias_base} >= 8 AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) < 13
+        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
+        WHERE {_dias_base} >= 8 AND CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) < 13
     """).fetchone()[0]
     alerta_amarilla = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones
+        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
         WHERE {_dias_base} = 13
     """).fetchone()[0]
     alerta_roja = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones
+        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
         WHERE {_dias_base} >= 14
     """).fetchone()[0]
 
@@ -416,7 +422,7 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                 anio_int = None
 
             existing = conn.execute(
-                "SELECT id FROM exp_digitales WHERE n_expediente = ? AND anio = ?",
+                "SELECT id FROM exp_digitales WHERE n_expediente = ? AND anio = ? AND eliminado_en IS NULL",
                 (n_exp, anio_int)
             ).fetchone()
 
@@ -518,7 +524,7 @@ async def exportar():
         return RedirectResponse("/digitales/?msg=error_openpyxl")
 
     conn = get_db()
-    exps = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
+    exps = conn.execute("SELECT * FROM exp_digitales WHERE eliminado_en IS NULL ORDER BY anio DESC, n_expediente ASC").fetchall()
     coms = conn.execute(
         "SELECT * FROM exp_comunicaciones ORDER BY exp_digital_id ASC, fecha_envio ASC, id ASC"
     ).fetchall()
@@ -616,7 +622,7 @@ async def comunicaciones_lista(
 ):
     conn = get_db()
 
-    filtros = ["1=1"]
+    filtros = ["e.eliminado_en IS NULL"]
     params: list = []
 
     if sin_respuesta == "1":
@@ -660,7 +666,7 @@ async def comunicaciones_lista(
     """, params).fetchall()
 
     abogados = [r[0] for r in conn.execute(
-        "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL ORDER BY abogado"
+        "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL AND eliminado_en IS NULL ORDER BY abogado"
     ).fetchall()]
 
     conn.close()
@@ -840,6 +846,59 @@ async def abogado_eliminar(request: Request, ab_id: int):
     return RedirectResponse("/digitales/abogados?msg=ab_eliminado", status_code=303)
 
 
+# ── Papelera de reciclaje (también antes de "/{exp_id}") ──────────────────────
+
+@router.get("/papelera", response_class=HTMLResponse)
+async def papelera(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM exp_digitales WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"
+    ).fetchall()
+    conn.close()
+    registros = [{
+        "id": r["id"],
+        "titulo": f"Expediente {r['n_expediente']}" + (f" / {r['anio']}" if r["anio"] else ""),
+        "subtitulo": r["abogado"] or "",
+        "eliminado_en": r["eliminado_en"],
+        "eliminado_por": r["eliminado_por"],
+    } for r in rows]
+    return templates.TemplateResponse("papelera.html", {
+        "request": request, "modulo_nombre": "Exp. Digitales", "prefix": "/digitales",
+        "base_template": "base_digitales.html", "registros": registros,
+        "volver_url": "/digitales/", "active": "papelera", "msg": msg,
+        "current_user": user,
+    })
+
+
+@router.post("/{exp_id}/restaurar")
+async def restaurar(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/digitales/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE exp_digitales SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (exp_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "restaurar", _MOD, f"Expediente digital id={exp_id}", registro_id=exp_id)
+    return RedirectResponse("/digitales/papelera?msg=restaurado", status_code=303)
+
+
+@router.post("/{exp_id}/purgar")
+async def purgar(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not user or user.get("rol") not in ("admin", "jefe"):
+        return RedirectResponse("/digitales/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM exp_digitales WHERE id = ? AND eliminado_en IS NOT NULL", (exp_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "purgar", _MOD, f"Expediente digital id={exp_id} — eliminado definitivamente", registro_id=exp_id)
+    return RedirectResponse("/digitales/papelera?msg=purgado", status_code=303)
+
+
 # ── Detalle  ← /{exp_id} siempre AL FINAL ─────────────────────────────────────
 
 @router.get("/{exp_id}", response_class=HTMLResponse)
@@ -892,6 +951,9 @@ async def editar_form(request: Request, exp_id: int, msg: str = "", back: str = 
     if not exp:
         conn.close()
         return RedirectResponse("/digitales/?msg=no_encontrado")
+    if exp["eliminado_en"]:
+        conn.close()
+        return RedirectResponse("/digitales/papelera?msg=error_en_papelera", status_code=303)
     comunicaciones = conn.execute(
         "SELECT * FROM exp_comunicaciones WHERE exp_digital_id = ? ORDER BY fecha_envio ASC, id ASC",
         (exp_id,)
@@ -937,7 +999,7 @@ async def editar_post(
         UPDATE exp_digitales SET n_expediente=?, anio=?, abogado=?, etapa=?, queja_inicial=?,
             radicado_auto=?, nombre_auto=?, fecha_auto=?, observaciones=?,
             updated_at=datetime('now','localtime')
-        WHERE id=?
+        WHERE id=? AND eliminado_en IS NULL
     """, (
         _texto(n_expediente), int(anio) if anio.strip() else None,
         _texto(abogado), _texto(etapa), queja_inicial or "No",
@@ -959,7 +1021,10 @@ async def eliminar(request: Request, exp_id: int):
     row = conn.execute("SELECT n_expediente FROM exp_digitales WHERE id = ?", (exp_id,)).fetchone()
     if row:
         n = row[0] or str(exp_id)
-        conn.execute("DELETE FROM exp_digitales WHERE id = ?", (exp_id,))
+        conn.execute(
+            "UPDATE exp_digitales SET eliminado_en = datetime('now','localtime'), eliminado_por = ? WHERE id = ?",
+            (user.get("nombre_completo") if user else None, exp_id),
+        )
         conn.commit()
         conn.close()
         registrar_log(user, "eliminar", _MOD, f"Expediente digital {n}", registro_id=exp_id)

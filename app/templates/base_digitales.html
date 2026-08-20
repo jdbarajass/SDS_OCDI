@@ -58,6 +58,10 @@
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>
             </a>
+            <a href="/digitales/papelera" class="nav-link {% if active == 'papelera' %}active{% endif %}">
+                <span class="nav-ico">🗑️</span>
+                <span>Papelera</span>
+            </a>
         </nav>
 
         {% set current_user = request.state.user %}
@@ -104,7 +108,10 @@
             {% elif msg == 'com_creada' %}✅ Comunicación agregada correctamente.
             {% elif msg == 'com_actualizada' %}✅ Comunicación actualizada.
             {% elif msg == 'com_eliminada' %}✅ Comunicación eliminada.
-            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
+            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} movido a la papelera.
+            {% elif msg == 'restaurado' %}✅ Expediente restaurado correctamente.
+            {% elif msg == 'purgado' %}🗑️ Expediente eliminado definitivamente.
+            {% elif msg == 'error_en_papelera' %}⚠️ Ese expediente está en la papelera. Restáurelo primero para poder editarlo.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
             {% elif msg == 'ab_creado' %}✅ Abogado agregado correctamente.
             {% elif msg == 'ab_actualizado' %}✅ Abogado actualizado correctamente.

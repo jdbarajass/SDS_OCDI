@@ -1,0 +1,55 @@
+{% extends base_template %}
+
+{% block title %}Papelera — {{ modulo_nombre }}{% endblock %}
+{% block heading %}🗑️ Papelera — {{ modulo_nombre }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ volver_url }}" class="btn btn-secondary">← Volver a la lista</a>
+{% endblock %}
+
+{% block content %}
+{# El banner de msg (restaurado/purgado/sin_permiso/etc.) ya lo muestra el base_*.html que se extiende. #}
+<div class="card">
+    {% if not registros %}
+    <div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px">
+        La papelera está vacía — no hay registros eliminados en este módulo.
+    </div>
+    {% else %}
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+                <tr style="background:#f1f5f9;text-align:left">
+                    <th style="padding:8px 12px">Registro</th>
+                    <th style="padding:8px 12px">Eliminado</th>
+                    <th style="padding:8px 12px">Por</th>
+                    <th style="padding:8px 12px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in registros %}
+                <tr style="border-top:1px solid #e2e8f0">
+                    <td style="padding:8px 12px">
+                        <div style="font-weight:700;color:#0d3060">{{ r.titulo }}</div>
+                        {% if r.subtitulo %}<div style="font-size:11.5px;color:#64748b">{{ r.subtitulo }}</div>{% endif %}
+                    </td>
+                    <td style="padding:8px 12px;white-space:nowrap">{{ r.eliminado_en | fmt_fecha }}</td>
+                    <td style="padding:8px 12px">{{ r.eliminado_por or '—' }}</td>
+                    <td style="padding:8px 12px;white-space:nowrap">
+                        <form method="post" action="{{ prefix }}/{{ r.id }}/restaurar" style="display:inline">
+                            <button type="submit" class="btn btn-sm btn-ver">♻️ Restaurar</button>
+                        </form>
+                        {% if current_user and current_user.rol in ('admin', 'jefe') %}
+                        <form method="post" action="{{ prefix }}/{{ r.id }}/purgar" style="display:inline"
+                              onsubmit="return confirm('¿Eliminar este registro EN DEFINITIVA? Esta acción no se puede deshacer ni siquiera desde la papelera.')">
+                            <button type="submit" class="btn btn-sm" style="background:#dc2626;color:#fff;border:none">🗑️ Purgar</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

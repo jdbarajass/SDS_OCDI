@@ -38,7 +38,8 @@ async def buscar(request: Request, q: str = ""):
             rows = conn.execute("""
                 SELECT id, n_expediente, anio, nombre_investigado, quejoso, etapa_actual
                 FROM expedientes
-                WHERE n_expediente LIKE ? OR nombre_investigado LIKE ? OR quejoso LIKE ?
+                WHERE eliminado_en IS NULL
+                  AND (n_expediente LIKE ? OR nombre_investigado LIKE ? OR quejoso LIKE ?)
                 ORDER BY id DESC LIMIT ?
             """, (like, like, like, _LIMITE)).fetchall()
             resultados["expedientes"] = [dict(r) for r in rows]
@@ -47,7 +48,8 @@ async def buscar(request: Request, q: str = ""):
             rows = conn.execute("""
                 SELECT id, sdqs, quejoso, tema, mes
                 FROM sdqs
-                WHERE sdqs LIKE ? OR quejoso LIKE ?
+                WHERE eliminado_en IS NULL
+                  AND (sdqs LIKE ? OR quejoso LIKE ?)
                 ORDER BY id DESC LIMIT ?
             """, (like, like, _LIMITE)).fetchall()
             resultados["sdqs"] = [dict(r) for r in rows]
@@ -56,7 +58,8 @@ async def buscar(request: Request, q: str = ""):
             rows = conn.execute("""
                 SELECT id, n_radicado, origen, asunto, anio
                 FROM correspondencia
-                WHERE n_radicado LIKE ? OR origen LIKE ?
+                WHERE eliminado_en IS NULL
+                  AND (n_radicado LIKE ? OR origen LIKE ?)
                 ORDER BY id DESC LIMIT ?
             """, (like, like, _LIMITE)).fetchall()
             resultados["correspondencia"] = [dict(r) for r in rows]
@@ -65,7 +68,7 @@ async def buscar(request: Request, q: str = ""):
             rows = conn.execute("""
                 SELECT id, n_expediente, anio, abogado, etapa
                 FROM exp_digitales
-                WHERE n_expediente LIKE ?
+                WHERE eliminado_en IS NULL AND n_expediente LIKE ?
                 ORDER BY id DESC LIMIT ?
             """, (like, _LIMITE)).fetchall()
             resultados["digitales"] = [dict(r) for r in rows]

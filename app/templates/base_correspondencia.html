@@ -59,6 +59,10 @@
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>
             </a>
+            <a href="/correspondencia/papelera" class="nav-link {% if active == 'papelera' %}active{% endif %}">
+                <span class="nav-ico">🗑️</span>
+                <span>Papelera</span>
+            </a>
 
             <div class="nav-section-label">⚙️ SISTEMA</div>
             <a href="/correspondencia/configurar" class="nav-link {% if active == 'corr_configurar' %}active{% endif %}">
@@ -107,7 +111,7 @@
         <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'duplicado' in msg or 'vacio' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Oficio registrado correctamente.
             {% elif msg == 'actualizado' %}✅ Registro actualizado.
-            {% elif msg == 'eliminado' %}✅ Registro eliminado.
+            {% elif msg == 'eliminado' %}✅ Registro movido a la papelera.
             {% elif msg == 'rad_ok' %}✅ Radicado de salida agregado.
             {% elif msg == 'rad_eliminado' %}✅ Radicado de salida eliminado.
             {% elif msg == 'ok' %}✅ Cambio guardado.
@@ -120,6 +124,9 @@
             {% elif msg == 'error_vacio' %}⚠️ El archivo está vacío.
             {% elif msg == 'error_import' %}❌ Error durante la importación. Los datos no fueron modificados.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'restaurado' %}✅ Registro restaurado correctamente.
+            {% elif msg == 'purgado' %}🗑️ Registro eliminado definitivamente.
+            {% elif msg == 'error_en_papelera' %}⚠️ Ese oficio está en la papelera. Restáurelo primero para poder editarlo.
             {% else %}{{ msg }}
             {% endif %}
         </div>

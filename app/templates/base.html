@@ -63,6 +63,10 @@
                 <span class="nav-ico">📤</span>
                 <span>Exportar Personalizado</span>
             </a>
+            <a href="/expedientes/papelera" class="nav-link {% if active == 'papelera' %}active{% endif %}">
+                <span class="nav-ico">🗑️</span>
+                <span>Papelera</span>
+            </a>
         </nav>
 
         {% set current_user = request.state.user %}
@@ -106,11 +110,14 @@
         <div class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'duplicado' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Expediente creado correctamente.
             {% elif msg == 'actualizado' %}✅ Expediente actualizado correctamente.
-            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} eliminado.
+            {% elif msg.startswith('eliminado_') %}✅ Expediente {{ msg.replace('eliminado_','') }} movido a la papelera.
             {% elif msg == 'no_encontrado' %}⚠️ Expediente no encontrado.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
             {% elif msg == 'error_datos' %}⚠️ Datos inválidos o incompletos — no se guardaron los cambios.
             {% elif msg.startswith('duplicado_') %}⚠️ Ya existe un expediente N. {{ msg.split('_')[1] }} del año {{ msg.split('_')[2] }} — no se guardaron los cambios.
+            {% elif msg == 'error_en_papelera' %}⚠️ Ese expediente está en la papelera. Restáurelo primero para poder editarlo.
+            {% elif msg == 'restaurado' %}✅ Expediente restaurado correctamente.
+            {% elif msg == 'purgado' %}🗑️ Expediente eliminado definitivamente.
             {% else %}{{ msg }}
             {% endif %}
         </div>

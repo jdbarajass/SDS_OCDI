@@ -24,7 +24,7 @@ def _contar_vencimientos_proximos(conn) -> dict:
     módulo, para que el banner nunca diverja de lo que se ve en pantalla.
     """
     n_exp = 0
-    for row in conn.execute("SELECT * FROM expedientes").fetchall():
+    for row in conn.execute("SELECT * FROM expedientes WHERE eliminado_en IS NULL").fetchall():
         exp = _enriquecer_expediente(dict(row))
         alertas = (exp.get("alerta_ind"), exp.get("alerta_inv"),
                    exp.get("alerta_prescripcion"), exp.get("alerta_prorroga"))
@@ -33,7 +33,9 @@ def _contar_vencimientos_proximos(conn) -> dict:
 
     n_sdqs = 0
     hoy = date.today()
-    for row in conn.execute("SELECT * FROM sdqs WHERE rad_salida IS NULL OR rad_salida = ''").fetchall():
+    for row in conn.execute(
+        "SELECT * FROM sdqs WHERE eliminado_en IS NULL AND (rad_salida IS NULL OR rad_salida = '')"
+    ).fetchall():
         reg = _calcular_semaforo_sdqs(dict(row))
         fv = reg.get("fecha_vencimiento")
         if not fv:
@@ -48,7 +50,8 @@ def _contar_vencimientos_proximos(conn) -> dict:
     n_corr = 0
     for row in conn.execute("""
         SELECT * FROM correspondencia
-        WHERE fecha_radicado_salida IS NULL OR fecha_radicado_salida = ''
+        WHERE eliminado_en IS NULL
+          AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '')
     """).fetchall():
         reg = _calcular_semaforo_row(dict(row))
         if reg.get("termino_dias"):
@@ -67,8 +70,8 @@ def _contar_vencimientos_proximos(conn) -> dict:
 async def hub(request: Request, msg: str = "", backup: str = ""):
     conn = get_db()
 
-    total_base      = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
-    total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
+    total_base      = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
+    total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales WHERE eliminado_en IS NULL").fetchone()[0]
 
     hoy = date.today()
     prox_sala = conn.execute(
@@ -76,18 +79,19 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
         (hoy.isoformat(),)
     ).fetchone()
 
-    total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]
-    total_sdqs = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
+    total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion WHERE eliminado_en IS NULL").fetchone()[0]
+    total_sdqs = conn.execute("SELECT COUNT(*) FROM sdqs WHERE eliminado_en IS NULL").fetchone()[0]
 
     total_prestamos_activos = conn.execute(
         "SELECT COUNT(*) FROM prestamos_equipos WHERE estado = 'Prestado'"
     ).fetchone()[0]
     total_bienes = conn.execute("SELECT COUNT(*) FROM bienes_muebles").fetchone()[0]
 
-    total_corr = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
+    total_corr = conn.execute("SELECT COUNT(*) FROM correspondencia WHERE eliminado_en IS NULL").fetchone()[0]
     corr_rojos = conn.execute("""
         SELECT COUNT(*) FROM correspondencia
-        WHERE (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '')
+        WHERE eliminado_en IS NULL
+        AND (fecha_radicado_salida IS NULL OR fecha_radicado_salida = '')
         AND (tipo_respuesta IS NULL OR UPPER(TRIM(tipo_respuesta)) NOT IN ('ANEXO EXPEDIENTE', 'ANEXO AL EXPEDIENTE'))
         AND fecha_ingreso IS NOT NULL
         AND CAST(julianday('now','localtime') - julianday(substr(fecha_ingreso,1,10)) AS INTEGER) >= 9

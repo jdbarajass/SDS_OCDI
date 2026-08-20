@@ -71,7 +71,7 @@ def _expediente_reconocido(conn, expediente: str | None) -> bool | None:
         return None
     n_exp, anio = m.group(1), int(m.group(2))
     row = conn.execute(
-        "SELECT 1 FROM expedientes WHERE CAST(n_expediente AS INTEGER) = ? AND anio = ?",
+        "SELECT 1 FROM expedientes WHERE CAST(n_expediente AS INTEGER) = ? AND anio = ? AND eliminado_en IS NULL",
         (int(n_exp), anio),
     ).fetchone()
     return row is not None
@@ -107,7 +107,7 @@ async def ca_lista(
 ):
     conn = get_db()
 
-    where, params = [], []
+    where, params = ["eliminado_en IS NULL"], []
     if q:
         where.append("(expediente LIKE ? OR numero_auto LIKE ? OR asunto_auto LIKE ? OR abogado_responsable LIKE ?)")
         params += [f"%{q}%"] * 4
@@ -138,7 +138,7 @@ async def ca_lista(
     ).fetchall()
 
     anios = conn.execute(
-        "SELECT DISTINCT strftime('%Y', fecha_auto) AS a FROM control_autos_sustanciacion WHERE fecha_auto IS NOT NULL ORDER BY a DESC"
+        "SELECT DISTINCT strftime('%Y', fecha_auto) AS a FROM control_autos_sustanciacion WHERE fecha_auto IS NOT NULL AND eliminado_en IS NULL ORDER BY a DESC"
     ).fetchall()
     abogados = get_personal_oficina(conn)
     rows_dict = [dict(r) for r in rows]
@@ -257,6 +257,8 @@ async def ca_exportar(
         )
         params.append(tipo_contrato)
 
+    hay_filtros = bool(where)
+    where.append("eliminado_en IS NULL")
     cond = ("WHERE " + " AND ".join(where)) if where else ""
 
     conn = get_db()
@@ -265,8 +267,6 @@ async def ca_exportar(
         params,
     ).fetchall()
     conn.close()
-
-    hay_filtros = bool(where)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -495,6 +495,57 @@ async def ca_importar_post(request: Request, archivo: UploadFile = File(...)):
     return RedirectResponse(f"/control-autos/importar?msg=ok_{count}", status_code=303)
 
 
+# ── Papelera de reciclaje (DEBE ir antes de "/{reg_id}" — ruta estática) ───────
+
+@router.get("/papelera", response_class=HTMLResponse)
+async def papelera(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM control_autos_sustanciacion WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"
+    ).fetchall()
+    conn.close()
+    registros = [{
+        "id": r["id"],
+        "titulo": f"Auto #{r['numero_auto'] or r['id']}" + (f" — {r['expediente']}" if r["expediente"] else ""),
+        "subtitulo": r["abogado_responsable"] or "",
+        "eliminado_en": r["eliminado_en"],
+        "eliminado_por": r["eliminado_por"],
+    } for r in rows]
+    return templates.TemplateResponse("papelera.html", tpl(request, _MOD,
+        modulo_nombre="Control de Autos", prefix="/control-autos", base_template="base_control_autos.html",
+        registros=registros, volver_url="/control-autos/", active="papelera", msg=msg,
+    ))
+
+
+@router.post("/{reg_id}/restaurar")
+async def restaurar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/control-autos/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE control_autos_sustanciacion SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (reg_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "restaurar", _MOD, f"Auto #{reg_id}", registro_id=reg_id)
+    return RedirectResponse("/control-autos/papelera?msg=restaurado", status_code=303)
+
+
+@router.post("/{reg_id}/purgar")
+async def purgar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not user or user.get("rol") not in ("admin", "jefe"):
+        return RedirectResponse("/control-autos/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM control_autos_sustanciacion WHERE id = ? AND eliminado_en IS NOT NULL", (reg_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "purgar", _MOD, f"Auto #{reg_id} — eliminado definitivamente", registro_id=reg_id)
+    return RedirectResponse("/control-autos/papelera?msg=purgado", status_code=303)
+
+
 # ── Detalle ────────────────────────────────────────────────────────────────────
 
 @router.get("/{reg_id}", response_class=HTMLResponse)
@@ -530,6 +581,8 @@ async def ca_editar_form(request: Request, reg_id: int):
     conn.close()
     if not reg:
         return RedirectResponse("/control-autos/?msg=no_encontrado")
+    if reg["eliminado_en"]:
+        return RedirectResponse("/control-autos/papelera?msg=error_en_papelera", status_code=303)
     return templates.TemplateResponse("ca_form.html", tpl(request, _MOD,
         reg=dict(reg), abogados=abogados,
         asuntos=ASUNTOS_COMUNES, active="ca_lista",
@@ -557,7 +610,7 @@ async def ca_editar_post(
            SET expediente=?, numero_auto=?, fecha_auto=?, asunto_auto=?,
                abogado_responsable=?, observaciones=?,
                updated_at=datetime('now','localtime')
-           WHERE id=?""",
+           WHERE id=? AND eliminado_en IS NULL""",
         [
             expediente.strip() or None,
             numero_auto.strip() or None,
@@ -582,7 +635,10 @@ async def ca_eliminar(request: Request, reg_id: int):
     if not _pw(user, _MOD):
         return RedirectResponse("/control-autos/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    conn.execute("DELETE FROM control_autos_sustanciacion WHERE id = ?", (reg_id,))
+    conn.execute(
+        "UPDATE control_autos_sustanciacion SET eliminado_en = datetime('now','localtime'), eliminado_por = ? WHERE id = ?",
+        (user.get("nombre_completo") if user else None, reg_id),
+    )
     conn.commit()
     conn.close()
     registrar_log(user, "eliminar", _MOD, f"Auto #{reg_id}",

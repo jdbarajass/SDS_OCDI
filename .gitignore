@@ -38,6 +38,8 @@ env/
 *.jpeg
 *.png
 !app/static/favicon.png
+!app/static/img/avatar_ocdi.png
+!app/static/img/avatar_ocdi_head.png
 *.gif
 Prompt SDS.txt
 

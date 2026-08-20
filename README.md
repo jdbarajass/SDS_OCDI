@@ -376,8 +376,11 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 
 | # | Funcionalidad | Estado |
 |---|---------------|--------|
-| 1 | **Página de inicio** — 6 tiles clickables con stats en tiempo real para cada módulo, agrupados visualmente | ✅ v2.5 |
-| 2 | **Botón Backup ZIP completo** — Descarga un `.zip` con 5 carpetas (una por módulo), cada una con su Excel actualizado | ✅ v2.5 |
+| 1 | **Sidebar fijo** con los 11 módulos siempre visibles (respeta permisos por usuario), agrupados por uso real: Módulos Disciplinarios / Operación de Oficina / Herramientas y Respaldo / Administración | ✅ v5.2 |
+| 2 | **Panel de bienvenida** — avatar de la oficina + 3 alertas compactas (vencimientos ≤3 días, reporte del día, estado del backup) en vez de banners apilados | ✅ v5.2 |
+| 3 | **Grilla de tarjetas con stats en tiempo real**, hasta 5 columnas en monitores anchos, responsive | ✅ v5.2 |
+| 4 | **Búsqueda global** integrada arriba del panel de bienvenida | ✅ v5.2 |
+| 5 | **Botón Backup ZIP completo** — Descarga un `.zip` con 6 carpetas (una por módulo), cada una con su Excel actualizado | ✅ v2.5 |
 
 ---
 
@@ -427,6 +430,17 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 - Expedientes no tenía la misma protección que SDQS contra crear un número que ya está en la papelera (ambos tienen un índice único). Se igualó el comportamiento: aviso claro en vez de error genérico.
 - SDQS: reimportar un Excel que contenga un número que está en la papelera ahora lo restaura automáticamente, en vez de actualizarlo de forma invisible.
 - Se reemplazaron 5 verificaciones de rol admin/jefe hardcodeadas por la constante compartida ya existente, para que no queden desincronizadas si el modelo de roles cambia.
+
+**Rediseño del portal (`/`, 2026-08-20)**
+
+El portal original apilaba 4 banners grandes antes de mostrar cualquier módulo y usaba tarjetas enormes en una sola columna — la mayoría de usuarios nunca bajaba a ver Sala, Equipos, Herramientas PDF o el juego, y no había ningún aviso de las funciones nuevas (papelera, historial).
+
+- **Sidebar fijo** con todos los módulos siempre visibles (respeta permisos por usuario), agrupados por cómo se usan de verdad: Módulos Disciplinarios / Operación de Oficina / Herramientas y Respaldo / Administración.
+- Los 3 banners de estado se consolidaron en un **panel de bienvenida** con 3 alertas compactas (vencimientos próximos, reporte del día, estado del backup) en vez de bloques apilados.
+- **Grilla de tarjetas de hasta 5 columnas** para aprovechar monitores de 27″, responsive (sidebar deslizable + 1-2 columnas en pantallas angostas).
+- **Escudo original de OCDI** (balanza de la justicia, sin usar marcas registradas) y el **avatar oficial de la oficina** en el header y el panel de bienvenida (`app/static/img/avatar_ocdi.png` y `avatar_ocdi_head.png`).
+- Aviso "Novedades v5.2" señalando la papelera de reciclaje y el historial de cambios, que antes no aparecían en ningún lado del portal.
+- Dirección visual acordada con el usuario mediante dos maquetas de revisión (Artifacts) antes de portar a la plantilla real (`app/templates/portal.html`).
 
 ---
 

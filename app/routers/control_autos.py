@@ -7,7 +7,7 @@ import io
 import re
 
 from app.database import get_db, get_personal_oficina
-from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
 
 _MOD = "control_autos"
 
@@ -453,7 +453,9 @@ async def ca_importar_post(request: Request, archivo: UploadFile = File(...)):
     conn = get_db()
     count = 0
     try:
-        conn.execute("DELETE FROM control_autos_sustanciacion")
+        # No se borran los autos en papelera (eliminado_en IS NOT NULL): un
+        # reimport de Excel no debe anular la papelera de reciclaje.
+        conn.execute("DELETE FROM control_autos_sustanciacion WHERE eliminado_en IS NULL")
         for row in ws.iter_rows(min_row=data_start_row, values_only=True):
             if not any(v for v in row if v is not None):
                 continue
@@ -536,7 +538,7 @@ async def restaurar(request: Request, reg_id: int):
 @router.post("/{reg_id}/purgar")
 async def purgar(request: Request, reg_id: int):
     user = getattr(request.state, "user", None)
-    if not user or user.get("rol") not in ("admin", "jefe"):
+    if not user or user.get("rol") not in ROLES_SUPERUSUARIO:
         return RedirectResponse("/control-autos/papelera?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM control_autos_sustanciacion WHERE id = ? AND eliminado_en IS NOT NULL", (reg_id,))

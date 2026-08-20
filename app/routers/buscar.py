@@ -9,7 +9,7 @@ from pathlib import Path
 
 from app.template_utils import make_templates
 from app.database import get_db
-from app.auth_utils import tpl
+from app.auth_utils import tpl, ROLES_SUPERUSUARIO
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
@@ -19,7 +19,7 @@ _LIMITE = 20
 
 def _puede_ver(request: Request, modulo: str) -> bool:
     user = getattr(request.state, "user", None)
-    if user and user.get("rol") in ("admin", "jefe"):
+    if user and user.get("rol") in ROLES_SUPERUSUARIO:
         return True
     permisos = getattr(request.state, "permisos", {})
     return permisos.get(modulo, {}).get("puede_ver", True)

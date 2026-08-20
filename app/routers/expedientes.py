@@ -394,6 +394,16 @@ async def nuevo_post(request: Request):
 
     n_exp = f("n_expediente") or ""
     anio_val = f("anio") or ""
+
+    if n_exp and anio_val:
+        en_papelera = conn.execute(
+            "SELECT 1 FROM expedientes WHERE n_expediente = ? AND anio = ? AND eliminado_en IS NOT NULL",
+            (n_exp, anio_val),
+        ).fetchone()
+        if en_papelera:
+            conn.close()
+            return RedirectResponse(f"/expedientes/papelera?msg=error_en_papelera_{n_exp}_{anio_val}", status_code=303)
+
     try:
         cur = conn.execute(
             f"INSERT INTO expedientes ({', '.join(campos)}, created_by) VALUES ({', '.join(['?']*len(campos))}, ?)",
@@ -564,8 +574,12 @@ async def restaurar(request: Request, exp_id: int):
     if not _pw(user, _MOD):
         return RedirectResponse("/expedientes/papelera?msg=sin_permiso", status_code=303)
     conn = get_db()
-    conn.execute("UPDATE expedientes SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (exp_id,))
-    conn.commit()
+    try:
+        conn.execute("UPDATE expedientes SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (exp_id,))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return RedirectResponse("/expedientes/papelera?msg=error_duplicado", status_code=303)
     conn.close()
     registrar_log(user, "RESTAURAR", _MOD, f"Expediente id={exp_id}", registro_id=exp_id)
     return RedirectResponse("/expedientes/papelera?msg=restaurado", status_code=303)
@@ -958,7 +972,9 @@ async def importar_post(request: Request):
         JOIN expedientes e ON e.id = sm.expediente_id
     """).fetchall()]
 
-    conn.execute("DELETE FROM expedientes")
+    # No se borran los registros en papelera (eliminado_en IS NOT NULL): un
+    # reimport de Excel no debe anular la papelera de reciclaje.
+    conn.execute("DELETE FROM expedientes WHERE eliminado_en IS NULL")
     count = 0
     nuevo_id_por_clave: dict[tuple, int] = {}
     try:

@@ -6,7 +6,7 @@ from datetime import date, datetime
 import io
 
 from app.database import get_db, row_to_dict, get_personal_oficina
-from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
+from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
 
 _MOD = "sdqs"
 
@@ -396,7 +396,7 @@ async def limpiar(request: Request):
 
 @router.get("/papelera", response_class=HTMLResponse)
 async def papelera(request: Request, msg: str = ""):
-    user = request.state.user
+    user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
     conn = get_db()
@@ -536,14 +536,15 @@ async def eliminar(request: Request, id: int):
 
 @router.post("/{id}/restaurar")
 async def restaurar(request: Request, id: int):
-    user = request.state.user
+    import sqlite3 as _sqlite3
+    user = getattr(request.state, "user", None)
     if not _pw(user, _MOD):
         return RedirectResponse("/sdqs/papelera?msg=sin_permiso", status_code=303)
     conn = get_db()
     try:
         conn.execute("UPDATE sdqs SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (id,))
         conn.commit()
-    except Exception:
+    except _sqlite3.IntegrityError:
         conn.close()
         return RedirectResponse("/sdqs/papelera?msg=error_duplicado", status_code=303)
     conn.close()
@@ -553,8 +554,8 @@ async def restaurar(request: Request, id: int):
 
 @router.post("/{id}/purgar")
 async def purgar(request: Request, id: int):
-    user = request.state.user
-    if not user or user.get("rol") not in ("admin", "jefe"):
+    user = getattr(request.state, "user", None)
+    if not user or user.get("rol") not in ROLES_SUPERUSUARIO:
         return RedirectResponse("/sdqs/papelera?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM sdqs WHERE id = ? AND eliminado_en IS NOT NULL", (id,))
@@ -729,6 +730,7 @@ def _importar_excel_sdqs(archivo_bytes: bytes):
                        hecho_corrupto=excluded.hecho_corrupto,
                        valor_institucional=excluded.valor_institucional,
                        tipologia=excluded.tipologia,
+                       eliminado_en=NULL, eliminado_por=NULL,
                        updated_at=datetime('now','localtime')""",
                 (mes, fa, sdqs_num, url_sdqs_val, fv, quejoso, correo, tema, comp,
                  bpm, responsable, rad_sal, url_rad_sal, f_resp, obs,

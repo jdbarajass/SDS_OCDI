@@ -51,6 +51,10 @@
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>
             </a>
+            <a href="/sdqs/papelera" class="nav-link {% if active == 'papelera' %}active{% endif %}">
+                <span class="nav-ico">🗑️</span>
+                <span>Papelera</span>
+            </a>
         </nav>
 
         {% set current_user = request.state.user %}
@@ -93,11 +97,16 @@
         <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg or 'sin_permiso' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ SDQS registrado correctamente.
             {% elif msg == 'actualizado' %}✅ Registro actualizado.
-            {% elif msg == 'eliminado' %}✅ Registro eliminado.
+            {% elif msg == 'eliminado' %}✅ Registro movido a la papelera.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
             {% elif msg == 'error_archivo' %}⚠️ No se pudo leer el archivo. Verifique que sea un .xlsx válido.
             {% elif msg == 'error_obligatorios' %}⚠️ Complete todos los campos obligatorios.
             {% elif msg == 'error_sdqs_duplicado' %}⚠️ Ya existe un registro con ese número SDQS. Verifique el campo N° SDQS.
+            {% elif msg == 'error_sdqs_en_papelera' %}⚠️ Ese número de SDQS ya existe en la <a href="/sdqs/papelera" style="color:inherit;text-decoration:underline">papelera</a>. Restáurelo o purgue el registro anterior antes de crear uno nuevo con el mismo número.
+            {% elif msg == 'error_en_papelera' %}⚠️ Ese registro está en la papelera. Restáurelo primero para poder editarlo.
+            {% elif msg == 'restaurado' %}✅ Registro restaurado.
+            {% elif msg == 'purgado' %}🗑️ Registro eliminado definitivamente.
+            {% elif msg == 'error_duplicado' %}⚠️ No se pudo restaurar: ya existe un registro activo con ese mismo número.
             {% elif msg == 'no_encontrado' %}⚠️ Registro no encontrado.
             {% elif msg.startswith('importado_') %}✅ Importación completada: {{ msg.replace('importado_','') }} registros cargados.
             {% else %}{{ msg }}

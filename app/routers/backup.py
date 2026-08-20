@@ -47,12 +47,12 @@ def _v(val):
 @router.get("/", response_class=HTMLResponse)
 async def backup_home(request: Request, msg: str = ""):
     conn = get_db()
-    total_base          = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
-    total_digitales     = conn.execute("SELECT COUNT(*) FROM exp_digitales").fetchone()[0]
+    total_base          = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
+    total_digitales     = conn.execute("SELECT COUNT(*) FROM exp_digitales WHERE eliminado_en IS NULL").fetchone()[0]
     total_sala          = conn.execute("SELECT COUNT(*) FROM sala_agenda").fetchone()[0]
-    total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion").fetchone()[0]
-    total_corr          = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
-    total_sdqs          = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
+    total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion WHERE eliminado_en IS NULL").fetchone()[0]
+    total_corr          = conn.execute("SELECT COUNT(*) FROM correspondencia WHERE eliminado_en IS NULL").fetchone()[0]
+    total_sdqs          = conn.execute("SELECT COUNT(*) FROM sdqs WHERE eliminado_en IS NULL").fetchone()[0]
     total_seguimiento   = conn.execute("SELECT COUNT(*) FROM seguimiento_mensual").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("backup.html", {
@@ -103,8 +103,8 @@ async def backup_exportar():
         return RedirectResponse("/backup/?msg=error_openpyxl")
 
     conn = get_db()
-    exps        = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
-    dig_exps    = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
+    exps        = conn.execute("SELECT * FROM expedientes WHERE eliminado_en IS NULL ORDER BY anio, n_expediente").fetchall()
+    dig_exps    = conn.execute("SELECT * FROM exp_digitales WHERE eliminado_en IS NULL ORDER BY anio DESC, n_expediente ASC").fetchall()
     dig_coms    = conn.execute(
         "SELECT * FROM exp_comunicaciones ORDER BY exp_digital_id ASC, fecha_envio ASC, id ASC"
     ).fetchall()
@@ -113,15 +113,16 @@ async def backup_exportar():
     ).fetchall()
     sala        = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
     ctrl_autos  = conn.execute(
-        "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
+        "SELECT * FROM control_autos_sustanciacion WHERE eliminado_en IS NULL ORDER BY fecha_auto ASC, id ASC"
     ).fetchall()
-    sdqs_rows   = conn.execute("SELECT * FROM sdqs ORDER BY fecha_asignacion, id").fetchall()
+    sdqs_rows   = conn.execute("SELECT * FROM sdqs WHERE eliminado_en IS NULL ORDER BY fecha_asignacion, id").fetchall()
     corr_rows   = conn.execute("""
         SELECT c.*,
                GROUP_CONCAT(rs.radicado, ' | ') AS radicados_salida,
                GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        WHERE c.eliminado_en IS NULL
         GROUP BY c.id
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
@@ -130,6 +131,7 @@ async def backup_exportar():
                s.descripcion, s.created_by, s.created_at
         FROM seguimiento_mensual s
         JOIN expedientes e ON e.id = s.expediente_id
+        WHERE e.eliminado_en IS NULL
         ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER)
     """).fetchall()
     conn.close()
@@ -829,8 +831,8 @@ async def backup_zip():
     conn = get_db()
 
     # ── Cargar todos los datos ────────────────────────────────────────────────
-    exps      = conn.execute("SELECT * FROM expedientes ORDER BY anio, n_expediente").fetchall()
-    dig_exps  = conn.execute("SELECT * FROM exp_digitales ORDER BY anio DESC, n_expediente ASC").fetchall()
+    exps      = conn.execute("SELECT * FROM expedientes WHERE eliminado_en IS NULL ORDER BY anio, n_expediente").fetchall()
+    dig_exps  = conn.execute("SELECT * FROM exp_digitales WHERE eliminado_en IS NULL ORDER BY anio DESC, n_expediente ASC").fetchall()
     dig_coms  = conn.execute(
         "SELECT * FROM exp_comunicaciones ORDER BY exp_digital_id ASC, fecha_envio ASC, id ASC"
     ).fetchall()
@@ -839,7 +841,7 @@ async def backup_zip():
     ).fetchall()
     sala         = conn.execute("SELECT * FROM sala_agenda ORDER BY fecha, franja").fetchall()
     ctrl_autos_z = conn.execute(
-        "SELECT * FROM control_autos_sustanciacion ORDER BY fecha_auto ASC, id ASC"
+        "SELECT * FROM control_autos_sustanciacion WHERE eliminado_en IS NULL ORDER BY fecha_auto ASC, id ASC"
     ).fetchall()
     corr_rows_raw = conn.execute("""
         SELECT c.*,
@@ -847,16 +849,18 @@ async def backup_zip():
                GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        WHERE c.eliminado_en IS NULL
         GROUP BY c.id
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
     corr_rows = [_calcular_semaforo_row(dict(r)) for r in corr_rows_raw]
-    sdqs_rows    = conn.execute("SELECT * FROM sdqs ORDER BY fecha_asignacion, id").fetchall()
+    sdqs_rows    = conn.execute("SELECT * FROM sdqs WHERE eliminado_en IS NULL ORDER BY fecha_asignacion, id").fetchall()
     seg_rows     = conn.execute("""
         SELECT s.anio, s.mes, e.n_expediente, e.anio AS exp_anio, e.abogado_asignado,
                s.descripcion, s.created_by, s.created_at
         FROM seguimiento_mensual s
         JOIN expedientes e ON e.id = s.expediente_id
+        WHERE e.eliminado_en IS NULL
         ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER), s.anio DESC,
                  CASE s.mes
                    WHEN 'ENERO' THEN 1 WHEN 'FEBRERO' THEN 2 WHEN 'MARZO' THEN 3

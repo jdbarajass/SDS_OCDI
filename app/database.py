@@ -336,6 +336,12 @@ CREATE INDEX IF NOT EXISTS ix_sala_agenda_fecha ON sala_agenda(fecha);
 
 CREATE INDEX IF NOT EXISTS ix_logs_actividad_modulo_created ON logs_actividad(modulo, created_at);
 CREATE INDEX IF NOT EXISTS ix_logs_actividad_modulo_registro ON logs_actividad(modulo, registro_id);
+
+CREATE INDEX IF NOT EXISTS ix_expedientes_eliminado_en ON expedientes(eliminado_en);
+CREATE INDEX IF NOT EXISTS ix_sdqs_eliminado_en ON sdqs(eliminado_en);
+CREATE INDEX IF NOT EXISTS ix_correspondencia_eliminado_en ON correspondencia(eliminado_en);
+CREATE INDEX IF NOT EXISTS ix_exp_digitales_eliminado_en ON exp_digitales(eliminado_en);
+CREATE INDEX IF NOT EXISTS ix_control_autos_eliminado_en ON control_autos_sustanciacion(eliminado_en);
 """
 
 
@@ -404,6 +410,22 @@ def init_db():
         conn.execute("ALTER TABLE logs_actividad ADD COLUMN registro_id INTEGER")
     except Exception:
         pass
+
+    # Migración: papelera de reciclaje (soft-delete) en los 5 módulos de casos.
+    # "Eliminar" pasa a marcar eliminado_en/eliminado_por en vez de borrar la fila;
+    # todas las consultas de lista/dashboard/export deben excluir eliminado_en IS NOT NULL.
+    for _tabla_papelera in (
+        "expedientes", "sdqs", "correspondencia",
+        "exp_digitales", "control_autos_sustanciacion",
+    ):
+        try:
+            conn.execute(f"ALTER TABLE {_tabla_papelera} ADD COLUMN eliminado_en TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute(f"ALTER TABLE {_tabla_papelera} ADD COLUMN eliminado_por TEXT")
+        except Exception:
+            pass
     # Migrar corr_responsables a nombres completos oficiales
     nombres_completos = [
         "ANDRES EDUARDO SANDOVAL MAYORGA",

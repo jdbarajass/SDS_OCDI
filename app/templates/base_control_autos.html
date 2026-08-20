@@ -51,6 +51,10 @@
                 <span class="nav-ico">📤</span>
                 <span>Exportar Excel</span>
             </a>
+            <a href="/control-autos/papelera" class="nav-link {% if active == 'papelera' %}active{% endif %}">
+                <span class="nav-ico">🗑️</span>
+                <span>Papelera</span>
+            </a>
         </nav>
 
         {% set current_user = request.state.user %}
@@ -93,7 +97,7 @@
         <div id="flash-msg" class="alert alert-{% if 'error' in msg or 'no_encontrado' in msg %}danger{% else %}success{% endif %}">
             {% if msg == 'creado' %}✅ Registro creado correctamente.
             {% elif msg == 'actualizado' %}✅ Registro actualizado.
-            {% elif msg == 'eliminado' %}✅ Registro eliminado.
+            {% elif msg == 'eliminado' %}✅ Registro movido a la papelera.
             {% elif msg == 'no_encontrado' %}⚠️ Registro no encontrado.
             {% elif msg.startswith('ok_') %}✅ Importación completada: {{ msg.replace('ok_','') }} registros cargados.
             {% elif msg == 'error_openpyxl' %}❌ Librería openpyxl no instalada. Ejecute: pip install openpyxl
@@ -101,6 +105,9 @@
             {% elif msg == 'error_vacio' %}⚠️ El archivo está vacío.
             {% elif msg == 'error_import' %}❌ Error durante la importación. Los datos no fueron modificados.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
+            {% elif msg == 'restaurado' %}✅ Registro restaurado correctamente.
+            {% elif msg == 'purgado' %}🗑️ Registro eliminado definitivamente.
+            {% elif msg == 'error_en_papelera' %}⚠️ Ese auto está en la papelera. Restáurelo primero para poder editarlo.
             {% else %}{{ msg }}
             {% endif %}
         </div>

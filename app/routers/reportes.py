@@ -128,6 +128,7 @@ def _build_hoja_correspondencia(wb, hoy: date):
                GROUP_CONCAT(DISTINCT rs.radicado ORDER BY rs.id) AS radicados_concat
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        WHERE c.eliminado_en IS NULL
         GROUP BY c.id
         ORDER BY c.fecha_ingreso ASC
     """).fetchall()
@@ -227,7 +228,7 @@ def _build_hoja_sdqs(wb, hoy: date):
 
     conn = get_db()
     rows_raw = conn.execute("""
-        SELECT * FROM sdqs ORDER BY fecha_asignacion ASC
+        SELECT * FROM sdqs WHERE eliminado_en IS NULL ORDER BY fecha_asignacion ASC
     """).fetchall()
     conn.close()
 

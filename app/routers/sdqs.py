@@ -99,7 +99,7 @@ async def lista(
     msg: str = "",
 ):
     conn = get_db()
-    where, params = ["1=1"], []
+    where, params = ["eliminado_en IS NULL"], []
     if mes:
         where.append("UPPER(mes) = ?")
         params.append(mes.upper())
@@ -120,10 +120,10 @@ async def lista(
     ).fetchall()
 
     meses_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT mes FROM sdqs WHERE mes IS NOT NULL ORDER BY mes"
+        "SELECT DISTINCT mes FROM sdqs WHERE mes IS NOT NULL AND eliminado_en IS NULL ORDER BY mes"
     ).fetchall()]
     responsables_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT responsable FROM sdqs WHERE responsable IS NOT NULL AND responsable != '' ORDER BY responsable"
+        "SELECT DISTINCT responsable FROM sdqs WHERE responsable IS NOT NULL AND responsable != '' AND eliminado_en IS NULL ORDER BY responsable"
     ).fetchall()]
     conn.close()
 
@@ -204,6 +204,13 @@ async def nuevo_post(
     import sqlite3 as _sqlite3
     conn = get_db()
     new_id = None
+    en_papelera = conn.execute(
+        "SELECT 1 FROM sdqs WHERE UPPER(sdqs) = ? AND eliminado_en IS NOT NULL",
+        (sdqs_num.upper(),),
+    ).fetchone()
+    if en_papelera:
+        conn.close()
+        return RedirectResponse("/sdqs/nuevo?msg=error_sdqs_en_papelera", status_code=303)
     try:
         cur = conn.execute(
             """INSERT INTO sdqs
@@ -251,7 +258,7 @@ async def exportar(
         return RedirectResponse("/sdqs/?msg=error_archivo", status_code=303)
 
     conn = get_db()
-    where, params = ["1=1"], []
+    where, params = ["eliminado_en IS NULL"], []
     if mes:
         where.append("UPPER(mes) = ?")
         params.append(mes.upper())
@@ -350,7 +357,7 @@ async def importar_get(request: Request, msg: str = ""):
     if not _pi(user, _MOD):
         return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    total_bd = conn.execute("SELECT COUNT(*) FROM sdqs").fetchone()[0]
+    total_bd = conn.execute("SELECT COUNT(*) FROM sdqs WHERE eliminado_en IS NULL").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("sdqs_importar.html", tpl(request, _MOD,
         total_bd=total_bd,
@@ -383,6 +390,31 @@ async def limpiar(request: Request):
     conn.close()
     registrar_log(user, "limpiar", _MOD, "Tabla SDQS borrada")
     return RedirectResponse("/sdqs/importar?msg=importado_0", status_code=303)
+
+
+# ── Papelera de reciclaje (DEBE ir antes de "/{id}" — ruta estática) ───────────
+
+@router.get("/papelera", response_class=HTMLResponse)
+async def papelera(request: Request, msg: str = ""):
+    user = request.state.user
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM sdqs WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"
+    ).fetchall()
+    conn.close()
+    registros = [{
+        "id": r["id"],
+        "titulo": f"SDQS {r['sdqs']}",
+        "subtitulo": r["quejoso"] or "",
+        "eliminado_en": r["eliminado_en"],
+        "eliminado_por": r["eliminado_por"],
+    } for r in rows]
+    return templates.TemplateResponse("papelera.html", tpl(request, _MOD,
+        modulo_nombre="SDQS", prefix="/sdqs", base_template="base_sdqs.html",
+        registros=registros, volver_url="/sdqs/", active="papelera", msg=msg,
+    ))
 
 
 # ── Ver ───────────────────────────────────────────────────────────────────────
@@ -419,6 +451,8 @@ async def editar_get(request: Request, id: int):
     conn.close()
     if not row:
         return RedirectResponse("/sdqs/?msg=no_encontrado", status_code=303)
+    if row["eliminado_en"]:
+        return RedirectResponse("/sdqs/papelera?msg=error_en_papelera", status_code=303)
     return templates.TemplateResponse("sdqs_form.html", tpl(request, _MOD,
         modo="editar",
         registro=row_to_dict(row),
@@ -466,7 +500,7 @@ async def editar_post(
            observaciones=?, estado_proceso=?, hecho_corrupto=?,
            valor_institucional=?, tipologia=?,
            updated_at=datetime('now','localtime')
-           WHERE id=?""",
+           WHERE id=? AND eliminado_en IS NULL""",
         (mes.upper(), fecha_asignacion, sdqs_num.upper(),
          url_sdqs or None,
          fecha_vencimiento or None,
@@ -490,11 +524,44 @@ async def eliminar(request: Request, id: int):
     if not _pw(user, _MOD):
         return RedirectResponse("/sdqs/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    conn.execute("DELETE FROM sdqs WHERE id = ?", (id,))
+    conn.execute(
+        "UPDATE sdqs SET eliminado_en = datetime('now','localtime'), eliminado_por = ? WHERE id = ?",
+        (user.get("nombre_completo") if user else None, id),
+    )
     conn.commit()
     conn.close()
     registrar_log(user, "eliminar", _MOD, f"ID: {id}", registro_id=id)
     return RedirectResponse("/sdqs/?msg=eliminado", status_code=303)
+
+
+@router.post("/{id}/restaurar")
+async def restaurar(request: Request, id: int):
+    user = request.state.user
+    if not _pw(user, _MOD):
+        return RedirectResponse("/sdqs/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    try:
+        conn.execute("UPDATE sdqs SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (id,))
+        conn.commit()
+    except Exception:
+        conn.close()
+        return RedirectResponse("/sdqs/papelera?msg=error_duplicado", status_code=303)
+    conn.close()
+    registrar_log(user, "RESTAURAR", _MOD, f"ID: {id}", registro_id=id)
+    return RedirectResponse("/sdqs/papelera?msg=restaurado", status_code=303)
+
+
+@router.post("/{id}/purgar")
+async def purgar(request: Request, id: int):
+    user = request.state.user
+    if not user or user.get("rol") not in ("admin", "jefe"):
+        return RedirectResponse("/sdqs/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM sdqs WHERE id = ? AND eliminado_en IS NOT NULL", (id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "PURGAR", _MOD, f"ID: {id} — eliminado definitivamente", registro_id=id)
+    return RedirectResponse("/sdqs/papelera?msg=purgado", status_code=303)
 
 
 # ── Helper de importación Excel ───────────────────────────────────────────────

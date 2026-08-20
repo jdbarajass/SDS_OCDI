@@ -10,7 +10,7 @@ import io
 import sqlite3
 
 from app.database import get_db, calcular_alerta, row_to_dict
-from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
+from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
 
 _MOD = "expedientes"
 _ROOT = Path(__file__).parent.parent.parent
@@ -255,7 +255,7 @@ async def lista_expedientes(
     msg: str = "",
 ):
     conn = get_db()
-    filtros = []
+    filtros = ["eliminado_en IS NULL"]
     params = []
 
     if q:
@@ -296,10 +296,10 @@ async def lista_expedientes(
     ).fetchall()
 
     anios_list = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL AND eliminado_en IS NULL ORDER BY anio DESC"
     ).fetchall()]
     abogados_list = [r[0] for r in conn.execute(
-        "SELECT DISTINCT abogado_asignado FROM expedientes WHERE abogado_asignado IS NOT NULL ORDER BY abogado_asignado"
+        "SELECT DISTINCT abogado_asignado FROM expedientes WHERE abogado_asignado IS NOT NULL AND eliminado_en IS NULL ORDER BY abogado_asignado"
     ).fetchall()]
     conn.close()
 
@@ -441,6 +441,8 @@ async def editar_form(request: Request, exp_id: int):
     conn.close()
     if not row:
         return RedirectResponse("/expedientes?msg=no_encontrado", status_code=303)
+    if row["eliminado_en"]:
+        return RedirectResponse("/expedientes/papelera?msg=error_en_papelera", status_code=303)
     exp = _enriquecer(dict(row))
     ctx = _ctx_base()
     ctx.update({
@@ -498,7 +500,7 @@ async def editar_post(request: Request, exp_id: int):
     conn = get_db()
     try:
         conn.execute(
-            f"UPDATE expedientes SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?",
+            f"UPDATE expedientes SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ? AND eliminado_en IS NULL",
             vals + [exp_id],
         )
         conn.commit()
@@ -520,11 +522,66 @@ async def eliminar(request: Request, exp_id: int):
     conn = get_db()
     row = conn.execute("SELECT n_expediente FROM expedientes WHERE id = ?", (exp_id,)).fetchone()
     n_exp = row["n_expediente"] if row else str(exp_id)
-    conn.execute("DELETE FROM expedientes WHERE id = ?", (exp_id,))
+    conn.execute(
+        "UPDATE expedientes SET eliminado_en = datetime('now','localtime'), eliminado_por = ? WHERE id = ?",
+        (user.get("nombre_completo") if user else None, exp_id),
+    )
     conn.commit()
     conn.close()
     registrar_log(user, "ELIMINAR", _MOD, f"Expediente {n_exp}", registro_id=exp_id)
     return RedirectResponse(f"/expedientes?msg=eliminado_{n_exp}", status_code=303)
+
+
+# ── Papelera de reciclaje ────────────────────────────────────────────────────
+
+@router.get("/expedientes/papelera", response_class=HTMLResponse)
+async def papelera(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM expedientes WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"
+    ).fetchall()
+    conn.close()
+    registros = [{
+        "id": r["id"],
+        "titulo": f"Expediente {r['n_expediente']}" + (f" / {r['anio']}" if r["anio"] else ""),
+        "subtitulo": r["nombre_investigado"] or r["quejoso"] or "",
+        "eliminado_en": r["eliminado_en"],
+        "eliminado_por": r["eliminado_por"],
+    } for r in rows]
+    return templates.TemplateResponse("papelera.html", {
+        "request": request, "modulo_nombre": "Base Expedientes", "prefix": "/expediente",
+        "base_template": "base.html", "registros": registros,
+        "volver_url": "/expedientes", "active": "papelera", "msg": msg,
+    })
+
+
+@router.post("/expediente/{exp_id}/restaurar")
+async def restaurar(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/expedientes/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE expedientes SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (exp_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "RESTAURAR", _MOD, f"Expediente id={exp_id}", registro_id=exp_id)
+    return RedirectResponse("/expedientes/papelera?msg=restaurado", status_code=303)
+
+
+@router.post("/expediente/{exp_id}/purgar")
+async def purgar(request: Request, exp_id: int):
+    user = getattr(request.state, "user", None)
+    if not user or user.get("rol") not in ROLES_SUPERUSUARIO:
+        return RedirectResponse("/expedientes/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM expedientes WHERE id = ? AND eliminado_en IS NOT NULL", (exp_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "PURGAR", _MOD, f"Expediente id={exp_id} — eliminado definitivamente", registro_id=exp_id)
+    return RedirectResponse("/expedientes/papelera?msg=purgado", status_code=303)
 
 
 # ── Exportar — Página de personalización ──────────────────────────────────────
@@ -533,9 +590,9 @@ async def eliminar(request: Request, exp_id: int):
 async def exportar_filtrado_page(request: Request):
     conn = get_db()
     anios_list = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL AND eliminado_en IS NULL ORDER BY anio DESC"
     ).fetchall()]
-    total_preview = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    total_preview = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
     conn.close()
     filtros = {
         "anios": [], "abogados": [], "etapas": [], "estados": [],
@@ -587,7 +644,7 @@ async def exportar_descargar(
         bloques = ["identificacion", "partes", "asunto", "indagacion", "investigacion", "cierre"]
 
     conn = get_db()
-    filtros_sql, params = [], []
+    filtros_sql, params = ["eliminado_en IS NULL"], []
 
     # Filtros simples (compat con lista.html y dashboard)
     if q:
@@ -754,7 +811,7 @@ async def importar_form(request: Request, msg: str = ""):
     if not _pi(user, _MOD):
         return RedirectResponse("/expedientes?msg=sin_permiso", status_code=303)
     conn = get_db()
-    total_bd = conn.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]
+    total_bd = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("importar.html", {
         "request": request,

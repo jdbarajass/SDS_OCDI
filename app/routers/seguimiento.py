@@ -30,7 +30,7 @@ async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q
 
     # Años disponibles (de expedientes en BD)
     anios_rows = conn.execute(
-        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL ORDER BY anio DESC"
+        "SELECT DISTINCT anio FROM expedientes WHERE anio IS NOT NULL AND eliminado_en IS NULL ORDER BY anio DESC"
     ).fetchall()
     anios = [r[0] for r in anios_rows]
     if anio_actual not in anios:
@@ -45,7 +45,7 @@ async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q
     # Abogados disponibles
     ab_rows = conn.execute(
         "SELECT DISTINCT abogado_asignado FROM expedientes "
-        "WHERE abogado_asignado IS NOT NULL AND abogado_asignado != '' "
+        "WHERE abogado_asignado IS NOT NULL AND abogado_asignado != '' AND eliminado_en IS NULL "
         "ORDER BY abogado_asignado"
     ).fetchall()
     abogados = [r[0] for r in ab_rows]
@@ -53,7 +53,7 @@ async def seguimiento_get(request: Request, anio: int = -1, abogado: str = "", q
     # Expedientes filtrados
     sql = (
         "SELECT id, n_expediente, etapa_actual AS etapa, abogado_asignado AS nombre_abogado, anio "
-        "FROM expedientes WHERE 1=1"
+        "FROM expedientes WHERE eliminado_en IS NULL"
     )
     params: list = []
 
@@ -134,7 +134,7 @@ async def seguimiento_guardar(request: Request):
         return RedirectResponse(f"/seguimiento?anio={anio}&msg=error_datos", status_code=302)
 
     conn = get_db()
-    if not conn.execute("SELECT 1 FROM expedientes WHERE id=?", (expediente_id,)).fetchone():
+    if not conn.execute("SELECT 1 FROM expedientes WHERE id=? AND eliminado_en IS NULL", (expediente_id,)).fetchone():
         conn.close()
         return RedirectResponse(f"/seguimiento?anio={anio}&msg=error_datos", status_code=302)
 
@@ -176,7 +176,7 @@ async def seguimiento_exportar(request: Request, anio: int = 0, abogado: str = "
 
     sql = (
         "SELECT id, n_expediente, anio, etapa_actual AS etapa, abogado_asignado AS nombre_abogado "
-        "FROM expedientes WHERE 1=1"
+        "FROM expedientes WHERE eliminado_en IS NULL"
     )
     params: list = []
     if anio != 0:

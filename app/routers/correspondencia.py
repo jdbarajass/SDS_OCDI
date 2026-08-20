@@ -264,7 +264,7 @@ def _calcular_semaforo_row(r: dict) -> dict:
 async def dashboard(request: Request):
     conn = get_db()
 
-    total = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM correspondencia WHERE eliminado_en IS NULL").fetchone()[0]
 
     # Semáforo: misma fuente de verdad que la Lista (_calcular_semaforo_row),
     # incluyendo el plazo legal en días hábiles cuando hay termino_dias.
@@ -272,7 +272,9 @@ async def dashboard(request: Request):
     # (<=5/<=8/>=9) que ignoraba termino_dias por completo — los contadores
     # del Dashboard no coincidían con lo que mostraba la Lista para los
     # oficios que sí tienen plazo legal definido.
-    todas = [_calcular_semaforo_row(dict(r)) for r in conn.execute("SELECT * FROM correspondencia").fetchall()]
+    todas = [_calcular_semaforo_row(dict(r)) for r in conn.execute(
+        "SELECT * FROM correspondencia WHERE eliminado_en IS NULL"
+    ).fetchall()]
 
     stats = {
         "respondidos": sum(1 for d in todas if d.get("semaforo") == "respondido"),
@@ -284,13 +286,13 @@ async def dashboard(request: Request):
     por_responsable = conn.execute("""
         SELECT responsable, COUNT(*) cant,
                SUM(CASE WHEN fecha_radicado_salida IS NOT NULL AND fecha_radicado_salida != '' THEN 1 ELSE 0 END) respondidos
-        FROM correspondencia WHERE responsable IS NOT NULL
+        FROM correspondencia WHERE responsable IS NOT NULL AND eliminado_en IS NULL
         GROUP BY responsable ORDER BY cant DESC LIMIT 15
     """).fetchall()
 
     por_mes = conn.execute("""
         SELECT mes, COUNT(*) cant FROM correspondencia
-        WHERE mes IS NOT NULL GROUP BY mes
+        WHERE mes IS NOT NULL AND eliminado_en IS NULL GROUP BY mes
         ORDER BY CASE mes
             WHEN 'ENERO' THEN 1 WHEN 'FEBRERO' THEN 2 WHEN 'MARZO' THEN 3
             WHEN 'ABRIL' THEN 4 WHEN 'MAYO' THEN 5 WHEN 'JUNIO' THEN 6
@@ -355,7 +357,7 @@ async def lista(
         "SELECT nombre FROM corr_tipos_respuesta ORDER BY rowid"
     ).fetchall()]
 
-    filtros = ["1=1"]
+    filtros = ["c.eliminado_en IS NULL"]
     params: list = []
 
     if q.strip():
@@ -391,13 +393,13 @@ async def lista(
     """, params).fetchall()
 
     anios_bd = [r[0] for r in conn.execute(
-        "SELECT DISTINCT anio FROM correspondencia WHERE anio IS NOT NULL ORDER BY anio DESC"
+        "SELECT DISTINCT anio FROM correspondencia WHERE anio IS NOT NULL AND eliminado_en IS NULL ORDER BY anio DESC"
     ).fetchall()]
 
     dupl_rows = conn.execute("""
         SELECT UPPER(TRIM(n_radicado)) AS nr, COUNT(*) AS cnt
         FROM correspondencia
-        WHERE n_radicado IS NOT NULL AND TRIM(n_radicado) != ''
+        WHERE n_radicado IS NOT NULL AND TRIM(n_radicado) != '' AND eliminado_en IS NULL
         GROUP BY UPPER(TRIM(n_radicado))
         HAVING COUNT(*) > 1
         ORDER BY cnt DESC, nr
@@ -530,6 +532,7 @@ async def exportar():
                GROUP_CONCAT(COALESCE(rs.url, ''), ' | ') AS radicados_urls
         FROM correspondencia c
         LEFT JOIN correspondencia_radicados_salida rs ON rs.correspondencia_id = c.id
+        WHERE c.eliminado_en IS NULL
         GROUP BY c.id
         ORDER BY c.fecha_ingreso DESC
     """).fetchall()
@@ -631,7 +634,7 @@ async def importar_form(request: Request, msg: str = ""):
     if not _pi(user, _MOD):
         return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    total = conn.execute("SELECT COUNT(*) FROM correspondencia").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM correspondencia WHERE eliminado_en IS NULL").fetchone()[0]
     conn.close()
     return templates.TemplateResponse("corr_importar.html", {
         "request": request,
@@ -1201,13 +1204,13 @@ async def verificar_radicado(
     if exclude_id:
         rows = conn.execute(
             "SELECT id, n_radicado, responsable, fecha_ingreso, mes, anio "
-            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ? AND id != ?",
+            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ? AND id != ? AND eliminado_en IS NULL",
             (val, exclude_id),
         ).fetchall()
     else:
         rows = conn.execute(
             "SELECT id, n_radicado, responsable, fecha_ingreso, mes, anio "
-            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ?",
+            "FROM correspondencia WHERE UPPER(TRIM(n_radicado)) = ? AND eliminado_en IS NULL",
             (val,),
         ).fetchall()
     conn.close()
@@ -1222,6 +1225,57 @@ async def verificar_radicado(
         for r in rows
     ]
     return JSONResponse({"existe": len(registros) > 0, "registros": registros})
+
+
+# ── Papelera de reciclaje (DEBE ir antes de "/{reg_id}" — ruta estática) ───────
+
+@router.get("/papelera", response_class=HTMLResponse)
+async def papelera(request: Request, msg: str = ""):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM correspondencia WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"
+    ).fetchall()
+    conn.close()
+    registros = [{
+        "id": r["id"],
+        "titulo": f"Radicado {r['n_radicado'] or '—'}" + (f" / {r['anio']}" if r["anio"] else ""),
+        "subtitulo": r["origen"] or "",
+        "eliminado_en": r["eliminado_en"],
+        "eliminado_por": r["eliminado_por"],
+    } for r in rows]
+    return templates.TemplateResponse("papelera.html", tpl(request, _MOD,
+        modulo_nombre="Correspondencia", prefix="/correspondencia", base_template="base_correspondencia.html",
+        registros=registros, volver_url="/correspondencia/", active="papelera", msg=msg,
+    ))
+
+
+@router.post("/{reg_id}/restaurar")
+async def restaurar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not _pw(user, _MOD):
+        return RedirectResponse("/correspondencia/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("UPDATE correspondencia SET eliminado_en = NULL, eliminado_por = NULL WHERE id = ?", (reg_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "restaurar", _MOD, f"Oficio #{reg_id}", registro_id=reg_id)
+    return RedirectResponse("/correspondencia/papelera?msg=restaurado", status_code=303)
+
+
+@router.post("/{reg_id}/purgar")
+async def purgar(request: Request, reg_id: int):
+    user = getattr(request.state, "user", None)
+    if not user or user.get("rol") not in ("admin", "jefe"):
+        return RedirectResponse("/correspondencia/papelera?msg=sin_permiso", status_code=303)
+    conn = get_db()
+    conn.execute("DELETE FROM correspondencia WHERE id = ? AND eliminado_en IS NOT NULL", (reg_id,))
+    conn.commit()
+    conn.close()
+    registrar_log(user, "purgar", _MOD, f"Oficio #{reg_id} — eliminado definitivamente", registro_id=reg_id)
+    return RedirectResponse("/correspondencia/papelera?msg=purgado", status_code=303)
 
 
 # ── VER / EDITAR / ELIMINAR ────────────────────────────────────────────────────
@@ -1259,6 +1313,9 @@ async def editar_form(request: Request, reg_id: int, msg: str = "", back: str = 
     if not row:
         conn.close()
         return RedirectResponse("/correspondencia/?msg=no_encontrado")
+    if row["eliminado_en"]:
+        conn.close()
+        return RedirectResponse("/correspondencia/papelera?msg=error_en_papelera", status_code=303)
     radicados = conn.execute(
         "SELECT * FROM correspondencia_radicados_salida WHERE correspondencia_id=? ORDER BY id",
         (reg_id,),
@@ -1311,7 +1368,7 @@ async def editar_post(
         tipo_respuesta=?, tramite_salida=?, correo_remitente=?,
         sinproc_personeria=?, tipo_requerimiento=?, termino_dias=?,
         updated_at=datetime('now','localtime')
-        WHERE id=?
+        WHERE id=? AND eliminado_en IS NULL
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado),
         _v(origen).upper() if _v(origen) else None,
@@ -1334,7 +1391,10 @@ async def eliminar(request: Request, reg_id: int):
     if not _pw(user, _MOD):
         return RedirectResponse("/correspondencia/?msg=sin_permiso", status_code=303)
     conn = get_db()
-    conn.execute("DELETE FROM correspondencia WHERE id=?", (reg_id,))
+    conn.execute(
+        "UPDATE correspondencia SET eliminado_en = datetime('now','localtime'), eliminado_por = ? WHERE id=?",
+        (user.get("nombre_completo") if user else None, reg_id),
+    )
     conn.commit()
     conn.close()
     registrar_log(user, "eliminar", _MOD, f"Oficio #{reg_id}",

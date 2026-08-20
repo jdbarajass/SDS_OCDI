@@ -7,7 +7,7 @@ import io
 
 from urllib.parse import quote_plus as _quote_plus
 from app.database import get_db
-from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro
+from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
 
 _MOD = "digitales"
 
@@ -421,8 +421,12 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
             except (ValueError, TypeError):
                 anio_int = None
 
+            # No se excluyen los registros en papelera: exp_digitales no tiene
+            # constraint UNIQUE, así que ignorarlos aquí crearía un duplicado
+            # activo en vez de fusionar las comunicaciones importadas contra
+            # el expediente ya existente (esté o no en la papelera).
             existing = conn.execute(
-                "SELECT id FROM exp_digitales WHERE n_expediente = ? AND anio = ? AND eliminado_en IS NULL",
+                "SELECT id FROM exp_digitales WHERE n_expediente = ? AND anio = ?",
                 (n_exp, anio_int)
             ).fetchone()
 
@@ -889,7 +893,7 @@ async def restaurar(request: Request, exp_id: int):
 @router.post("/{exp_id}/purgar")
 async def purgar(request: Request, exp_id: int):
     user = getattr(request.state, "user", None)
-    if not user or user.get("rol") not in ("admin", "jefe"):
+    if not user or user.get("rol") not in ROLES_SUPERUSUARIO:
         return RedirectResponse("/digitales/papelera?msg=sin_permiso", status_code=303)
     conn = get_db()
     conn.execute("DELETE FROM exp_digitales WHERE id = ? AND eliminado_en IS NOT NULL", (exp_id,))

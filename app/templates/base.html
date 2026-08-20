@@ -116,8 +116,10 @@
             {% elif msg == 'error_datos' %}⚠️ Datos inválidos o incompletos — no se guardaron los cambios.
             {% elif msg.startswith('duplicado_') %}⚠️ Ya existe un expediente N. {{ msg.split('_')[1] }} del año {{ msg.split('_')[2] }} — no se guardaron los cambios.
             {% elif msg == 'error_en_papelera' %}⚠️ Ese expediente está en la papelera. Restáurelo primero para poder editarlo.
+            {% elif msg.startswith('error_en_papelera_') %}⚠️ El expediente N. {{ msg.split('_')[3] }} del año {{ msg.split('_')[4] }} ya existe en la papelera. Restáurelo o purgue el registro anterior antes de crear uno nuevo con ese mismo número.
             {% elif msg == 'restaurado' %}✅ Expediente restaurado correctamente.
             {% elif msg == 'purgado' %}🗑️ Expediente eliminado definitivamente.
+            {% elif msg == 'error_duplicado' %}⚠️ No se pudo restaurar: ya existe un expediente activo con ese mismo número y año.
             {% else %}{{ msg }}
             {% endif %}
         </div>

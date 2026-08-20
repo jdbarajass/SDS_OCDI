@@ -53,7 +53,11 @@ async def backup_home(request: Request, msg: str = ""):
     total_control_autos = conn.execute("SELECT COUNT(*) FROM control_autos_sustanciacion WHERE eliminado_en IS NULL").fetchone()[0]
     total_corr          = conn.execute("SELECT COUNT(*) FROM correspondencia WHERE eliminado_en IS NULL").fetchone()[0]
     total_sdqs          = conn.execute("SELECT COUNT(*) FROM sdqs WHERE eliminado_en IS NULL").fetchone()[0]
-    total_seguimiento   = conn.execute("SELECT COUNT(*) FROM seguimiento_mensual").fetchone()[0]
+    total_seguimiento   = conn.execute("""
+        SELECT COUNT(*) FROM seguimiento_mensual sm
+        JOIN expedientes e ON e.id = sm.expediente_id
+        WHERE e.eliminado_en IS NULL
+    """).fetchone()[0]
     conn.close()
     return templates.TemplateResponse("backup.html", {
         "request": request,

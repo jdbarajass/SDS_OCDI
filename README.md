@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.2** — Última actualización: 2026-08-19
+> **Versión actual: v5.2** — Última actualización: 2026-08-20
 
 ---
 
@@ -402,13 +402,13 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 | 12 | v3.3–v4.15 — Módulo SDQS, Herramientas PDF, formato de fechas, consecutivos y filtros en Control de Autos | ✅ | 2026-04 a 2026-05 |
 | 13 | Auditoría integral del sistema (32 hallazgos, 24 corregidos) — ver `AUDITORIA.md` | ✅ | 2026-06-10 a 2026-06-17 |
 | 14 | v5.0–v5.1 — Módulo Préstamo de Equipos y Bienes Muebles, eliminación de Mundial FIFA (código muerto), N/A en exportadores, mejoras UX (toasts, exportar en tiempo real), backup automático v2 (sqlite3.backup + ZIP + página de restauración), reporte de vencimientos críticos | ✅ | 2026-07 a 2026-08-19 |
-| 15 | v5.2 — Índices de BD, tests de regresión, historial de cambios, papelera de reciclaje, búsqueda global, banner de vencimientos próximos | ✅ | 2026-08-19 |
+| 15 | v5.2 — Índices de BD, tests de regresión, historial de cambios, papelera de reciclaje, búsqueda global, banner de vencimientos próximos | ✅ | 2026-08-19 a 2026-08-20 |
 
 ---
 
 ### Changelog detallado
 
-#### v5.2 — 2026-08-19
+#### v5.2 — 2026-08-19 a 2026-08-20
 
 **Mejoras de robustez y funcionalidad (revisión integral del sistema)**
 
@@ -419,6 +419,14 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 - **Búsqueda global** (`/buscar`) — un solo cuadro de búsqueda por número o nombre a través de Expedientes, SDQS, Correspondencia y Digitales.
 - **Banner de vencimientos próximos en el portal** — aviso al entrar si hay indagaciones, investigaciones, SDQS o correspondencia venciendo en los próximos 3 días.
 - Versión de la app en `main.py` y este README alineadas con la realidad del sistema (venían desactualizadas desde v3.2).
+
+**Correcciones tras revisión de código (8 agentes en paralelo sobre el diff completo, 2026-08-20)**
+
+- Los reimportadores de Excel (Expedientes, Correspondencia, Control de Autos) hacían `DELETE` de la tabla completa, incluyendo los registros en papelera — anulaba la función recién creada. Ahora excluyen los registros en papelera.
+- El banner de vencimientos del portal enlazaba a filtros que no coincidían con lo que el banner realmente contaba (mostraba un número pero al hacer clic aparecía una lista distinta). Los botones "Ver" ahora van a la lista sin ese filtro desalineado.
+- Expedientes no tenía la misma protección que SDQS contra crear un número que ya está en la papelera (ambos tienen un índice único). Se igualó el comportamiento: aviso claro en vez de error genérico.
+- SDQS: reimportar un Excel que contenga un número que está en la papelera ahora lo restaura automáticamente, en vez de actualizarlo de forma invisible.
+- Se reemplazaron 5 verificaciones de rol admin/jefe hardcodeadas por la constante compartida ya existente, para que no queden desincronizadas si el modelo de roles cambia.
 
 ---
 

@@ -45,6 +45,9 @@ if %ERRORLEVEL% == 0 (
     echo    Horario : Lunes a Viernes a las 4:00 PM
     echo    Script  : %SCRIPT%
     echo.
+    echo Activando "ejecutar en cuanto sea posible" si el PC estaba apagado a las 4PM...
+    powershell -NoProfile -Command "$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd; Set-ScheduledTask -TaskName 'OCDI_Backup_Diario' -Settings $s | Out-Null"
+    echo.
     echo Puedes verificarla en:
     echo   Panel de control ^> Herramientas administrativas ^> Programador de tareas
 ) else (

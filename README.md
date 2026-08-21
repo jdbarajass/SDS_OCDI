@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.2** — Última actualización: 2026-08-20
+> **Versión actual: v5.2** — Última actualización: 2026-08-21
 
 ---
 
@@ -441,6 +441,12 @@ El portal original apilaba 4 banners grandes antes de mostrar cualquier módulo 
 - **Escudo original de OCDI** (balanza de la justicia, sin usar marcas registradas) y el **avatar oficial de la oficina** en el header y el panel de bienvenida (`app/static/img/avatar_ocdi.png` y `avatar_ocdi_head.png`).
 - Aviso "Novedades v5.2" señalando la papelera de reciclaje y el historial de cambios, que antes no aparecían en ningún lado del portal.
 - Dirección visual acordada con el usuario mediante dos maquetas de revisión (Artifacts) antes de portar a la plantilla real (`app/templates/portal.html`).
+
+**Fix: backup automático no funcionaba desde el 19 de agosto (2026-08-21)**
+
+- El botón "Hacer backup ahora" del portal cambiaba a "Haciendo backup…" pero nunca enviaba el formulario — deshabilitar un botón `type="submit"` dentro de su propio `onclick` puede cancelar el envío nativo. Se movió esa lógica al `onsubmit` del formulario.
+- `backup_diario.py` terminaba en error (encoding `cp1252` de la consola de Windows no soporta el emoji ✅) **después** de haber creado el backup con éxito — el ZIP quedaba bien pero el script reportaba fallo. Se forzó UTF-8 en la salida.
+- Se descubrió que la tarea programada de Windows "OCDI_Backup_Diario" (Lun-Vie 4PM) **nunca había existido** en la máquina de producción, a pesar de estar documentada como activa desde el 19 de agosto — cero backups automáticos habían corrido nunca. Se recreó y se verificó con `schtasks /run` que sí tiene acceso real a la unidad de Google Drive.
 
 ---
 

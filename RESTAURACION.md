@@ -90,6 +90,18 @@ Una vez que el sistema esté funcionando, activa el backup automático:
 
 1. Ejecuta (doble clic) → `configurar_tarea_backup.bat`
 2. El backup correrá automáticamente de **lunes a viernes a las 4:00 PM**
+3. **Verifica que la tarea quedó realmente creada** — no basta con que el `.bat` haya dicho "exitosamente". Abre una consola y ejecuta:
+   ```
+   schtasks /query /tn "OCDI_Backup_Diario" /v /fo list
+   ```
+   Debe mostrar el nombre de la tarea, el horario (Lun-Vie 4PM) y `Ejecutar como usuario` con tu usuario de Windows. Si dice "no se puede encontrar el archivo especificado", la tarea NO se creó — vuelve a correr el `.bat` (como Administrador si hace falta).
+4. Fuerza una ejecución de prueba para confirmar que la tarea programada (no solo el script manual) tiene acceso real a la unidad de Google Drive:
+   ```
+   schtasks /run /tn "OCDI_Backup_Diario"
+   ```
+   Espera unos segundos y revisa `backup_log.txt` en la carpeta de backup — debe tener una línea `OK` nueva.
+
+> ⚠️ El 21 de agosto de 2026 se descubrió que esta tarea puede quedar sin crearse en un PC nuevo aunque el backup manual (paso "Verificación rápida" de abajo) funcione perfectamente — los backups manuales no dependen de que la tarea programada exista. Por eso los pasos 3 y 4 de arriba son obligatorios, no opcionales.
 
 ---
 

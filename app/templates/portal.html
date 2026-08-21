@@ -363,44 +363,62 @@
                     </span>
                     <span class="go">Ver →</span>
                 </a>
+                {% else %}
+                <a href="/expedientes" class="alert-card alert-good">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+                    <span class="txt"><div class="t">Sin vencimientos urgentes</div><div class="s">Ningún caso vence en los próximos 3 días</div></span>
+                    <span class="go">Ver →</span>
+                </a>
                 {% endif %}
 
                 {% if es_dia_reporte %}
                 <a href="/reportes/vencimientos" class="alert-card alert-warn">
                     <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M18.7 8l-5.1 5.1-4-4L4 14.6"/></svg></span>
-                    <span class="txt"><div class="t">Reporte de vencimientos — hoy</div><div class="s">Correspondencia y SDQS, amarillos y rojos</div></span>
+                    <span class="txt"><div class="t">Hoy toca revisar vencimientos</div><div class="s">Martes y jueves — Correspondencia y SDQS, amarillos y rojos</div></span>
+                    <span class="go">Descargar →</span>
+                </a>
+                {% else %}
+                <a href="/reportes/vencimientos" class="alert-card alert-good">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M18.7 8l-5.1 5.1-4-4L4 14.6"/></svg></span>
+                    <span class="txt"><div class="t">Reporte de vencimientos</div><div class="s">Descárgalo cuando quieras — revisión fija: martes y jueves</div></span>
                     <span class="go">Descargar →</span>
                 </a>
                 {% endif %}
 
                 {% if backup_estado == 'ok' %}
-                <a href="/backup/" class="alert-card alert-good">
-                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
-                    <span class="txt"><div class="t">Backup completado correctamente</div><div class="s">Guardado en Google Drive</div></span>
-                    <span class="go">Ver →</span>
-                </a>
+                    {% set bk_class = 'alert-good' %}
+                    {% set bk_t = 'Backup completado ahora mismo' %}
+                    {% set bk_s = 'Guardado en Google Drive' %}
+                    {% set bk_go = 'Hacer otro →' %}
                 {% elif backup_estado == 'error' %}
-                <a href="/backup/" class="alert-card alert-crit">
-                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg></span>
-                    <span class="txt"><div class="t">Error al hacer el backup</div><div class="s">Verifica que Google Drive esté abierto</div></span>
-                    <span class="go">Ver →</span>
-                </a>
+                    {% set bk_class = 'alert-crit' %}
+                    {% set bk_t = 'Error al hacer el backup' %}
+                    {% set bk_s = 'Verifica que Google Drive esté abierto e intenta de nuevo' %}
+                    {% set bk_go = 'Reintentar →' %}
                 {% elif necesita_backup %}
+                    {% set bk_class = 'alert-warn' %}
+                    {% set bk_t = 'Backup pendiente para hoy' %}
+                    {% set bk_s = ('Último: ' ~ ultimo_backup) if ultimo_backup else 'Aún no se ha hecho ningún backup' %}
+                    {% set bk_go = 'Hacer ahora →' %}
+                {% else %}
+                    {% set bk_class = 'alert-good' %}
+                    {% set bk_t = 'Backup al día' %}
+                    {% set bk_s = 'Automático Lun-Vie 4:00 PM · Último: ' ~ ultimo_backup %}
+                    {% set bk_go = 'Hacer otro →' %}
+                {% endif %}
                 <form method="post" action="/backup/ejecutar" style="margin:0" onsubmit="var b=this.querySelector('button');b.disabled=true;b.querySelector('.t').textContent='⏳ Haciendo backup…';">
-                    <button type="submit" class="alert-card alert-warn">
-                        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg></span>
-                        <span class="txt"><div class="t">Backup pendiente para hoy</div><div class="s">{% if ultimo_backup %}Último: {{ ultimo_backup }}{% else %}Aún no se ha hecho ningún backup{% endif %}</div></span>
-                        <span class="go">Hacer ahora →</span>
+                    <button type="submit" class="alert-card {{ bk_class }}">
+                        <span class="ico">
+                            {% if backup_estado == 'error' %}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                            {% else %}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+                            {% endif %}
+                        </span>
+                        <span class="txt"><div class="t">{{ bk_t }}</div><div class="s">{{ bk_s }}</div></span>
+                        <span class="go">{{ bk_go }}</span>
                     </button>
                 </form>
-                {% endif %}
-
-                {% if not (vencimientos_proximos and vencimientos_proximos.total > 0) and not es_dia_reporte and backup_estado not in ('ok','error') and not necesita_backup %}
-                <div class="alert-card alert-good" style="cursor:default">
-                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
-                    <span class="txt"><div class="t">Todo al día</div><div class="s">Sin vencimientos urgentes ni backups pendientes</div></span>
-                </div>
-                {% endif %}
             </div>
         </div>
 

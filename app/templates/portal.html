@@ -386,9 +386,8 @@
                     <span class="go">Ver →</span>
                 </a>
                 {% elif necesita_backup %}
-                <form method="post" action="/backup/ejecutar" style="margin:0">
-                    <button type="submit" class="alert-card alert-warn"
-                        onclick="this.disabled=true;this.querySelector('.t').textContent='⏳ Haciendo backup…'">
+                <form method="post" action="/backup/ejecutar" style="margin:0" onsubmit="var b=this.querySelector('button');b.disabled=true;b.querySelector('.t').textContent='⏳ Haciendo backup…';">
+                    <button type="submit" class="alert-card alert-warn">
                         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg></span>
                         <span class="txt"><div class="t">Backup pendiente para hoy</div><div class="s">{% if ultimo_backup %}Último: {{ ultimo_backup }}{% else %}Aún no se ha hecho ningún backup{% endif %}</div></span>
                         <span class="go">Hacer ahora →</span>

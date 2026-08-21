@@ -16,6 +16,13 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
+# La consola de Windows suele usar cp1252 (no UTF-8), que no puede imprimir
+# emojis como ✅ — sin esto, el script termina en error DESPUÉS de que el
+# backup ya se hizo con éxito (el ZIP queda bien, pero se ve como "falló").
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 DIRECTORIO_APP    = Path(__file__).resolve().parent
 BASE_DATOS        = DIRECTORIO_APP / "data" / "ocdi.db"

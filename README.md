@@ -448,6 +448,10 @@ El portal original apilaba 4 banners grandes antes de mostrar cualquier módulo 
 - `backup_diario.py` terminaba en error (encoding `cp1252` de la consola de Windows no soporta el emoji ✅) **después** de haber creado el backup con éxito — el ZIP quedaba bien pero el script reportaba fallo. Se forzó UTF-8 en la salida.
 - Se descubrió que la tarea programada de Windows "OCDI_Backup_Diario" (Lun-Vie 4PM) **nunca había existido** en la máquina de producción, a pesar de estar documentada como activa desde el 19 de agosto — cero backups automáticos habían corrido nunca. Se recreó y se verificó con `schtasks /run` que sí tiene acceso real a la unidad de Google Drive.
 
+**Enlaces de interés en el portal (2026-09-04)**
+
+- Nueva sección "Enlaces de interés" en el Portal Central con accesos directos a las plataformas externas que el equipo usa a diario: AgilSalud, Mesa de Ayuda (Aranda / Línea 55), Intranet SDS, Isolución, SharePoint OCDI y el aplicativo OCDI local (marcado como disponible solo dentro de la red de la oficina).
+
 ---
 
 #### v5.0–v5.1 — 2026-07 a 2026-08-19

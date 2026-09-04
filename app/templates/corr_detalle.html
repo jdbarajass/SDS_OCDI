@@ -33,13 +33,13 @@
     {% if reg.fecha_vencimiento %}
     <span class="sem-badge sem-amarilla">🟡 Por vencer — vence el {{ reg.fecha_vencimiento | fmt_fecha }} · revisar antes del {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
     {% else %}
-    <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    <span class="sem-badge sem-amarilla">🟡 Atención — {{ reg.dias_transcurridos }} días hábiles sin respuesta</span>
     {% endif %}
   {% elif reg.semaforo == 'roja' %}
     {% if reg.fecha_vencimiento %}
     <span class="sem-badge sem-roja">🔴 Vencido — plazo legal {{ reg.fecha_vencimiento | fmt_fecha }} · revisión fue {{ reg.fecha_termino_respuesta | fmt_fecha }} ({{ reg.dias_restantes }} día(s))</span>
     {% else %}
-    <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días sin respuesta</span>
+    <span class="sem-badge sem-roja">🔴 Vencido — {{ reg.dias_transcurridos }} días hábiles sin respuesta</span>
     {% endif %}
   {% elif reg.semaforo == 'respondido' %}
   <span class="sem-badge sem-respondido">✅ Respondido en {{ reg.dias_transcurridos }} día(s)</span>

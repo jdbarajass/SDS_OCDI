@@ -28,9 +28,9 @@
   <!-- Filtro de alerta -->
   <select name="alerta" class="filter-select">
     <option value="">Todas las alertas</option>
-    <option value="azul"     {% if alerta == 'azul' %}selected{% endif %}>🔵 8–12 días</option>
-    <option value="amarilla" {% if alerta == 'amarilla' %}selected{% endif %}>🟡 13 días</option>
-    <option value="roja"     {% if alerta == 'roja' %}selected{% endif %}>🔴 14+ días</option>
+    <option value="azul"     {% if alerta == 'azul' %}selected{% endif %}>🔵 8–12 días hábiles</option>
+    <option value="amarilla" {% if alerta == 'amarilla' %}selected{% endif %}>🟡 13 días hábiles</option>
+    <option value="roja"     {% if alerta == 'roja' %}selected{% endif %}>🔴 14+ días hábiles</option>
   </select>
 
   <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
@@ -47,15 +47,15 @@
   {% endif %}
   {% if alerta == 'azul' %}
   <span style="background:#eff6ff;color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
-    🔵 Alerta 8–12 días
+    🔵 Alerta 8–12 días hábiles
   </span>
   {% elif alerta == 'amarilla' %}
   <span style="background:#fffbeb;color:#b45309;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
-    🟡 Alerta 13 días
+    🟡 Alerta 13 días hábiles
   </span>
   {% elif alerta == 'roja' %}
   <span style="background:#fff1f2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">
-    🔴 Alerta 14+ días
+    🔴 Alerta 14+ días hábiles
   </span>
   {% endif %}
 </div>

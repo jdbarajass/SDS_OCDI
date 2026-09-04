@@ -809,6 +809,7 @@ select.form-control { background-color:#fff; }
 // ── Datos JSON ──────────────────────────────────────────────────────────────
 const TIPOLOGIAS = {{ tipologias_json | safe }};
 const ENTIDADES  = {{ entidades_json | safe }};
+const FESTIVOS_CO = new Set({{ festivos_json | safe }});
 
 // ── Helpers de fecha ─────────────────────────────────────────────────────────
 function addMonths(dateStr, months) {
@@ -836,11 +837,34 @@ function addYearsFlexible(fechaStr) {
     base.setFullYear(base.getFullYear() + 5);
     return base.toISOString().slice(0, 10);
 }
+// Días hábiles Colombia: mismo criterio que app/dias_habiles.py (no cuenta
+// el día de partida, excluye sábados/domingos/festivos).
+function _isoLocal(d) {
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+function _esHabil(d) {
+    const dow = d.getDay(); // 0=domingo..6=sábado
+    return dow !== 0 && dow !== 6 && !FESTIVOS_CO.has(_isoLocal(d));
+}
+function diasHabilesDiff(desde, hasta) {
+    if (hasta.getTime() === desde.getTime()) return 0;
+    const sign = hasta > desde ? 1 : -1;
+    const lo = sign === 1 ? desde : hasta;
+    const hi = sign === 1 ? hasta : desde;
+    let count = 0;
+    const cur = new Date(lo);
+    while (cur < hi) {
+        cur.setDate(cur.getDate() + 1);
+        if (_esHabil(cur)) count++;
+    }
+    return sign * count;
+}
 function diasRestantes(fechaISO) {
     if (!fechaISO) return null;
     const hoy = new Date(); hoy.setHours(0,0,0,0);
     const fv  = new Date(fechaISO + 'T00:00:00');
-    return Math.round((fv - hoy) / 86400000);
+    return diasHabilesDiff(hoy, fv);
 }
 function semaforoHtml(label, fechaVenc) {
     if (!fechaVenc) return '';
@@ -849,7 +873,7 @@ function semaforoHtml(label, fechaVenc) {
     if (dias < 0)       { cls = 'sem-vencido';  ico = '🔴'; }
     else if (dias <= 30){ cls = 'sem-proximo';  ico = '🟡'; }
     else                { cls = 'sem-vigente';  ico = '🟢'; }
-    const texto = dias < 0 ? `Vencido hace ${Math.abs(dias)} días` : `Vence en ${dias} días`;
+    const texto = dias < 0 ? `Vencido hace ${Math.abs(dias)} días hábiles` : `Vence en ${dias} días hábiles`;
     return `<span class="semaforo-badge ${cls}">${ico} ${label}: ${texto} · ${fechaVenc}</span>`;
 }
 

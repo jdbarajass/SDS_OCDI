@@ -86,7 +86,7 @@ function mostrarToast(filtros) {
             <option value="">Todos los estados</option>
             <option value="verde"    {% if fil_semaforo == 'verde'    %}selected{% endif %}>🟢 Primera mitad</option>
             <option value="amarillo" {% if fil_semaforo == 'amarillo' %}selected{% endif %}>🟡 Segunda mitad</option>
-            <option value="rojo"     {% if fil_semaforo == 'rojo'     %}selected{% endif %}>🔴 ≤ 2 días / vencido</option>
+            <option value="rojo"     {% if fil_semaforo == 'rojo'     %}selected{% endif %}>🔴 ≤ 2 días hábiles / vencido</option>
         </select>
     </div>
     <div style="flex:1;min-width:180px">
@@ -104,7 +104,7 @@ function mostrarToast(filtros) {
     <span style="font-weight:600;color:#555">Semáforo plazo:</span>
     <span style="background:#d4edda;color:#155724;padding:2px 10px;border-radius:12px;font-weight:700">🟢 Primera mitad</span>
     <span style="background:#fff3cd;color:#856404;padding:2px 10px;border-radius:12px;font-weight:700">🟡 Segunda mitad</span>
-    <span style="background:#f8d7da;color:#721c24;padding:2px 10px;border-radius:12px;font-weight:700">🔴 ≤ 2 días / vencido</span>
+    <span style="background:#f8d7da;color:#721c24;padding:2px 10px;border-radius:12px;font-weight:700">🔴 ≤ 2 días hábiles / vencido</span>
 </div>
 
 <div style="font-size:12.5px;color:#666;margin-bottom:10px">
@@ -119,7 +119,7 @@ function mostrarToast(filtros) {
         {% else %}background:#f8d7da;color:#721c24{% endif %}">
         {% if fil_semaforo == 'verde' %}🟢 Primera mitad
         {% elif fil_semaforo == 'amarillo' %}🟡 Segunda mitad
-        {% else %}🔴 ≤ 2 días / vencido{% endif %}
+        {% else %}🔴 ≤ 2 días hábiles / vencido{% endif %}
     </span>
     {% endif %}
 </div>
@@ -168,15 +168,15 @@ function mostrarToast(filtros) {
             </span>
             {% elif reg.semaforo_sdqs == 'verde' %}
             <span style="background:#d4edda;color:#155724;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap">
-                🟢 {{ reg.estado_dias }} días
+                🟢 {{ reg.estado_dias }} días hábiles
             </span>
             {% elif reg.semaforo_sdqs == 'amarillo' %}
             <span style="background:#fff3cd;color:#856404;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap">
-                🟡 {{ reg.estado_dias }} días
+                🟡 {{ reg.estado_dias }} días hábiles
             </span>
             {% elif reg.semaforo_sdqs == 'rojo' %}
             <span style="background:#f8d7da;color:#721c24;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap">
-                🔴 {{ reg.estado_dias }} días
+                🔴 {{ reg.estado_dias }} días hábiles
             </span>
             {% else %}
             {% if reg.rad_salida %}

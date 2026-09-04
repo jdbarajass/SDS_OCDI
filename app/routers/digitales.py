@@ -8,6 +8,7 @@ import io
 from urllib.parse import quote_plus as _quote_plus
 from app.database import get_db
 from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
+from app.dias_habiles import dias_habiles_diff as _dias_habiles_diff
 
 _MOD = "digitales"
 
@@ -44,6 +45,19 @@ def _clase_alerta(dias) -> str | None:
     return None
 
 
+def _dias_habiles_pendiente(fecha_envio) -> int | None:
+    """Días hábiles (calendario colombiano) desde `fecha_envio` (exclusive)
+    hasta hoy. SQLite no puede contar días hábiles, así que este cálculo
+    siempre se hace en Python, nunca en SQL."""
+    if not fecha_envio:
+        return None
+    try:
+        fe = date.fromisoformat(str(fecha_envio)[:10])
+    except ValueError:
+        return None
+    return _dias_habiles_diff(fe, date.today())
+
+
 def _fecha(v) -> str | None:
     if v is None:
         return None
@@ -78,6 +92,31 @@ async def lista(
 ):
     conn = get_db()
 
+    # Días hábiles pendientes por expediente: SQLite no puede contar días
+    # hábiles colombianos, así que se calcula en Python a partir de las
+    # comunicaciones sin respuesta y se usa tanto para el filtro de alerta
+    # como para el badge "max_dias_pendiente" de cada fila.
+    pendientes = conn.execute("""
+        SELECT c.exp_digital_id AS eid, c.fecha_envio AS fecha_envio
+        FROM exp_comunicaciones c
+        JOIN exp_digitales e ON e.id = c.exp_digital_id
+        WHERE (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
+          AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
+          AND e.eliminado_en IS NULL
+    """).fetchall()
+    max_dias_por_exp: dict[int, int] = {}
+    ids_por_alerta: dict[str, set] = {"roja": set(), "amarilla": set(), "azul": set()}
+    for row in pendientes:
+        dias = _dias_habiles_pendiente(row["fecha_envio"])
+        if dias is None:
+            continue
+        eid = row["eid"]
+        if dias > max_dias_por_exp.get(eid, -1):
+            max_dias_por_exp[eid] = dias
+        clase = _clase_alerta(dias)
+        if clase:
+            ids_por_alerta[clase].add(eid)
+
     filtros = ["e.eliminado_en IS NULL"]
     params: list = []
 
@@ -100,25 +139,13 @@ async def lista(
         )""")
     if queja == "si":
         filtros.append("(e.queja_inicial = 'Sí' OR e.queja_inicial = 'Si' OR e.queja_inicial = 'SI' OR e.queja_inicial = 'sí')")
-    if alerta == "roja":
-        filtros.append("""e.id IN (
-            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
-            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
-            AND fecha_envio IS NOT NULL AND fecha_envio != ''
-            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) >= 14)""")
-    elif alerta == "amarilla":
-        filtros.append("""e.id IN (
-            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
-            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
-            AND fecha_envio IS NOT NULL AND fecha_envio != ''
-            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) = 13)""")
-    elif alerta == "azul":
-        filtros.append("""e.id IN (
-            SELECT DISTINCT exp_digital_id FROM exp_comunicaciones
-            WHERE (fecha_respuesta IS NULL OR fecha_respuesta = '')
-            AND fecha_envio IS NOT NULL AND fecha_envio != ''
-            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) >= 8
-            AND CAST(julianday('now') - julianday(fecha_envio) AS INTEGER) < 13)""")
+    if alerta in ("roja", "amarilla", "azul"):
+        ids = ids_por_alerta[alerta]
+        if ids:
+            filtros.append(f"e.id IN ({','.join('?' * len(ids))})")
+            params += list(ids)
+        else:
+            filtros.append("0=1")
 
     where = " AND ".join(filtros)
 
@@ -129,17 +156,16 @@ async def lista(
             (SELECT COUNT(*) FROM exp_comunicaciones WHERE exp_digital_id = e.id) AS num_coms,
             (SELECT COUNT(*) FROM exp_comunicaciones
              WHERE exp_digital_id = e.id AND (fecha_respuesta IS NULL OR fecha_respuesta = '')) AS coms_sin_resp,
-            (SELECT MAX(CAST(julianday('now') - julianday(fecha_envio) AS INTEGER))
-             FROM exp_comunicaciones
-             WHERE exp_digital_id = e.id
-             AND (fecha_respuesta IS NULL OR fecha_respuesta = '')
-             AND fecha_envio IS NOT NULL AND fecha_envio != '') AS max_dias_pendiente,
             (SELECT MAX(fecha_revision) FROM exp_revisiones WHERE exp_digital_id = e.id) AS ultima_revision
             FROM exp_digitales e
             WHERE {where}
             ORDER BY e.anio DESC, CAST(e.n_expediente AS INTEGER) ASC, e.n_expediente ASC LIMIT ? OFFSET ?""",
         params + [por_pagina, offset],
     ).fetchall()
+
+    rows_list = [dict(r) for r in rows]
+    for r in rows_list:
+        r["max_dias_pendiente"] = max_dias_por_exp.get(r["id"])
 
     abogados = [r[0] for r in conn.execute(
         "SELECT DISTINCT abogado FROM exp_digitales WHERE abogado IS NOT NULL AND eliminado_en IS NULL ORDER BY abogado"
@@ -158,7 +184,7 @@ async def lista(
     return templates.TemplateResponse("digitales_lista.html", {
         "request": request,
         "active": "digitales_lista",
-        "rows": [dict(r) for r in rows],
+        "rows": rows_list,
         "total": total,
         "page": page,
         "total_pages": total_pages,
@@ -218,24 +244,24 @@ async def dashboard(request: Request):
         WHERE anio IS NOT NULL AND eliminado_en IS NULL GROUP BY anio ORDER BY anio DESC
     """).fetchall()
 
-    _dias_base = """
-        (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
-        AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
-        AND e.eliminado_en IS NULL
-        AND CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER)
-    """
-    alerta_azul = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
-        WHERE {_dias_base} >= 8 AND CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) < 13
-    """).fetchone()[0]
-    alerta_amarilla = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
-        WHERE {_dias_base} = 13
-    """).fetchone()[0]
-    alerta_roja = conn.execute(f"""
-        SELECT COUNT(*) FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
-        WHERE {_dias_base} >= 14
-    """).fetchone()[0]
+    # Días hábiles: no se puede calcular en SQL, se trae la fecha_envio de las
+    # comunicaciones pendientes y se clasifica en Python (misma regla que _clase_alerta).
+    pendientes = conn.execute("""
+        SELECT c.fecha_envio AS fecha_envio
+        FROM exp_comunicaciones c JOIN exp_digitales e ON e.id = c.exp_digital_id
+        WHERE (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
+          AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
+          AND e.eliminado_en IS NULL
+    """).fetchall()
+    alerta_azul = alerta_amarilla = alerta_roja = 0
+    for row in pendientes:
+        clase = _clase_alerta(_dias_habiles_pendiente(row["fecha_envio"]))
+        if clase == "azul":
+            alerta_azul += 1
+        elif clase == "amarilla":
+            alerta_amarilla += 1
+        elif clase == "roja":
+            alerta_roja += 1
 
     conn.close()
 
@@ -629,21 +655,8 @@ async def comunicaciones_lista(
     filtros = ["e.eliminado_en IS NULL"]
     params: list = []
 
-    if sin_respuesta == "1":
+    if sin_respuesta == "1" or alerta in ("roja", "amarilla", "azul"):
         filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
-    if alerta == "roja":
-        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
-        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
-        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) >= 14")
-    elif alerta == "amarilla":
-        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
-        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
-        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) = 13")
-    elif alerta == "azul":
-        filtros.append("(c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')")
-        filtros.append("c.fecha_envio IS NOT NULL AND c.fecha_envio != ''")
-        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) >= 8")
-        filtros.append("CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER) < 13")
     if abogado.strip():
         filtros.append("e.abogado = ?")
         params.append(abogado.strip())
@@ -656,13 +669,7 @@ async def comunicaciones_lista(
     rows = conn.execute(f"""
         SELECT c.*,
                e.n_expediente, e.abogado, e.anio, e.etapa,
-               e.id AS exp_id,
-               CASE
-                 WHEN (c.fecha_respuesta IS NULL OR c.fecha_respuesta = '')
-                      AND c.fecha_envio IS NOT NULL AND c.fecha_envio != ''
-                 THEN CAST(julianday('now') - julianday(c.fecha_envio) AS INTEGER)
-                 ELSE NULL
-               END AS dias_transcurridos
+               e.id AS exp_id
         FROM exp_comunicaciones c
         JOIN exp_digitales e ON c.exp_digital_id = e.id
         WHERE {where}
@@ -676,9 +683,15 @@ async def comunicaciones_lista(
     conn.close()
 
     rows_list = [dict(r) for r in rows]
-    # Agregar clase de alerta a cada fila
+    # Días hábiles y clase de alerta: no se puede calcular en SQL, se hace en
+    # Python para cada fila (comunicación sin respuesta con fecha_envio).
     for r in rows_list:
+        sin_resp = not r.get("fecha_respuesta")
+        r["dias_transcurridos"] = _dias_habiles_pendiente(r.get("fecha_envio")) if sin_resp else None
         r["clase_alerta"] = _clase_alerta(r.get("dias_transcurridos"))
+
+    if alerta in ("roja", "amarilla", "azul"):
+        rows_list = [r for r in rows_list if r["clase_alerta"] == alerta]
 
     return templates.TemplateResponse("digitales_comunicaciones.html", {
         "request": request,

@@ -4,9 +4,10 @@ Regresión sobre las fechas de vencimiento calculadas de Base Expedientes
 tanto la Lista como el Dashboard — el patrón "Dashboard con cálculo propio
 divergente de su Lista" se repitió 2 veces en AUDITORIA.md (H9/H10, H17).
 """
-from datetime import date
+from datetime import date, timedelta
 
 from app.database import calcular_alerta
+from app.dias_habiles import dias_habiles_diff
 from app.routers.expedientes import _enriquecer, _add_months, _add_years
 
 
@@ -50,15 +51,16 @@ def test_calcular_alerta_vencido():
 
 
 def test_calcular_alerta_proximo_dentro_de_30_dias():
-    from datetime import timedelta
+    """Los días ahora son hábiles (calendario colombiano), no calendario:
+    el valor esperado se deriva del mismo helper que usa calcular_alerta."""
     fecha = date.today() + timedelta(days=5)
+    esperado = dias_habiles_diff(date.today(), fecha)
     out = calcular_alerta(fecha.isoformat())
     assert out["clase"] == "proximo"
-    assert out["dias"] == 5
+    assert out["dias"] == esperado
 
 
 def test_calcular_alerta_vigente_mas_de_30_dias():
-    from datetime import timedelta
     fecha = date.today() + timedelta(days=90)
     out = calcular_alerta(fecha.isoformat())
     assert out["clase"] == "vigente"

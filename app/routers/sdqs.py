@@ -7,6 +7,7 @@ import io
 
 from app.database import get_db, row_to_dict, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
+from app.dias_habiles import dias_habiles_diff as _dias_habiles_diff
 
 _MOD = "sdqs"
 
@@ -67,12 +68,12 @@ def _calcular_semaforo_sdqs(reg: dict) -> dict:
     try:
         fa_d = datetime.fromisoformat(str(fa)[:10]).date()
         fv_d = datetime.fromisoformat(str(fv)[:10]).date()
-        total_dias = (fv_d - fa_d).days
+        total_dias = _dias_habiles_diff(fa_d, fv_d)
         if total_dias <= 0:
             return reg
         hoy = date.today()
-        dias_transcurridos = (hoy - fa_d).days
-        dias_restantes = (fv_d - hoy).days
+        dias_transcurridos = _dias_habiles_diff(fa_d, hoy)
+        dias_restantes = _dias_habiles_diff(hoy, fv_d)
         reg["estado_dias"] = total_dias
         if dias_restantes <= 2:
             reg["semaforo_sdqs"] = "rojo"

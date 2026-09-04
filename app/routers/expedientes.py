@@ -11,6 +11,7 @@ import sqlite3
 
 from app.database import get_db, calcular_alerta, row_to_dict
 from app.auth_utils import puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
+from app.dias_habiles import festivos_iso_rango
 
 _MOD = "expedientes"
 _ROOT = Path(__file__).parent.parent.parent
@@ -235,6 +236,13 @@ def _ctx_base():
         "valores_sugeridos": VALORES_SUGERIDOS,
         "tipologias_json": json.dumps(_get_tipologias(), ensure_ascii=False),
         "entidades_json": json.dumps(_get_entidades(), ensure_ascii=False),
+        # Festivos colombianos para que el preview de semáforo en el formulario
+        # (JS, antes de guardar) cuente días hábiles igual que el servidor
+        # (calcular_alerta). Rango amplio: cubre prescripción (+5 años) y
+        # expedientes con hechos/vencimientos antiguos ya vencidos.
+        "festivos_json": json.dumps(
+            festivos_iso_rango(date.today().year - 10, date.today().year + 10)
+        ),
     }
 
 

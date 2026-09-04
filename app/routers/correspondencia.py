@@ -2,13 +2,18 @@ from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pathlib import Path
 from app.template_utils import make_templates
-from datetime import date, timedelta
+from datetime import date
 import io
 
 from urllib.parse import quote_plus as _quote_plus
 
 from app.database import get_db, get_personal_oficina
 from app.auth_utils import tpl, puede_escribir as _pw, puede_importar as _pi, registrar_log, historial_registro, ROLES_SUPERUSUARIO
+from app.dias_habiles import (
+    dias_habiles_diff as _dias_habiles_diff,
+    sumar_dias_habiles as _add_dias_habiles,
+    restar_dias_habiles as _subtract_dias_habiles,
+)
 
 _MOD = "correspondencia"
 
@@ -121,70 +126,7 @@ def _get_tipos_requerimiento(conn):
     ).fetchall()]
 
 
-# ── Días hábiles Colombia ──────────────────────────────────────────────────────
-
-def _easter(year: int) -> date:
-    """Gauss algorithm for Easter Sunday."""
-    a = year % 19
-    b = year // 100
-    c = year % 100
-    d = b // 4
-    e = b % 4
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i = c // 4
-    k = c % 4
-    l = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * l) // 451
-    month = (h + l - 7 * m + 114) // 31
-    day = ((h + l - 7 * m + 114) % 31) + 1
-    return date(year, month, day)
-
-
-def _next_monday(d: date) -> date:
-    """Return d if Monday, else advance to next Monday."""
-    days_ahead = (7 - d.weekday()) % 7
-    return d if days_ahead == 0 else d + timedelta(days=days_ahead)
-
-
-def _festivos_colombia(year: int) -> set:
-    festivos = set()
-    for m, day in [(1, 1), (5, 1), (7, 20), (8, 7), (12, 8), (12, 25)]:
-        festivos.add(date(year, m, day))
-    for m, day in [(1, 6), (3, 19), (6, 29), (8, 15), (10, 12), (11, 1), (11, 11)]:
-        festivos.add(_next_monday(date(year, m, day)))
-    easter = _easter(year)
-    festivos.add(easter - timedelta(days=3))   # Jueves Santo
-    festivos.add(easter - timedelta(days=2))   # Viernes Santo
-    festivos.add(_next_monday(easter + timedelta(days=39)))   # Ascensión
-    festivos.add(_next_monday(easter + timedelta(days=60)))   # Corpus Christi
-    festivos.add(_next_monday(easter + timedelta(days=68)))   # Sagrado Corazón
-    return festivos
-
-
-def _add_dias_habiles(inicio: date, dias: int) -> date:
-    festivos = _festivos_colombia(inicio.year) | _festivos_colombia(inicio.year + 1)
-    current = inicio
-    count = 0
-    while count < dias:
-        current += timedelta(days=1)
-        if current.weekday() < 5 and current not in festivos:
-            count += 1
-    return current
-
-
-def _subtract_dias_habiles(fin: date, dias: int) -> date:
-    """Resta `dias` días hábiles hacia atrás desde `fin`."""
-    festivos = _festivos_colombia(fin.year) | _festivos_colombia(fin.year - 1)
-    current = fin
-    count = 0
-    while count < dias:
-        current -= timedelta(days=1)
-        if current.weekday() < 5 and current not in festivos:
-            count += 1
-    return current
-
+# ── Días hábiles Colombia (ver app/dias_habiles.py) ─────────────────────────────
 
 def _calcular_semaforo_row(r: dict) -> dict:
     _ANEXO_VALS = {"ANEXO EXPEDIENTE", "ANEXO AL EXPEDIENTE"}
@@ -204,7 +146,7 @@ def _calcular_semaforo_row(r: dict) -> dict:
             try:
                 fi = date.fromisoformat(r["fecha_ingreso"][:10])
                 fs = date.fromisoformat(r["fecha_radicado_salida"][:10])
-                r["dias_transcurridos"] = (fs - fi).days
+                r["dias_transcurridos"] = _dias_habiles_diff(fi, fs)
             except Exception:
                 pass
         return r
@@ -224,13 +166,13 @@ def _calcular_semaforo_row(r: dict) -> dict:
             fecha_rev = _subtract_dias_habiles(fecha_venc, 2)
             r["fecha_vencimiento"] = fecha_venc.isoformat()
             r["fecha_termino_respuesta"] = fecha_rev.isoformat()
-            dias_restantes = (fecha_rev - date.today()).days
+            dias_restantes = _dias_habiles_diff(date.today(), fecha_rev)
             r["dias_restantes"] = dias_restantes
-            # dias_transcurridos (calendario, informativo) se mantiene disponible
+            # dias_transcurridos (días hábiles, informativo) se mantiene disponible
             # aunque haya término legal — lo usa el Dashboard para mostrar
             # "lleva X días" sin afectar la clasificación verde/amarilla/roja,
             # que siempre depende de dias_restantes en este caso.
-            r["dias_transcurridos"] = (date.today() - fi).days
+            r["dias_transcurridos"] = _dias_habiles_diff(fi, date.today())
             if dias_restantes >= 2:
                 r["semaforo"] = "verde"
             elif dias_restantes >= 0:
@@ -241,10 +183,10 @@ def _calcular_semaforo_row(r: dict) -> dict:
             r["semaforo"] = None
         return r
 
-    # Sin término definido: usar días transcurridos desde ingreso
+    # Sin término definido: usar días hábiles transcurridos desde ingreso
     try:
         fi = date.fromisoformat(r["fecha_ingreso"][:10])
-        dias = (date.today() - fi).days
+        dias = _dias_habiles_diff(fi, date.today())
         r["dias_transcurridos"] = dias
         if dias <= 5:
             r["semaforo"] = "verde"

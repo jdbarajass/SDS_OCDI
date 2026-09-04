@@ -42,12 +42,12 @@
     </div>
     <div class="dash-card dash-card-warning">
         <div class="dash-card-num">{{ prox30 }}</div>
-        <div class="dash-card-label">Vencen en 30 días</div>
+        <div class="dash-card-label">Vencen en 30 días hábiles</div>
         <a href="#" onclick="abrirModal('prox30',{{ prox30 }},'proximos_30=1');return false" class="dash-card-link">Exportar →</a>
     </div>
     <div class="dash-card dash-card-info">
         <div class="dash-card-num">{{ prox60 }}</div>
-        <div class="dash-card-label">Vencen en 31–60 días</div>
+        <div class="dash-card-label">Vencen en 31–60 días hábiles</div>
         <a href="#" onclick="abrirModal('prox60',{{ prox60 }},'proximos_60=1');return false" class="dash-card-link">Exportar →</a>
     </div>
 </div>
@@ -158,7 +158,7 @@
 <!-- ── PRÓXIMOS A VENCER ─────────────────────────────── -->
 {% if proximos_lista %}
 <div class="card" style="margin-top:16px">
-    <h3 class="stat-card-title">⚠️ Próximos a Vencer / Vencidos (60 días)</h3>
+    <h3 class="stat-card-title">⚠️ Próximos a Vencer / Vencidos (60 días hábiles)</h3>
     <div class="table-wrapper" style="box-shadow:none; border:none">
         <table class="data-table">
             <thead>
@@ -235,7 +235,7 @@
 
 <script>
 function abrirModal(tipo, cantidad, filtroParam) {
-    var titulos = { vencidos:'Expedientes Vencidos', prox30:'Vencen en 30 días', prox60:'Vencen en 31–60 días' };
+    var titulos = { vencidos:'Expedientes Vencidos', prox30:'Vencen en 30 días hábiles', prox60:'Vencen en 31–60 días hábiles' };
     document.getElementById('modal-titulo').textContent = titulos[tipo] || 'Exportar';
     document.getElementById('modal-desc').textContent = cantidad + ' expedientes con este filtro.';
     var base = '/exportar-filtrado/descargar?' + filtroParam;

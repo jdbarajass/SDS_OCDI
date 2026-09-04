@@ -2,6 +2,8 @@ import sqlite3
 from pathlib import Path
 from datetime import date, timedelta
 
+from app.dias_habiles import dias_habiles_diff as _dias_habiles_diff
+
 DB_PATH = Path(__file__).parent.parent / "data" / "ocdi.db"
 
 SCHEMA = """
@@ -824,18 +826,20 @@ def _seed_expedientes_demo(conn):
 
 
 def calcular_alerta(fecha_vencimiento: str | None) -> dict:
-    """Retorna dias restantes y clase CSS de alerta para una fecha de vencimiento."""
+    """Retorna días hábiles restantes (calendario colombiano) y clase CSS de
+    alerta para una fecha de vencimiento. El conteo no incluye hoy — arranca
+    el día hábil siguiente."""
     if not fecha_vencimiento:
         return {"dias": None, "clase": "sin-plazo", "texto": "Sin plazo"}
     try:
         fv = date.fromisoformat(fecha_vencimiento)
-        dias = (fv - date.today()).days
+        dias = _dias_habiles_diff(date.today(), fv)
         if dias < 0:
-            return {"dias": dias, "clase": "vencido", "texto": f"Vencido hace {abs(dias)} días"}
+            return {"dias": dias, "clase": "vencido", "texto": f"Vencido hace {abs(dias)} días hábiles"}
         elif dias <= 30:
-            return {"dias": dias, "clase": "proximo", "texto": f"Vence en {dias} días"}
+            return {"dias": dias, "clase": "proximo", "texto": f"Vence en {dias} días hábiles"}
         else:
-            return {"dias": dias, "clase": "vigente", "texto": f"{dias} días restantes"}
+            return {"dias": dias, "clase": "vigente", "texto": f"{dias} días hábiles restantes"}
     except (ValueError, TypeError):
         return {"dias": None, "clase": "sin-plazo", "texto": "Sin plazo"}
 

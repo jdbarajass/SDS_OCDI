@@ -20,10 +20,23 @@ from app.routers.correspondencia import (
     _add_dias_habiles,
     _subtract_dias_habiles,
 )
+from app.dias_habiles import dias_habiles_diff
 
 
 def _iso(d: date) -> str:
     return d.isoformat()
+
+
+def _fecha_con_dias_habiles_transcurridos(hoy: date, objetivo: int) -> date:
+    """Retrocede día a día (calendario) hasta encontrar una fecha `fi` tal que
+    dias_habiles_diff(fi, hoy) == objetivo exactamente. Evita fijar offsets de
+    calendario a mano, que ya no son equivalentes a días hábiles (H-semáforos
+    2026-08-25: los semáforos ahora cuentan días hábiles Colombia, no calendario)."""
+    fi = hoy
+    while dias_habiles_diff(fi, hoy) < objetivo:
+        fi -= timedelta(days=1)
+    assert dias_habiles_diff(fi, hoy) == objetivo
+    return fi
 
 
 # ── SDQS ─────────────────────────────────────────────────────────────────────
@@ -99,8 +112,9 @@ def test_corr_respondido_si_hay_radicado_salida():
         "fecha_radicado_salida": "2026-01-06",
     }
     out = _calcular_semaforo_row(reg)
+    esperado = dias_habiles_diff(date(2026, 1, 1), date(2026, 1, 6))
     assert out["semaforo"] == "respondido"
-    assert out["dias_transcurridos"] == 5
+    assert out["dias_transcurridos"] == esperado
 
 
 def test_corr_sin_fecha_ingreso_no_tiene_semaforo():
@@ -110,24 +124,28 @@ def test_corr_sin_fecha_ingreso_no_tiene_semaforo():
 
 
 def test_corr_modo_a_sin_termino_dias_verde_amarilla_roja():
-    """Sin termino_dias: verde <=5 días, amarilla 6-8, roja >=9 (calendario, desde fecha_ingreso)."""
+    """Sin termino_dias: verde <=5 días hábiles, amarilla 6-8, roja >=9 (días
+    hábiles Colombia desde fecha_ingreso, sin contar el propio día de ingreso)."""
     hoy = date.today()
 
+    fi_verde = _fecha_con_dias_habiles_transcurridos(hoy, 3)
     verde = _calcular_semaforo_row({
         "tipo_respuesta": None, "fecha_radicado_salida": None,
-        "fecha_ingreso": _iso(hoy - timedelta(days=3)),
+        "fecha_ingreso": _iso(fi_verde),
     })
     assert verde["semaforo"] == "verde"
 
+    fi_amarilla = _fecha_con_dias_habiles_transcurridos(hoy, 7)
     amarilla = _calcular_semaforo_row({
         "tipo_respuesta": None, "fecha_radicado_salida": None,
-        "fecha_ingreso": _iso(hoy - timedelta(days=7)),
+        "fecha_ingreso": _iso(fi_amarilla),
     })
     assert amarilla["semaforo"] == "amarilla"
 
+    fi_roja = _fecha_con_dias_habiles_transcurridos(hoy, 10)
     roja = _calcular_semaforo_row({
         "tipo_respuesta": None, "fecha_radicado_salida": None,
-        "fecha_ingreso": _iso(hoy - timedelta(days=10)),
+        "fecha_ingreso": _iso(fi_roja),
     })
     assert roja["semaforo"] == "roja"
 
@@ -144,7 +162,7 @@ def test_corr_modo_b_con_termino_dias_consistente_con_helpers_de_dias_habiles():
     termino = 5
     fecha_venc_esperada = _add_dias_habiles(hoy, termino)
     fecha_rev_esperada = _subtract_dias_habiles(fecha_venc_esperada, 2)
-    dias_restantes_esperados = (fecha_rev_esperada - hoy).days
+    dias_restantes_esperados = dias_habiles_diff(hoy, fecha_rev_esperada)
 
     out = _calcular_semaforo_row({
         "tipo_respuesta": None,

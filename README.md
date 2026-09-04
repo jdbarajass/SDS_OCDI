@@ -219,7 +219,7 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 | 5 | **Semáforo dual de respuesta** | ✅ v2.5 |
 |   | *Modo A — días transcurridos* (cuando `termino_dias` no está definido): 🟢 0–5 días / 🟡 6–8 días / 🔴 9+ días | |
 |   | *Modo B — fecha límite* (cuando `termino_dias` está definido): calcula `fecha_termino = fecha_ingreso + N días hábiles Colombia − 2 días`. 🟢 ≥2 días restantes / 🟡 0–1 días restantes / 🔴 pasó la fecha | |
-| 6 | **Días hábiles Colombia** — Función Python `_add_dias_habiles()` con cálculo de Pascua (algoritmo de Gauss), festivos fijos, festivos Ley Emiliani (siguiente lunes) y festivos móviles basados en Pascua | ✅ v2.5 |
+| 6 | **Días hábiles Colombia** — Centralizado en `app/dias_habiles.py` (cálculo de Pascua por algoritmo de Gauss, festivos fijos, Ley Emiliani), usado también por Base Expedientes, SDQS y Expedientes Digitales | ✅ v2.5 · centralizado 2026-08-25 |
 | 7 | **Excepción ANEXO EXPEDIENTE / ANEXO AL EXPEDIENTE** — Ambas variantes siempre aparecen en 🟢 sin conteo de días. Excluidas de alertas, dashboard y portal | ✅ v2.4 |
 | 8 | **TIPO DE REQUERIMIENTO** — Select con 9 valores predefinidos: DERECHO DE PETICION, TUTELA, PROPOSICION DEL CONSEJO, REQUERIMIENTO ENTES DE CONTROL, PROCURADURIA, CONTRALORIA, PERSONERIA, ANONIMO, DIRECCION DE ASUNTOS DISCIPLINARIOS DE LA SECRETARIA JURIDICA GENERAL | ✅ v2.5 |
 | 9 | **TÉRMINO (DIAS)** — Select: 3 / 5 / 10 / 15 / 30 días | ✅ v2.5 |
@@ -447,6 +447,16 @@ El portal original apilaba 4 banners grandes antes de mostrar cualquier módulo 
 - El botón "Hacer backup ahora" del portal cambiaba a "Haciendo backup…" pero nunca enviaba el formulario — deshabilitar un botón `type="submit"` dentro de su propio `onclick` puede cancelar el envío nativo. Se movió esa lógica al `onsubmit` del formulario.
 - `backup_diario.py` terminaba en error (encoding `cp1252` de la consola de Windows no soporta el emoji ✅) **después** de haber creado el backup con éxito — el ZIP quedaba bien pero el script reportaba fallo. Se forzó UTF-8 en la salida.
 - Se descubrió que la tarea programada de Windows "OCDI_Backup_Diario" (Lun-Vie 4PM) **nunca había existido** en la máquina de producción, a pesar de estar documentada como activa desde el 19 de agosto — cero backups automáticos habían corrido nunca. Se recreó y se verificó con `schtasks /run` que sí tiene acceso real a la unidad de Google Drive.
+
+**Semáforos migrados a días hábiles Colombia (2026-08-25)**
+
+Los semáforos de SDQS, Base Expedientes y Expedientes Digitales contaban días calendario (`julianday` en SQL o `timedelta` en Python); solo Correspondencia ya usaba días hábiles, con su propia copia de las funciones de festivos. Esto hacía que el mismo caso pudiera verse "al día" en un módulo y "vencido" en otro para el mismo número de días, y que las alertas no coincidieran con el plazo legal real (que se cuenta en días hábiles).
+
+- Nuevo módulo `app/dias_habiles.py` como fuente única de verdad: festivos fijos, Ley Emiliani (traslado al lunes siguiente) y festivos móviles de Semana Santa (algoritmo de Gauss para la Pascua). Reemplaza la copia que vivía solo en `correspondencia.py`.
+- `calcular_alerta()` (Base Expedientes), `_calcular_semaforo_sdqs()` (SDQS), `_calcular_semaforo_row()` (Correspondencia) y las alertas azul/amarilla/roja de Expedientes Digitales ahora cuentan sobre esta misma función. En Digitales, como SQLite no puede contar días hábiles, el filtro de alerta se sacó del `WHERE` (antes usaba `julianday`) y se calcula en Python antes de armar la consulta.
+- El preview de semáforo en el formulario de Expedientes (JavaScript, antes de guardar) replica el mismo algoritmo en el navegador para no mostrarle al usuario un número que luego el servidor corrija.
+- Regla de conteo (confirmada con el usuario): el día de partida no se cuenta — del 12 al 25 de agosto de 2026 son 8 días hábiles, no 13 (calendario) ni 14. Cubierto en `tests/test_dias_habiles.py`.
+- Efecto visible: los contadores de "días" en las listas y dashboards de los 4 módulos ahora pueden diferir de lo que mostraban antes (menos días que en calendario, porque fines de semana y festivos ya no cuentan) — es el comportamiento correcto, no una regresión.
 
 **Enlaces de interés en el portal (2026-09-04)**
 

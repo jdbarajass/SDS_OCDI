@@ -1,0 +1,96 @@
+{% extends "base_matriz.html" %}
+{% block title %}Trámite — {{ reg.n_bpm or reg.n_expediente or reg.id }}{% endblock %}
+{% block heading %}🗂️ Detalle del Trámite{% endblock %}
+
+{% block header_actions %}
+<a href="/matriz/{{ reg.id }}/editar" class="btn btn-primary">✏️ Editar</a>
+<a href="/matriz/" class="btn btn-secondary" style="margin-left:8px">← Volver</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width:820px">
+
+    <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <tbody>
+                <tr style="background:#f8fafc">
+                    <td style="padding:12px 14px;font-weight:700;color:#374151;width:180px">Abogado</td>
+                    <td style="padding:12px 14px;font-weight:700;color:#0d3060">{{ reg.abogado or '—' }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">N° Expediente</td>
+                    <td style="padding:12px 14px">{{ reg.n_expediente or '—' }}</td>
+                </tr>
+                <tr style="background:#f8fafc">
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">N° BPM</td>
+                    <td style="padding:12px 14px">
+                        {% if reg.n_bpm %}<span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:10px;font-weight:700">{{ reg.n_bpm }}</span>{% else %}—{% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">Tipo de trámite</td>
+                    <td style="padding:12px 14px">{{ reg.tipo_tramite or '—' }}</td>
+                </tr>
+                <tr style="background:#f8fafc">
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">Etapa en el BPM</td>
+                    <td style="padding:12px 14px">{{ reg.etapa_bpm or '—' }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">Asunto</td>
+                    <td style="padding:12px 14px">{{ reg.asunto or '—' }}</td>
+                </tr>
+                <tr style="background:#f8fafc">
+                    <td style="padding:12px 14px;font-weight:700;color:#374151">Estado</td>
+                    <td style="padding:12px 14px">{{ reg.estado or '—' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+            <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:6px">Última actuación</div>
+            <div style="font-size:13px;line-height:1.6">{{ reg.ultima_actuacion or '—' }}</div>
+            {% if reg.fecha_ultima_actuacion %}<div style="font-size:11px;color:#9ca3af;margin-top:8px">{{ reg.fecha_ultima_actuacion | fmt_fecha }}</div>{% endif %}
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+            <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:6px">Próxima actuación / pendiente</div>
+            <div style="font-size:13px;line-height:1.6">{{ reg.proxima_actuacion or '—' }}</div>
+            {% if reg.fecha_limite %}
+            <div style="margin-top:8px">
+                <span class="alerta-badge alerta-{{ reg.alerta.clase }}">{{ reg.fecha_limite | fmt_fecha }} · {{ reg.alerta.texto }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if reg.observaciones %}
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:6px">Observaciones</div>
+        <div style="font-size:13px;line-height:1.6">{{ reg.observaciones }}</div>
+    </div>
+    {% endif %}
+
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:24px;font-size:11px;color:#9ca3af">
+        <span style="margin-right:20px">📅 Creado: {{ reg.created_at | fmt_fecha or '—' }}</span>
+        <span style="margin-right:20px">🔄 Actualizado: {{ reg.updated_at | fmt_fecha or '—' }}</span>
+        {% if reg.created_by %}<span>👤 Por: {{ reg.created_by }}</span>{% endif %}
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center">
+        <a href="/matriz/{{ reg.id }}/editar" class="btn btn-primary">✏️ Editar este registro</a>
+        <form method="post" action="/matriz/{{ reg.id }}/eliminar"
+              onsubmit="return confirm('¿Eliminar este trámite de la matriz? Esta acción no se puede deshacer.')">
+            <button type="submit" class="btn" style="background:#dc2626;color:#fff;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
+                🗑️ Eliminar
+            </button>
+        </form>
+        <a href="/matriz/" class="btn btn-secondary">← Volver a la lista</a>
+    </div>
+
+</div>
+
+{% include "_historial.html" %}
+
+{% endblock %}

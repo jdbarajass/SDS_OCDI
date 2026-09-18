@@ -1,0 +1,195 @@
+{% extends "base_compensatorios.html" %}
+{% block title %}Mis Horas — Compensatorios{% endblock %}
+{% block heading %}🕒 {% if es_superuser_viendo_otro %}Horas de {{ objetivo }}{% else %}Mis Horas Compensadas{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="/compensatorios/" class="btn btn-secondary">← Resumen de la oficina</a>
+{% endblock %}
+
+{% block content %}
+
+{% if es_superuser_viendo_otro %}
+<div style="font-size:11.5px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:16px">
+    ⚠️ Estás viendo y editando la bitácora de <strong>{{ objetivo }}</strong> como {{ current_user.rol }}. <a href="/compensatorios/mis-horas">Volver a la mía</a>.
+</div>
+{% endif %}
+
+<!-- Resumen -->
+<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:22px">
+    <div class="card" style="flex:1;min-width:260px">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-bottom:6px">Horas Turno de Descanso</div>
+        <div style="font-size:22px;font-weight:700;color:#0d3060">{{ resumen.horas_turno | round(1) }} / {{ resumen.meta_turno | round(1) }} h</div>
+        <div style="height:8px;background:#e2e8f0;border-radius:4px;margin:8px 0;overflow:hidden">
+            <div style="height:100%;border-radius:4px;width:{{ resumen.estado_turno.pct }}%;background:{% if resumen.estado_turno.clase == 'vigente' %}#16a34a{% elif resumen.estado_turno.clase == 'vencido' %}#dc2626{% else %}#d97706{% endif %}"></div>
+        </div>
+        <span class="alerta-badge alerta-{{ resumen.estado_turno.clase }}">{{ resumen.estado_turno.pct }}% — {{ resumen.estado_turno.texto }}</span>
+    </div>
+    <div class="card" style="flex:1;min-width:260px">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-bottom:6px">Horas Jornada Corta Dic 24/31</div>
+        <div style="font-size:22px;font-weight:700;color:#0d3060">{{ resumen.horas_dic | round(1) }} / {{ resumen.meta_dic | round(1) }} h</div>
+        <div style="height:8px;background:#e2e8f0;border-radius:4px;margin:8px 0;overflow:hidden">
+            <div style="height:100%;border-radius:4px;width:{{ resumen.estado_dic.pct }}%;background:{% if resumen.estado_dic.clase == 'vigente' %}#16a34a{% elif resumen.estado_dic.clase == 'vencido' %}#dc2626{% else %}#d97706{% endif %}"></div>
+        </div>
+        <span class="alerta-badge alerta-{{ resumen.estado_dic.clase }}">{{ resumen.estado_dic.pct }}% — {{ resumen.estado_dic.texto }}</span>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;font-style:italic">Solo aplica si trabajas ese día — si tu turno de descanso incluye el 24 o el 31, esa fecha no te corresponde.</div>
+    </div>
+</div>
+
+<!-- Elección de turno -->
+<div class="card" style="margin-bottom:22px">
+    <div style="font-size:13.5px;font-weight:700;color:#0d3060;margin-bottom:12px">🗂️ Turno de descanso elegido</div>
+    <form method="post" action="/compensatorios/mis-horas/turno">
+        <input type="hidden" name="nombre" value="{{ objetivo }}">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px">
+            {% for t in turnos %}
+            <label style="display:flex;align-items:flex-start;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;cursor:pointer;min-width:200px">
+                <input type="radio" name="turno_id" value="{{ t.id }}" {% if resumen.turno_id == t.id %}checked{% endif %} style="margin-top:3px">
+                <span>
+                    <div style="font-weight:700;font-size:12.5px;color:#0d3060">{{ t.nombre }}</div>
+                    <div style="font-size:11px;color:#6c757d">{{ t.fecha_inicio | fmt_fecha }} – {{ t.fecha_fin | fmt_fecha }}</div>
+                </span>
+            </label>
+            {% endfor %}
+            <label style="display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;cursor:pointer;min-width:200px">
+                <input type="radio" name="turno_id" value="" {% if not resumen.turno_id %}checked{% endif %}>
+                <span style="font-size:12.5px;color:#6c757d">Aún no decido / no voy a participar</span>
+            </label>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:8px">
+            <input type="checkbox" name="participa" {% if resumen.participa %}checked{% endif %}>
+            Voy a acogerme a la estrategia de descanso compensado
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:12px">
+            <input type="checkbox" name="tiene_compensatorios_previos" {% if resumen.tiene_compensatorios_previos %}checked{% endif %}>
+            Ya tengo compensatorios causados a mi favor (debo usarlos antes de este turno — Art. Séptimo)
+        </label>
+        <div style="margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Observaciones</label>
+            <textarea name="observaciones" class="form-control" rows="2" style="font-size:12.5px">{{ resumen.observaciones or '' }}</textarea>
+        </div>
+
+        {% if es_superuser_viendo_otro %}
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">⚖️ Ajuste por justa causa (solo admin/jefe) — Art. Sexto</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div>
+                    <label style="font-size:11.5px;color:#374151;display:block;margin-bottom:3px">Ajuste horas turno (+/-)</label>
+                    <input type="text" name="ajuste_horas_turno" value="{{ resumen.ajuste_horas_turno or 0 }}" class="form-control" style="width:120px;font-size:12.5px">
+                </div>
+                <div>
+                    <label style="font-size:11.5px;color:#374151;display:block;margin-bottom:3px">Ajuste horas Dic 24/31 (+/-)</label>
+                    <input type="text" name="ajuste_horas_dic" value="{{ resumen.ajuste_horas_dic or 0 }}" class="form-control" style="width:120px;font-size:12.5px">
+                </div>
+                <div style="flex:1;min-width:220px">
+                    <label style="font-size:11.5px;color:#374151;display:block;margin-bottom:3px">Motivo del ajuste</label>
+                    <input type="text" name="motivo_ajuste" value="{{ resumen.motivo_ajuste or '' }}" class="form-control" style="font-size:12.5px" placeholder="Ej: incapacidad 3 días, permiso...">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">💾 Guardar</button>
+    </form>
+</div>
+
+<!-- Nuevo registro -->
+<div class="card" style="margin-bottom:22px">
+    <div style="font-size:13.5px;font-weight:700;color:#0d3060;margin-bottom:12px">➕ Registrar horas compensadas</div>
+    <form method="post" action="/compensatorios/registro/nuevo" id="form-nuevo-registro">
+        <input type="hidden" name="nombre" value="{{ objetivo }}">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+            <div style="min-width:150px">
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Fecha</label>
+                <input type="date" name="fecha" required class="form-control" style="font-size:13px" value="{{ hoy if hoy else '' }}">
+            </div>
+            <div style="min-width:260px">
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Tipo</label>
+                <select name="tipo" id="tipo-registro" required class="form-control" style="font-size:13px" onchange="onTipoChange()">
+                    <option value="">— Seleccione —</option>
+                    {% for val, label in tipos %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="min-width:110px">
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Horas</label>
+                <input type="text" name="horas" id="horas-registro" class="form-control" style="font-size:13px" placeholder="1">
+            </div>
+            <div style="flex:1;min-width:220px">
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Actividad / entregable</label>
+                <input type="text" name="actividad" class="form-control" style="font-size:13px" placeholder="Qué hiciste (Art. Quinto exige trabajo efectivo)">
+            </div>
+            <button type="submit" class="btn btn-primary" style="height:36px">💾 Guardar</button>
+        </div>
+        <div style="margin-top:10px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Observaciones</label>
+            <input type="text" name="observaciones" class="form-control" style="font-size:12.5px">
+        </div>
+    </form>
+    <div style="font-size:11px;color:#94a3b8;margin-top:10px;font-style:italic">
+        No se puede compensar durante la hora de almuerzo (Art. Décimo Sexto). Los sábados de jornada completa descuentan 1h de almuerzo.
+        Sábados habilitados este ciclo: {% for s in sabados %}{{ s | fmt_fecha }}{% if not loop.last %}, {% endif %}{% endfor %}.
+    </div>
+</div>
+
+<script>
+function onTipoChange() {
+    var tipo = document.getElementById('tipo-registro').value;
+    var horasEl = document.getElementById('horas-registro');
+    if (tipo === 'DIC24' || tipo === 'DIC31') {
+        horasEl.value = '1.5';
+        horasEl.readOnly = true;
+    } else {
+        horasEl.readOnly = false;
+        if (horasEl.value === '1.5') horasEl.value = '';
+    }
+}
+</script>
+
+<!-- Lista de registros -->
+<div class="section-head" style="margin-bottom:10px">
+    <h3 style="font-size:14px;color:#374151;margin:0">📋 Registros ({{ registros | length }})</h3>
+</div>
+{% if registros %}
+<div style="overflow-x:auto;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+        <tr style="background:#1B4F8A">
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:left">Fecha</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:left">Tipo</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:center">Horas</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:center">Aplica a</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:left">Actividad</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in registros %}
+    <tr style="border-bottom:1px solid #e9ecef">
+        <td style="padding:8px 12px;white-space:nowrap">{{ r.fecha | fmt_fecha }}</td>
+        <td style="padding:8px 12px;font-size:12px">{{ tipos_dict.get(r.tipo, r.tipo) }}</td>
+        <td style="padding:8px 12px;text-align:center;font-weight:700">{{ r.horas | round(2) }}</td>
+        <td style="padding:8px 12px;text-align:center">
+            <span style="background:{% if r.aplica_a == 'DIC' %}#fef3c7;color:#92400e{% else %}#dbeafe;color:#1d4ed8{% endif %};padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700">{{ r.aplica_a }}</span>
+        </td>
+        <td style="padding:8px 12px;font-size:12px;color:#374151">{{ r.actividad or '—' }}</td>
+        <td style="padding:8px 12px;text-align:center;white-space:nowrap">
+            <a href="/compensatorios/registro/{{ r.id }}/editar" title="Editar" style="color:#d97706;margin-right:6px;font-size:15px">✏️</a>
+            <form method="post" action="/compensatorios/registro/{{ r.id }}/eliminar" style="display:inline" onsubmit="return confirm('¿Eliminar este registro? Se moverá a la papelera.')">
+                <button type="submit" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:15px">🗑️</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">🕒</div>
+    <h3>Sin registros todavía</h3>
+    <p>Registra arriba la primera hora compensada.</p>
+</div>
+{% endif %}
+
+{% endblock %}

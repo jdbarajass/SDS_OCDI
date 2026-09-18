@@ -113,9 +113,18 @@ async def crear_usuario(
     if rol not in ROLES_SUPERUSUARIO:
         puede_escribir_default = 1 if rol in ROLES_ESCRITURA_DEFAULT else 0
         for modulo, _ in MODULOS_SISTEMA:
+            # "matriz" (Matriz de Seguimiento) invierte la regla: es la
+            # bitácora manual del abogado, no de secretaría.
+            # "compensatorios" es autogestión: todos los roles escriben la suya.
+            if modulo == "matriz":
+                escribir = 1 if rol == "abogado" else 0
+            elif modulo == "compensatorios":
+                escribir = 1
+            else:
+                escribir = puede_escribir_default
             conn.execute(
                 "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
-                (uid, modulo, puede_escribir_default),
+                (uid, modulo, escribir),
             )
     conn.commit()
     registrar_log(user, "crear_usuario", "usuarios", f"Usuario creado: '{nombre_completo}' (rol={rol})",

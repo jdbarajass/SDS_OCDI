@@ -13,6 +13,8 @@ MODULOS_SISTEMA = [
     ("backup",          "📦 Backup"),
     ("sdqs",            "📩 SDQS"),
     ("equipos",         "💻 Préstamo de Equipos"),
+    ("matriz",          "🗂️ Matriz de Seguimiento (Abogados)"),
+    ("compensatorios",  "⏱️ Compensatorios Fin de Año"),
 ]
 
 # Roles que siempre tienen acceso completo (no configurables por módulo)

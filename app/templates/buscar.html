@@ -100,6 +100,18 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    {% if resultados.matriz %}
+    <div class="buscar-grupo">
+        <h3>🗂️ Matriz de Seguimiento ({{ resultados.matriz | length }})</h3>
+        {% for r in resultados.matriz %}
+        <a class="buscar-item" href="/matriz/{{ r.id }}">
+            <div class="buscar-item-titulo">{% if r.n_bpm %}BPM {{ r.n_bpm }}{% else %}{{ r.n_expediente or ('Trámite #' ~ r.id) }}{% endif %}</div>
+            <div class="buscar-item-sub">{{ r.abogado or 'Sin asignar' }}{% if r.asunto %} · {{ r.asunto[:60] }}{% endif %}{% if r.etapa_bpm %} · {{ r.etapa_bpm }}{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 </body>
 </html>

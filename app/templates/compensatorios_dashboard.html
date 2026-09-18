@@ -1,0 +1,131 @@
+{% extends "base_compensatorios.html" %}
+{% block title %}Resumen — Compensatorios{% endblock %}
+{% block heading %}⏱️ Compensatorios Fin de Año{% endblock %}
+
+{% block header_actions %}
+<a href="/compensatorios/mis-horas" class="btn btn-primary">🕒 Mis Horas</a>
+<a href="/compensatorios/exportar" class="btn btn-secondary" style="margin-left:8px">📤 Exportar Excel</a>
+{% endblock %}
+
+{% block content %}
+
+{% if not ciclo %}
+<div class="empty-state">
+    <div class="empty-icon">⏱️</div>
+    <h3>No hay un ciclo activo</h3>
+    <p>
+        {% if current_user and current_user.rol in ('admin','jefe') %}
+        Crea el ciclo de compensación desde <a href="/compensatorios/ciclo">Configurar Ciclo</a>.
+        {% else %}
+        Un admin/jefe debe configurar el ciclo de compensación de fin de año.
+        {% endif %}
+    </p>
+</div>
+{% else %}
+
+<div class="card" style="margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:flex-start">
+        <div>
+            <div style="font-size:16px;font-weight:700;color:#0d3060">{{ ciclo.nombre }}</div>
+            <div style="font-size:12px;color:#6c757d;margin-top:2px">{{ ciclo.resolucion }}</div>
+        </div>
+        <div style="display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px">
+            <div><div style="color:#94a3b8;font-size:10.5px;text-transform:uppercase">Meta por turno</div><div style="font-weight:700;color:#0d3060">{{ ciclo.meta_horas_turno | round(1) }} h</div></div>
+            <div><div style="color:#94a3b8;font-size:10.5px;text-transform:uppercase">Ventana de compensación</div><div style="font-weight:700">{{ ciclo.ventana_ini | fmt_fecha }} — {{ ciclo.ventana_fin | fmt_fecha }}</div></div>
+            <div><div style="color:#94a3b8;font-size:10.5px;text-transform:uppercase">Meta Dic 24/31</div><div style="font-weight:700;color:#0d3060">{{ ciclo.meta_horas_dic | round(1) }} h</div></div>
+            <div><div style="color:#94a3b8;font-size:10.5px;text-transform:uppercase">Ventana Dic 24/31</div><div style="font-weight:700">{{ ciclo.ventana_dic_ini | fmt_fecha }} — {{ ciclo.ventana_dic_fin | fmt_fecha }}</div></div>
+            <div><div style="color:#94a3b8;font-size:10.5px;text-transform:uppercase">Reporte a Talento Humano</div><div style="font-weight:700;color:#b45309">{{ ciclo.fecha_tope_reporte | fmt_fecha }}</div></div>
+        </div>
+    </div>
+</div>
+
+{% if mi_resumen %}
+<div class="card" style="margin-bottom:20px;border:1px solid #93c5fd;background:#eff6ff">
+    <div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">👤 Tu avance — {{ current_user.nombre_completo }}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:26px">
+        <div style="min-width:220px">
+            <div style="font-size:11.5px;color:#475569;margin-bottom:3px">Turno elegido</div>
+            <div style="font-weight:700;color:#0d3060">
+                {% if mi_resumen.turno %}{{ mi_resumen.turno.nombre }} ({{ mi_resumen.turno.fecha_inicio | fmt_fecha }} – {{ mi_resumen.turno.fecha_fin | fmt_fecha }}){% else %}Sin elegir aún{% endif %}
+            </div>
+        </div>
+        <div style="min-width:220px">
+            <div style="font-size:11.5px;color:#475569;margin-bottom:3px">Horas turno (34h)</div>
+            <span class="alerta-badge alerta-{{ mi_resumen.estado_turno.clase }}">{{ mi_resumen.horas_turno | round(1) }}/{{ mi_resumen.meta_turno | round(1) }} h ({{ mi_resumen.estado_turno.pct }}%) — {{ mi_resumen.estado_turno.texto }}</span>
+        </div>
+        <div style="min-width:220px">
+            <div style="font-size:11.5px;color:#475569;margin-bottom:3px">Horas Dic 24/31</div>
+            <span class="alerta-badge alerta-{{ mi_resumen.estado_dic.clase }}">{{ mi_resumen.horas_dic | round(1) }}/{{ mi_resumen.meta_dic | round(1) }} h ({{ mi_resumen.estado_dic.pct }}%) — {{ mi_resumen.estado_dic.texto }}</span>
+        </div>
+        <div style="display:flex;align-items:center">
+            <a href="/compensatorios/mis-horas" class="btn btn-primary btn-sm">Ir a registrar horas →</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="section-head" style="margin-bottom:10px">
+    <h3 style="font-size:14px;color:#374151;margin:0">🗂️ Turnos de descanso — quién descansa y quién labora</h3>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:24px">
+    {% for t in turnos %}
+    <div class="card" style="padding:14px 16px">
+        <div style="font-weight:700;color:#0d3060;font-size:13.5px">{{ t.nombre }}</div>
+        <div style="font-size:11.5px;color:#6c757d;margin-bottom:8px">{{ t.fecha_inicio | fmt_fecha }} – {{ t.fecha_fin | fmt_fecha }}</div>
+        {% set nombres_turno = por_turno.get(t.id, []) %}
+        {% if nombres_turno %}
+        <div style="font-size:11.5px;color:#0d3060">
+            {% for n in nombres_turno %}<div style="padding:2px 0">• {{ n }}</div>{% endfor %}
+        </div>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:6px">{{ nombres_turno | length }} descansando</div>
+        {% else %}
+        <div style="font-size:11.5px;color:#94a3b8;font-style:italic">Nadie ha elegido este turno aún</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="section-head" style="margin-bottom:10px">
+    <h3 style="font-size:14px;color:#374151;margin:0">📋 Resumen de toda la oficina</h3>
+</div>
+<div style="overflow-x:auto;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+<table style="width:100%;border-collapse:collapse;min-width:1100px;font-size:13px">
+    <thead>
+        <tr style="background:#1B4F8A">
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:left">Funcionario</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:left">Turno</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:center">Hoy</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:left">Horas turno</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:left">Horas Dic 24/31</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:center">Compens. previos</th>
+            <th style="color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;padding:10px 12px;text-align:center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in resumenes %}
+    <tr style="border-bottom:1px solid #e9ecef;{% if r.nombre_completo == current_user.nombre_completo %}background:#eff6ff{% endif %}">
+        <td style="padding:9px 12px;font-weight:700;color:#0d3060">{{ r.nombre_completo }}</td>
+        <td style="padding:9px 12px;font-size:12px">
+            {% if r.turno %}{{ r.turno.nombre }}{% if not r.participa %} <span style="color:#94a3b8">(no participa)</span>{% endif %}{% else %}<span style="color:#94a3b8">Sin elegir</span>{% endif %}
+        </td>
+        <td style="padding:9px 12px;text-align:center">
+            {% if r.descansa_hoy %}<span class="alerta-badge alerta-proximo">🏖️ Descansando</span>{% else %}<span class="alerta-badge alerta-vigente">💼 Laborando</span>{% endif %}
+        </td>
+        <td style="padding:9px 12px"><span class="alerta-badge alerta-{{ r.estado_turno.clase }}">{{ r.horas_turno | round(1) }}/{{ r.meta_turno | round(1) }}h ({{ r.estado_turno.pct }}%)</span></td>
+        <td style="padding:9px 12px"><span class="alerta-badge alerta-{{ r.estado_dic.clase }}">{{ r.horas_dic | round(1) }}/{{ r.meta_dic | round(1) }}h ({{ r.estado_dic.pct }}%)</span></td>
+        <td style="padding:9px 12px;text-align:center">{% if r.tiene_compensatorios_previos %}⚠️ Sí{% else %}—{% endif %}</td>
+        <td style="padding:9px 12px;text-align:center">
+            <a href="/compensatorios/mis-horas?nombre={{ r.nombre_completo | urlencode }}" title="Ver / gestionar" style="color:#1B4F8A;font-size:15px">👁️</a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<div style="font-size:11px;color:#94a3b8;margin-top:14px;font-style:italic">
+    Este resumen no reemplaza el reporte oficial a la Dirección de Gestión de Talento Humano (formato SDS-THO-FT-106 V.1), que se valida contra el registro biométrico. Úsalo como apoyo interno para el seguimiento diario.
+</div>
+
+{% endif %}
+{% endblock %}

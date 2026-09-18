@@ -12,7 +12,7 @@
         :root {
             --bg: #0A0E19; --panel: #121A2C; --panel-raised: #182238; --sidebar: #0D1220;
             --line: #26314C; --line-soft: #1C2740; --ink: #ECEEF5; --ink-soft: #8D96B0; --ink-faint: #5C6483;
-            --gold: #D9AE4E; --gold-ink: #F3D488; --gold-tint: #2A2211;
+            --gold: #D9AE4E; --gold-ink: #F3D488; --gold-tint: #2A2211; --gold-line: #4C3D1B;
             --crimson: #C24B5C; --crimson-tint: #2E1620; --crimson-line: #4A2530;
             --emerald: #3EA37A; --emerald-tint: #112720; --emerald-line: #1E4636;
             --sapphire: #4C86D6; --sapphire-tint: #101E33; --sapphire-line: #223A5C;
@@ -180,6 +180,7 @@
         .mc-amber { border-color: var(--amber-line); } .mc-amber .ico { background: var(--amber-tint); color: var(--amber); } .mc-amber .cta { color: var(--amber); }
         .mc-slate { border-color: var(--slate-line); } .mc-slate .ico { background: var(--slate-tint); color: var(--slate); } .mc-slate .cta { color: var(--slate); }
         .mc-forest { border-color: var(--forest-line); } .mc-forest .ico { background: var(--forest-tint); color: var(--forest); } .mc-forest .cta { color: var(--forest); }
+        .mc-gold { border-color: var(--gold-line); } .mc-gold .ico { background: var(--gold-tint); color: var(--gold); } .mc-gold .cta { color: var(--gold); }
 
         .mcard.small { flex-direction: row; align-items: center; padding: 13px 16px; }
         .mcard.small .ico { width: 36px; height: 36px; } .mcard.small .ico svg { width: 18px; height: 18px; }
@@ -272,6 +273,14 @@
         {% if not permisos or permisos.get('digitales', {}).get('puede_ver', True) %}
         <a href="/digitales/" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Expedientes Digitales</a>
         {% endif %}
+        {% if not permisos or permisos.get('matriz', {}).get('puede_ver', True) %}
+        <a href="/matriz/" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>Matriz de Seguimiento</a>
+        {% endif %}
+
+        {% if not permisos or permisos.get('compensatorios', {}).get('puede_ver', True) %}
+        <div class="nav-label">Talento humano</div>
+        <a href="/compensatorios/" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Compensatorios Fin de Año</a>
+        {% endif %}
 
         {% if (not permisos or permisos.get('sala', {}).get('puede_ver', True)) or (not permisos or permisos.get('equipos', {}).get('puede_ver', True)) %}
         <div class="nav-label">Operación de oficina</div>
@@ -298,7 +307,7 @@
         {% endif %}
 
         <div class="sidebar-foot">
-            <div class="version-tag">SDS · OCDI v5.2</div>
+            <div class="version-tag">SDS · OCDI v5.4</div>
         </div>
     </aside>
     <div class="backdrop" onclick="document.getElementById('sidebar').classList.remove('open')"></div>
@@ -425,8 +434,8 @@
         <div class="tip-card">
             <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg></span>
             <span>
-                <div class="t">Novedades v5.2</div>
-                <div class="s">Cada módulo ahora tiene <strong>papelera de reciclaje</strong> (los registros eliminados se pueden restaurar) e <strong>historial de cambios</strong> por registro — búscalos en el menú lateral de cada módulo.</div>
+                <div class="t">Novedades v5.4</div>
+                <div class="s">Nuevo módulo <strong>Compensatorios Fin de Año</strong> (Resolución 2307 de 2026): registra tus horas compensadas, elige tu turno de descanso y sigue tu avance hacia la meta — en la sección "Talento humano" del menú lateral.</div>
             </span>
         </div>
 
@@ -434,7 +443,8 @@
            or (not permisos or permisos.get('correspondencia', {}).get('puede_ver', True))
            or (not permisos or permisos.get('control_autos', {}).get('puede_ver', True))
            or (not permisos or permisos.get('sdqs', {}).get('puede_ver', True))
-           or (not permisos or permisos.get('digitales', {}).get('puede_ver', True)) %}
+           or (not permisos or permisos.get('digitales', {}).get('puede_ver', True))
+           or (not permisos or permisos.get('matriz', {}).get('puede_ver', True)) %}
         <div class="section">
             <div class="section-head"><h3>Casos y trámites</h3><div class="rule"></div></div>
             <div class="grid">
@@ -492,6 +502,16 @@
                 </a>
                 {% endif %}
 
+                {% if not permisos or permisos.get('matriz', {}).get('puede_ver', True) %}
+                <a href="/matriz/" class="mcard mc-forest">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg></span>
+                    <div class="title">Matriz de Seguimiento</div>
+                    <div class="desc">Bitácora manual de cada abogado sobre sus trámites en el BPM.</div>
+                    <div class="stats"><div><div class="stat">{{ total_matriz }}</div><div class="stat-label">{% if current_user and current_user.rol == 'abogado' %}Tus trámites{% else %}Trámites{% endif %}</div></div></div>
+                    <div class="cta">Abrir módulo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+                </a>
+                {% endif %}
+
             </div>
         </div>
         {% endif %}
@@ -527,6 +547,29 @@
                 </a>
                 {% endif %}
 
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not permisos or permisos.get('compensatorios', {}).get('puede_ver', True) %}
+        <div class="section">
+            <div class="section-head"><h3>Talento humano</h3><div class="rule"></div></div>
+            <div class="grid">
+                <a href="/compensatorios/" class="mcard mc-gold">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                    <div class="title">Compensatorios Fin de Año</div>
+                    <div class="desc">Resolución 2307 de 2026 — turnos de descanso, horas compensadas y jornada corta 24-31 dic.</div>
+                    <div class="stats">
+                        {% if mi_resumen_comp %}
+                        <div><div class="stat">{{ mi_resumen_comp.estado_turno.pct }}%</div><div class="stat-label">Tu avance</div></div>
+                        {% elif ciclo_comp %}
+                        <div><div class="stat" style="font-size:13px">Sin turno</div><div class="stat-label">Aún no elegido</div></div>
+                        {% else %}
+                        <div><div class="stat" style="font-size:13px">—</div><div class="stat-label">Sin ciclo activo</div></div>
+                        {% endif %}
+                    </div>
+                    <div class="cta">Abrir módulo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+                </a>
             </div>
         </div>
         {% endif %}

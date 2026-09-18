@@ -292,6 +292,28 @@ CREATE TABLE IF NOT EXISTS bienes_muebles (
     updated_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- ── MATRIZ DE SEGUIMIENTO DE ABOGADOS (traza manual de trámites en BPM) ──────
+CREATE TABLE IF NOT EXISTS matriz_seguimiento (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    abogado                 TEXT NOT NULL,
+    n_expediente            TEXT,
+    n_bpm                   TEXT,
+    tipo_tramite            TEXT,
+    etapa_bpm               TEXT,
+    asunto                  TEXT,
+    ultima_actuacion        TEXT,
+    fecha_ultima_actuacion  TEXT,
+    proxima_actuacion       TEXT,
+    fecha_limite            TEXT,
+    estado                  TEXT DEFAULT 'EN TRÁMITE',
+    observaciones           TEXT,
+    eliminado_en            TEXT,
+    eliminado_por           TEXT,
+    created_at              TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at              TEXT DEFAULT (datetime('now', 'localtime')),
+    created_by              TEXT
+);
+
 CREATE TABLE IF NOT EXISTS prestamos_equipos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     bien_id INTEGER REFERENCES bienes_muebles(id) ON DELETE SET NULL,
@@ -307,6 +329,80 @@ CREATE TABLE IF NOT EXISTS prestamos_equipos (
     created_at TEXT DEFAULT (datetime('now','localtime')),
     updated_at TEXT DEFAULT (datetime('now','localtime')),
     created_by TEXT
+);
+
+-- ── COMPENSATORIOS FIN DE AÑO (Resolución 2307 de 2026 / modifica 2316 de 2023) ──
+-- Ciclo = una instancia del esquema de descanso+compensación (uno por cada
+-- fin de año en que la Secretaría emita una resolución similar). Los turnos,
+-- sábados habilitados y metas quedan como datos editables por admin/jefe —
+-- NO hardcoded — para poder reutilizar el módulo el próximo año sin tocar código.
+CREATE TABLE IF NOT EXISTS comp_ciclos (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre              TEXT NOT NULL,
+    resolucion          TEXT,
+    activo              INTEGER DEFAULT 1,
+    meta_horas_turno    REAL NOT NULL DEFAULT 34,
+    meta_horas_dic      REAL NOT NULL DEFAULT 3,
+    ventana_ini         TEXT,
+    ventana_fin         TEXT,
+    ventana_dic_ini     TEXT,
+    ventana_dic_fin     TEXT,
+    fecha_tope_reporte  TEXT,
+    created_at          TEXT DEFAULT (datetime('now','localtime')),
+    created_by          TEXT
+);
+
+CREATE TABLE IF NOT EXISTS comp_turnos (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ciclo_id        INTEGER NOT NULL REFERENCES comp_ciclos(id) ON DELETE CASCADE,
+    nombre          TEXT NOT NULL,
+    fecha_inicio    TEXT NOT NULL,
+    fecha_fin       TEXT NOT NULL,
+    orden           INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS comp_sabados (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ciclo_id    INTEGER NOT NULL REFERENCES comp_ciclos(id) ON DELETE CASCADE,
+    fecha       TEXT NOT NULL
+);
+
+-- Elección de turno y ajustes por funcionario dentro de un ciclo. Se crea
+-- "on demand" (get-or-create) cuando la persona entra por primera vez a
+-- "Mis horas" — no se preseedea para no ensuciar el ciclo con gente que
+-- nunca participó.
+CREATE TABLE IF NOT EXISTS comp_funcionarios (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ciclo_id                        INTEGER NOT NULL REFERENCES comp_ciclos(id) ON DELETE CASCADE,
+    nombre_completo                 TEXT NOT NULL,
+    turno_id                        INTEGER REFERENCES comp_turnos(id) ON DELETE SET NULL,
+    participa                       INTEGER DEFAULT 1,
+    tiene_compensatorios_previos    INTEGER DEFAULT 0,
+    ajuste_horas_turno              REAL DEFAULT 0,
+    ajuste_horas_dic                REAL DEFAULT 0,
+    motivo_ajuste                   TEXT,
+    observaciones                   TEXT,
+    updated_at                      TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(ciclo_id, nombre_completo)
+);
+
+-- Bitácora diaria de horas compensadas (autogestión: cada funcionario
+-- registra la suya; admin/jefe pueden registrar/editar la de cualquiera).
+CREATE TABLE IF NOT EXISTS comp_registro (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    ciclo_id            INTEGER NOT NULL REFERENCES comp_ciclos(id) ON DELETE CASCADE,
+    nombre_completo     TEXT NOT NULL,
+    fecha               TEXT NOT NULL,
+    tipo                TEXT NOT NULL,
+    horas               REAL NOT NULL,
+    aplica_a            TEXT NOT NULL DEFAULT 'TURNO',
+    actividad           TEXT,
+    observaciones       TEXT,
+    eliminado_en        TEXT,
+    eliminado_por       TEXT,
+    created_at          TEXT DEFAULT (datetime('now','localtime')),
+    updated_at          TEXT DEFAULT (datetime('now','localtime')),
+    created_by          TEXT
 );
 """
 
@@ -344,6 +440,16 @@ CREATE INDEX IF NOT EXISTS ix_sdqs_eliminado_en ON sdqs(eliminado_en);
 CREATE INDEX IF NOT EXISTS ix_correspondencia_eliminado_en ON correspondencia(eliminado_en);
 CREATE INDEX IF NOT EXISTS ix_exp_digitales_eliminado_en ON exp_digitales(eliminado_en);
 CREATE INDEX IF NOT EXISTS ix_control_autos_eliminado_en ON control_autos_sustanciacion(eliminado_en);
+
+CREATE INDEX IF NOT EXISTS ix_matriz_seguimiento_abogado ON matriz_seguimiento(abogado);
+CREATE INDEX IF NOT EXISTS ix_matriz_seguimiento_eliminado_en ON matriz_seguimiento(eliminado_en);
+CREATE INDEX IF NOT EXISTS ix_matriz_seguimiento_fecha_limite ON matriz_seguimiento(fecha_limite);
+
+CREATE INDEX IF NOT EXISTS ix_comp_turnos_ciclo ON comp_turnos(ciclo_id);
+CREATE INDEX IF NOT EXISTS ix_comp_sabados_ciclo ON comp_sabados(ciclo_id);
+CREATE INDEX IF NOT EXISTS ix_comp_funcionarios_ciclo ON comp_funcionarios(ciclo_id);
+CREATE INDEX IF NOT EXISTS ix_comp_registro_ciclo_nombre ON comp_registro(ciclo_id, nombre_completo);
+CREATE INDEX IF NOT EXISTS ix_comp_registro_eliminado_en ON comp_registro(eliminado_en);
 """
 
 
@@ -626,6 +732,67 @@ def init_db():
                 (u["id"], "equipos", escribir),
             )
 
+    # Migración: permisos por defecto del módulo "matriz" (Matriz de Seguimiento)
+    # para usuarios ya existentes. A diferencia de los demás módulos, aquí son
+    # los ABOGADOS quienes tienen escritura por defecto (es su bitácora manual
+    # de trámites en BPM); secretario/auxiliar quedan solo con visibilidad
+    # (supervisión), ajustable luego desde el panel de admin.
+    for u in conn.execute("SELECT id, rol FROM usuarios").fetchall():
+        if u["rol"] in ("admin", "jefe"):
+            continue
+        ya_existe = conn.execute(
+            "SELECT 1 FROM permisos_modulo WHERE user_id=? AND modulo='matriz'", (u["id"],)
+        ).fetchone()
+        if not ya_existe:
+            escribir = 1 if u["rol"] == "abogado" else 0
+            conn.execute(
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
+                (u["id"], "matriz", escribir),
+            )
+
+    # Migración: permisos por defecto del módulo "compensatorios" (Control de
+    # Compensatorios Fin de Año) para usuarios ya existentes. A diferencia de
+    # todos los demás módulos, TODOS los roles no-superusuario (secretario,
+    # auxiliar Y abogado) tienen escritura por defecto — es autogestión: cada
+    # funcionario registra sus propias horas compensadas.
+    for u in conn.execute("SELECT id, rol FROM usuarios").fetchall():
+        if u["rol"] in ("admin", "jefe"):
+            continue
+        ya_existe = conn.execute(
+            "SELECT 1 FROM permisos_modulo WHERE user_id=? AND modulo='compensatorios'", (u["id"],)
+        ).fetchone()
+        if not ya_existe:
+            conn.execute(
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,1,1)",
+                (u["id"], "compensatorios"),
+            )
+
+    # Seed del ciclo "Fin de año 2026-2027" (Resolución 2307 de 2026) — solo
+    # si no existe todavía ningún ciclo. Los 3 turnos y los 6 sábados quedan
+    # cargados tal como los define la resolución, pero son editables desde
+    # /compensatorios/ciclo por admin/jefe (p.ej. para el ciclo 2027-2028).
+    if conn.execute("SELECT COUNT(*) FROM comp_ciclos").fetchone()[0] == 0:
+        cur = conn.execute(
+            """INSERT INTO comp_ciclos
+               (nombre, resolucion, activo, meta_horas_turno, meta_horas_dic,
+                ventana_ini, ventana_fin, ventana_dic_ini, ventana_dic_fin, fecha_tope_reporte)
+               VALUES (?,?,1,?,?,?,?,?,?,?)""",
+            ("Fin de año 2026-2027", "Resolución 2307 de 2026 (modifica Resolución 2316 de 2023)",
+             34, 3, "2026-09-17", "2026-11-05", "2026-11-06", "2026-11-10", "2026-11-13"),
+        )
+        ciclo_id = cur.lastrowid
+        for nombre, ini, fin, orden in [
+            ("Turno 1", "2026-12-21", "2026-12-24", 1),
+            ("Turno 2", "2026-12-28", "2026-12-31", 2),
+            ("Turno 3", "2027-01-04", "2027-01-07", 3),
+        ]:
+            conn.execute(
+                "INSERT INTO comp_turnos (ciclo_id, nombre, fecha_inicio, fecha_fin, orden) VALUES (?,?,?,?,?)",
+                (ciclo_id, nombre, ini, fin, orden),
+            )
+        for fecha in ["2026-09-19", "2026-09-26", "2026-10-03", "2026-10-10", "2026-10-17", "2026-10-24"]:
+            conn.execute("INSERT INTO comp_sabados (ciclo_id, fecha) VALUES (?,?)", (ciclo_id, fecha))
+
     # Seed inicial de usuarios (solo si la tabla está vacía)
     if conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:
         _seed_usuarios(conn)
@@ -674,9 +841,14 @@ def _seed_usuarios(conn):
         # admin y jefe no necesitan filas de permisos (bypasean la verificación)
         if rol not in ("admin", "jefe"):
             for modulo in modulos:
+                # "matriz" (Matriz de Seguimiento): es la bitácora manual del
+                # abogado, secretario/auxiliar solo la supervisan sin editarla.
+                # "compensatorios": autogestión de TODOS los roles (cada uno
+                # registra sus propias horas), no solo abogados.
+                escribir = 0 if modulo == "matriz" else 1
                 conn.execute(
-                    "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,1,1)",
-                    (uid, modulo),
+                    "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
+                    (uid, modulo, escribir),
                 )
 
     for nombre in abogados:
@@ -686,9 +858,12 @@ def _seed_usuarios(conn):
         )
         uid = cur.lastrowid
         for modulo in modulos:
+            # Los abogados sí tienen escritura por defecto en su propia matriz
+            # y en su propia bitácora de compensatorios.
+            escribir = 1 if modulo in ("matriz", "compensatorios") else 0
             conn.execute(
-                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,0,1)",
-                (uid, modulo),
+                "INSERT INTO permisos_modulo (user_id, modulo, puede_escribir, puede_ver) VALUES (?,?,?,1)",
+                (uid, modulo, escribir),
             )
 
 

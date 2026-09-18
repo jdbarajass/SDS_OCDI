@@ -1,0 +1,66 @@
+{% extends "base_compensatorios.html" %}
+{% block title %}Editar Registro — Compensatorios{% endblock %}
+{% block heading %}✏️ Editar registro — {{ reg.nombre_completo }}{% endblock %}
+
+{% block header_actions %}
+<a href="/compensatorios/mis-horas?nombre={{ reg.nombre_completo | urlencode }}" class="btn btn-secondary">← Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px">
+    <form method="post" action="/compensatorios/registro/{{ reg.id }}/editar">
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Fecha</label>
+            <input type="date" name="fecha" required class="form-control" value="{{ reg.fecha }}">
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Tipo</label>
+            <select name="tipo" id="tipo-registro" required class="form-control" onchange="onTipoChange()">
+                {% for val, label in tipos %}
+                <option value="{{ val }}" {% if val == reg.tipo %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Horas</label>
+            <input type="text" name="horas" id="horas-registro" class="form-control" value="{{ reg.horas }}" {% if reg.tipo in ('DIC24','DIC31') %}readonly{% endif %}>
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Actividad / entregable</label>
+            <input type="text" name="actividad" class="form-control" value="{{ reg.actividad or '' }}">
+        </div>
+        <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Observaciones</label>
+            <input type="text" name="observaciones" class="form-control" value="{{ reg.observaciones or '' }}">
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
+    </form>
+</div>
+
+<script>
+function onTipoChange() {
+    var tipo = document.getElementById('tipo-registro').value;
+    var horasEl = document.getElementById('horas-registro');
+    if (tipo === 'DIC24' || tipo === 'DIC31') {
+        horasEl.value = '1.5';
+        horasEl.readOnly = true;
+    } else {
+        horasEl.readOnly = false;
+    }
+}
+</script>
+
+{% if historial %}
+<div class="section-head" style="margin:24px 0 10px">
+    <h3 style="font-size:13px;color:#374151;margin:0">🕓 Historial de cambios</h3>
+</div>
+<div style="max-width:640px;font-size:12px">
+    {% for h in historial %}
+    <div style="padding:6px 0;border-bottom:1px solid #e9ecef">
+        <strong>{{ h.accion }}</strong> por {{ h.nombre_usuario }} ({{ h.rol }}) — {{ h.created_at | fmt_fecha }}
+        {% if h.detalle %}<div style="color:#6c757d">{{ h.detalle }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

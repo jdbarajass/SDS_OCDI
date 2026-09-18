@@ -1,0 +1,222 @@
+{% extends "base_matriz.html" %}
+{% block title %}Matriz de Seguimiento{% endblock %}
+{% block heading %}🗂️ Matriz de Seguimiento{% if es_abogado %} — {{ current_user.nombre_completo }}{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="/matriz/nuevo" class="btn btn-primary">➕ Nuevo Trámite</a>
+<button type="button" class="btn btn-secondary" style="margin-left:8px" onclick="exportarMatriz()">📤 Exportar Excel</button>
+<script>
+function exportarMatriz() {
+    var form = document.querySelector('form[action="/matriz/"]');
+    var qEl = form.querySelector('[name="q"]');
+    var abEl = form.querySelector('[name="abogado"]');
+    var tEl = form.querySelector('[name="tipo_tramite"]');
+    var eEl = form.querySelector('[name="etapa_bpm"]');
+    var sEl = form.querySelector('[name="estado"]');
+    var q = qEl.value, ab = abEl ? abEl.value : '{{ abogado }}';
+    var t = tEl.value, e = eEl.value, s = sEl.value;
+
+    var filtros = [];
+    if (q) filtros.push('Búsqueda: "' + q + '"');
+    if (ab) filtros.push('Abogado: ' + ab);
+    if (t) filtros.push('Tipo: ' + t);
+    if (e) filtros.push('Etapa BPM: ' + e);
+    if (s) filtros.push('Estado: ' + s);
+
+    mostrarToastMatriz(filtros);
+    window.location.href = '/matriz/exportar?q=' + encodeURIComponent(q)
+        + '&abogado=' + encodeURIComponent(ab) + '&tipo_tramite=' + encodeURIComponent(t)
+        + '&etapa_bpm=' + encodeURIComponent(e) + '&estado=' + encodeURIComponent(s);
+}
+function mostrarToastMatriz(filtros) {
+    var t = document.createElement('div');
+    t.innerHTML = '⏳ Preparando Excel…';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1B4F8A;color:#fff;padding:16px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.35);max-width:420px;line-height:1.6';
+    document.body.appendChild(t);
+    setTimeout(function() {
+        if (filtros.length) {
+            t.style.background = '#0d3060';
+            t.innerHTML = '✅ <strong>Descargado con filtros:</strong><br><span style="font-weight:400;font-size:12px">' + filtros.join(' &nbsp;·&nbsp; ') + '</span>';
+        } else {
+            t.innerHTML = '✅ <strong>Descargado completo</strong>';
+        }
+    }, 1000);
+    setTimeout(function() { t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 450); }, 6500);
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<div style="font-size:11.5px;color:#6c757d;margin-bottom:14px;font-style:italic">
+    🗒️ Bitácora manual: registra aquí en qué va cada trámite dentro del BPM (AgilSalud) — es tu recordatorio, nadie más lo llena por ti.
+    {% if not es_abogado %}Como supervisor puedes ver la matriz de todos los abogados filtrando abajo.{% endif %}
+</div>
+
+<!-- Filtros -->
+<form method="get" action="/matriz/" style="margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Buscar</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Expediente, BPM, asunto..."
+                   class="form-control" style="font-size:13px">
+        </div>
+        {% if es_abogado %}
+        <input type="hidden" name="abogado" value="{{ abogado }}">
+        {% else %}
+        <div style="min-width:200px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Abogado</label>
+            <select name="abogado" class="form-control" style="font-size:13px">
+                <option value="">— Todos —</option>
+                {% for a in abogados %}
+                <option value="{{ a }}" {% if a == abogado %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div style="min-width:180px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Tipo de trámite</label>
+            <select name="tipo_tramite" class="form-control" style="font-size:12.5px">
+                <option value="">— Todos —</option>
+                {% for t in tipos %}
+                <option value="{{ t }}" {% if t == tipo_tramite %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:170px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Etapa BPM</label>
+            <select name="etapa_bpm" class="form-control" style="font-size:12.5px">
+                <option value="">— Todas —</option>
+                {% for e in etapas %}
+                <option value="{{ e }}" {% if e == etapa_bpm %}selected{% endif %}>{{ e }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:150px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Estado</label>
+            <select name="estado" class="form-control" style="font-size:13px">
+                <option value="">— Todos —</option>
+                {% for s in estados %}
+                <option value="{{ s }}" {% if s == estado %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+            <button type="submit" class="btn btn-primary" style="height:36px">🔍 Filtrar</button>
+            <a href="/matriz/" class="btn btn-secondary" style="height:36px;display:flex;align-items:center">✕ Limpiar</a>
+        </div>
+    </div>
+</form>
+
+<div style="font-size:13px;color:#6c757d;margin-bottom:10px">
+    <strong>{{ total }}</strong> trámite{{ 's' if total != 1 else '' }} en seguimiento
+    {% if total > 0 %}· página {{ page }} de {{ total_pages }}{% endif %}
+</div>
+
+{% if rows %}
+<style>
+.mz-table { width:100%; border-collapse:collapse; min-width:1300px; font-size:13px; }
+.mz-table thead tr { background:#1B4F8A; }
+.mz-table th {
+    color:#fff; font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.4px; padding:10px 12px; text-align:left;
+    border-right:1px solid rgba(255,255,255,.15);
+}
+.mz-table th:last-child { border-right:none; }
+.mz-table td {
+    padding:9px 12px; border-bottom:1px solid #e9ecef;
+    border-right:1px solid #e9ecef; vertical-align:middle;
+}
+.mz-table td:last-child { border-right:none; }
+.mz-table tbody tr:hover td { background:#f0f7ff; }
+.mz-table tbody tr:nth-child(even) td { background:#f8fafc; }
+.mz-table tbody tr:nth-child(even):hover td { background:#f0f7ff; }
+</style>
+<div style="overflow-x:auto;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+<table class="mz-table">
+    <thead>
+        <tr>
+            {% if not es_abogado %}<th style="min-width:150px">ABOGADO</th>{% endif %}
+            <th style="min-width:110px">EXPEDIENTE</th>
+            <th style="min-width:110px">N° BPM</th>
+            <th style="min-width:150px">TIPO DE TRÁMITE</th>
+            <th style="min-width:150px">ETAPA BPM</th>
+            <th style="min-width:200px">ASUNTO</th>
+            <th style="min-width:200px">ÚLTIMA ACTUACIÓN</th>
+            <th style="min-width:220px">PRÓXIMA ACTUACIÓN / LÍMITE</th>
+            <th style="min-width:110px;text-align:center">ESTADO</th>
+            <th style="width:80px;text-align:center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        {% if not es_abogado %}<td style="font-size:12px;font-weight:600;color:#0d3060;white-space:nowrap">{{ r.abogado or '—' }}</td>{% endif %}
+        <td style="font-weight:700;color:#0d3060">{{ r.n_expediente or '—' }}</td>
+        <td>
+            {% if r.n_bpm %}<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">{{ r.n_bpm }}</span>{% else %}—{% endif %}
+        </td>
+        <td style="font-size:12px">{{ r.tipo_tramite or '—' }}</td>
+        <td style="font-size:12px">{{ r.etapa_bpm or '—' }}</td>
+        <td style="font-size:12px;line-height:1.4;color:#1e293b">{{ r.asunto or '—' }}</td>
+        <td style="font-size:12px;color:#374151">
+            {{ r.ultima_actuacion or '—' }}
+            {% if r.fecha_ultima_actuacion %}<div style="color:#9ca3af;font-size:11px;margin-top:2px">{{ r.fecha_ultima_actuacion | fmt_fecha }}</div>{% endif %}
+        </td>
+        <td style="font-size:12px;color:#374151">
+            {{ r.proxima_actuacion or '—' }}
+            {% if r.fecha_limite %}
+            <div style="margin-top:4px">
+                <span class="alerta-badge alerta-{{ r.alerta.clase }}" style="font-size:10.5px">{{ r.fecha_limite | fmt_fecha }} · {{ r.alerta.texto }}</span>
+            </div>
+            {% endif %}
+        </td>
+        <td style="text-align:center">
+            {% set ecolor = {'AL DÍA':'#15803d','EN TRÁMITE':'#1d4ed8','PENDIENTE':'#b45309','VENCIDO':'#b91c1c','ARCHIVADO':'#6b7280'} %}
+            <span style="background:{{ ecolor.get(r.estado, '#e5e7eb') }}1a;color:{{ ecolor.get(r.estado, '#374151') }};padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">{{ r.estado or '—' }}</span>
+        </td>
+        <td style="text-align:center;white-space:nowrap">
+            <a href="/matriz/{{ r.id }}" title="Ver detalle" style="color:#1B4F8A;margin-right:6px;font-size:16px">👁️</a>
+            <a href="/matriz/{{ r.id }}/editar" title="Editar" style="color:#d97706;font-size:16px">✏️</a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if total_pages > 1 %}
+<div style="display:flex;justify-content:center;gap:6px;margin-top:20px;flex-wrap:wrap">
+    {% if page > 1 %}
+    <a href="?q={{ q }}&abogado={{ abogado }}&tipo_tramite={{ tipo_tramite | urlencode }}&etapa_bpm={{ etapa_bpm | urlencode }}&estado={{ estado }}&page={{ page-1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">‹ Anterior</a>
+    {% endif %}
+    {% for p in range(1, total_pages+1) %}
+    {% if p == page %}
+    <span class="btn btn-primary" style="font-size:12px;padding:5px 12px">{{ p }}</span>
+    {% elif p <= 3 or p >= total_pages-2 or (p >= page-2 and p <= page+2) %}
+    <a href="?q={{ q }}&abogado={{ abogado }}&tipo_tramite={{ tipo_tramite | urlencode }}&etapa_bpm={{ etapa_bpm | urlencode }}&estado={{ estado }}&page={{ p }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">{{ p }}</a>
+    {% elif p == 4 or p == total_pages-3 %}
+    <span style="padding:5px 4px;color:#6c757d">…</span>
+    {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="?q={{ q }}&abogado={{ abogado }}&tipo_tramite={{ tipo_tramite | urlencode }}&etapa_bpm={{ etapa_bpm | urlencode }}&estado={{ estado }}&page={{ page+1 }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px">Siguiente ›</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:#9ca3af">
+    <div style="font-size:48px;margin-bottom:12px">🗂️</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px">Sin trámites registrados</div>
+    <div style="font-size:13px">
+        {% if q or abogado or tipo_tramite or etapa_bpm or estado %}
+        No se encontraron trámites con los filtros aplicados. <a href="/matriz/">Ver todos</a>
+        {% else %}
+        Aún no has registrado ningún trámite. <a href="/matriz/nuevo">Agregar el primero</a>.
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

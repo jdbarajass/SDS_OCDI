@@ -28,7 +28,7 @@ def _puede_ver(request: Request, modulo: str) -> bool:
 @router.get("/buscar", response_class=HTMLResponse)
 async def buscar(request: Request, q: str = ""):
     q = (q or "").strip()
-    resultados = {"expedientes": [], "sdqs": [], "correspondencia": [], "digitales": []}
+    resultados = {"expedientes": [], "sdqs": [], "correspondencia": [], "digitales": [], "matriz": []}
 
     if len(q) >= 2:
         like = f"%{q}%"
@@ -72,6 +72,22 @@ async def buscar(request: Request, q: str = ""):
                 ORDER BY id DESC LIMIT ?
             """, (like, _LIMITE)).fetchall()
             resultados["digitales"] = [dict(r) for r in rows]
+
+        if _puede_ver(request, "matriz"):
+            user = getattr(request.state, "user", None)
+            sql = """
+                SELECT id, abogado, n_expediente, n_bpm, asunto, etapa_bpm
+                FROM matriz_seguimiento
+                WHERE eliminado_en IS NULL AND (n_expediente LIKE ? OR n_bpm LIKE ? OR asunto LIKE ?)
+            """
+            params = [like, like, like]
+            if user and user.get("rol") == "abogado":
+                sql += " AND abogado = ?"
+                params.append(user["nombre_completo"])
+            sql += " ORDER BY id DESC LIMIT ?"
+            params.append(_LIMITE)
+            rows = conn.execute(sql, params).fetchall()
+            resultados["matriz"] = [dict(r) for r in rows]
 
         conn.close()
 

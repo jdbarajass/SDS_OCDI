@@ -10,6 +10,7 @@ from app.routers.backup import backup_necesario
 from app.routers.expedientes import _enriquecer as _enriquecer_expediente
 from app.routers.sdqs import _calcular_semaforo_sdqs
 from app.routers.correspondencia import _calcular_semaforo_row
+from app.routers.compensatorios import _ciclo_activo, _resumen_funcionario
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
@@ -70,6 +71,15 @@ def _contar_vencimientos_proximos(conn) -> dict:
 async def hub(request: Request, msg: str = "", backup: str = ""):
     conn = get_db()
 
+    current_user = getattr(request.state, "user", None)
+    if current_user and current_user.get("rol") == "abogado":
+        total_matriz = conn.execute(
+            "SELECT COUNT(*) FROM matriz_seguimiento WHERE eliminado_en IS NULL AND abogado = ?",
+            (current_user["nombre_completo"],)
+        ).fetchone()[0]
+    else:
+        total_matriz = conn.execute("SELECT COUNT(*) FROM matriz_seguimiento WHERE eliminado_en IS NULL").fetchone()[0]
+
     total_base      = conn.execute("SELECT COUNT(*) FROM expedientes WHERE eliminado_en IS NULL").fetchone()[0]
     total_digitales = conn.execute("SELECT COUNT(*) FROM exp_digitales WHERE eliminado_en IS NULL").fetchone()[0]
 
@@ -99,6 +109,11 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
 
     vencimientos_proximos = _contar_vencimientos_proximos(conn)
 
+    ciclo_comp = _ciclo_activo(conn)
+    mi_resumen_comp = None
+    if ciclo_comp and current_user:
+        mi_resumen_comp = _resumen_funcionario(conn, ciclo_comp, current_user["nombre_completo"])
+
     conn.close()
 
     necesita_bk, ultimo_bk = backup_necesario()
@@ -114,6 +129,8 @@ async def hub(request: Request, msg: str = "", backup: str = ""):
         total_sdqs=total_sdqs,
         total_prestamos_activos=total_prestamos_activos,
         total_bienes=total_bienes,
+        total_matriz=total_matriz,
+        ciclo_comp=ciclo_comp, mi_resumen_comp=mi_resumen_comp,
         msg=msg,
         backup_estado=backup,
         necesita_backup=necesita_bk,

@@ -8,7 +8,7 @@ from app.database import init_db
 from app.routers import (
     expedientes, importar, dashboard, seguimiento,
     portal, digitales, sala, backup, correspondencia, control_autos,
-    pdf_tools, equipos, reportes, buscar,
+    pdf_tools, equipos, reportes, buscar, matriz, compensatorios,
 )
 from app.routers import sdqs as sdqs_router
 from app.routers import auth as auth_router
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).parent
 app = FastAPI(
     title="OCDI - Sistema de Gestión Disciplinaria",
     description="Secretaría Distrital de Salud - Oficina de Control Disciplinario Interno",
-    version="5.2.0",
+    version="5.4.0",
 )
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -44,6 +44,8 @@ _URL_MODULO_MAP = [
     ("/sala",            "sala"),
     ("/backup",          "backup"),
     ("/equipos",         "equipos"),
+    ("/matriz",          "matriz"),
+    ("/compensatorios",  "compensatorios"),
 ]
 
 @app.middleware("http")
@@ -134,6 +136,8 @@ app.include_router(pdf_tools.router)
 app.include_router(equipos.router)
 app.include_router(reportes.router)
 app.include_router(buscar.router)
+app.include_router(matriz.router)
+app.include_router(compensatorios.router)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.2** — Última actualización: 2026-08-21
+> **Versión actual: v5.4** — Última actualización: 2026-09-18
 
 ---
 
@@ -372,6 +372,44 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 
 ---
 
+### Módulo 11 — MATRIZ DE SEGUIMIENTO — ABOGADOS (`/matriz/`)
+
+Bitácora manual y exclusiva por abogado sobre en qué va cada trámite dentro del BPM (plataforma AgilSalud, donde OCDI radica y sube expedientes). No es un espejo automático de otros módulos: cada abogado la llena a mano como recordatorio de etapa y pendientes.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Lista de trámites** — Filtros por expediente/BPM/asunto, tipo de trámite, etapa BPM y estado; paginación | ✅ v5.3 |
+| 2 | **CRUD** — Crear, ver detalle, editar, eliminar (papelera de reciclaje) | ✅ v5.3 |
+| 3 | **Aislamiento por dueño forzado server-side** — cada abogado solo ve/edita sus propias filas, sin importar lo que venga en el formulario o en la URL; admin/jefe supervisan todo | ✅ v5.3 |
+| 4 | **Semáforo de fecha límite** — reutiliza `calcular_alerta()` (mismo cálculo de días hábiles Colombia que el resto del sistema) | ✅ v5.3 |
+| 5 | **Historial de cambios y papelera** — mismo patrón que los 5 módulos de casos | ✅ v5.3 |
+| 6 | **Exportar Excel** | ✅ v5.3 |
+| 7 | **Permisos invertidos** — a diferencia del resto del sistema, aquí abogados tienen escritura por defecto y secretario/auxiliar solo supervisión de lectura | ✅ v5.3 |
+
+Sin importador Excel (es manual por diseño). No integrado al Backup General/ZIP (decisión consciente por alcance).
+
+---
+
+### Módulo 12 — COMPENSATORIOS FIN DE AÑO (`/compensatorios/`)
+
+Control de asistencia y horas compensadas de fin de año, a partir de la **Resolución 2307 de 2026** (modifica temporalmente la Resolución 2316 de 2023) de la Secretaría Distrital de Salud. Aplica a todos los roles del sistema (no solo abogados), ya que la resolución rige para todos los servidores públicos de la oficina.
+
+| # | Funcionalidad | Estado |
+|---|---------------|--------|
+| 1 | **Autogestión de horas** — cada funcionario registra sus propias horas compensadas (hora extra AM/PM, sábado, jornada corta 24/31 dic); admin/jefe pueden ver y editar la de cualquiera | ✅ v5.4 |
+| 2 | **Elección de turno de descanso** — 3 turnos configurables (21-24 dic / 28-31 dic / 4-7 ene), 34h a compensar cada uno | ✅ v5.4 |
+| 3 | **Resumen de toda la oficina** — quién descansa hoy, quién elige qué turno, % de avance de cada uno con semáforo (verde=completo, amarillo=en progreso, rojo=vencido o en riesgo) | ✅ v5.4 |
+| 4 | **Jornada corta 24 y 31 de diciembre** — 1.5h fijas de compensación por cada fecha, meta aparte de las 34h del turno | ✅ v5.4 |
+| 5 | **Ajustes por justa causa** (admin/jefe) — incapacidades, licencias o permisos que reducen la meta de una persona, con motivo registrado | ✅ v5.4 |
+| 6 | **Ciclo configurable, no hardcoded** — turnos, sábados habilitados, fechas y metas se editan desde `/compensatorios/ciclo`; se puede crear un ciclo nuevo cada fin de año sin tocar código | ✅ v5.4 |
+| 7 | **Roster por permiso** — el listado de funcionarios del módulo respeta el permiso "puede ver" de cada persona (`/admin/usuarios`), no una lista fija en código; así se puede excluir a alguien (p.ej. contratistas, a quienes no aplica la resolución, o gente que ya no está) sin tocar su acceso al resto del sistema | ✅ v5.4 |
+| 8 | **Papelera de reciclaje e historial** — mismo patrón que los demás módulos de casos | ✅ v5.4 |
+| 9 | **Exportar Excel** — resumen de apoyo interno (no reemplaza el formato oficial SDS-THO-FT-106 V.1 que exige la resolución) | ✅ v5.4 |
+
+No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión consciente, mismo criterio que Matriz de Seguimiento).
+
+---
+
 ### Portal Hub (`/`)
 
 | # | Funcionalidad | Estado |
@@ -406,10 +444,50 @@ Reutiliza las mismas funciones de cálculo de semáforo que los módulos de orig
 | 13 | Auditoría integral del sistema (32 hallazgos, 24 corregidos) — ver `AUDITORIA.md` | ✅ | 2026-06-10 a 2026-06-17 |
 | 14 | v5.0–v5.1 — Módulo Préstamo de Equipos y Bienes Muebles, eliminación de Mundial FIFA (código muerto), N/A en exportadores, mejoras UX (toasts, exportar en tiempo real), backup automático v2 (sqlite3.backup + ZIP + página de restauración), reporte de vencimientos críticos | ✅ | 2026-07 a 2026-08-19 |
 | 15 | v5.2 — Índices de BD, tests de regresión, historial de cambios, papelera de reciclaje, búsqueda global, banner de vencimientos próximos | ✅ | 2026-08-19 a 2026-08-20 |
+| 16 | v5.3 — Migración de todos los semáforos a días hábiles Colombia, enlaces de interés en el portal, módulo Matriz de Seguimiento (Abogados) | ✅ | 2026-08-25 a 2026-09-16 |
+| 17 | v5.4 — Módulo Compensatorios Fin de Año (Resolución 2307 de 2026) | ✅ | 2026-09-18 |
 
 ---
 
 ### Changelog detallado
+
+#### v5.4 — 2026-09-18
+
+**Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**
+
+A partir de la Resolución 2307 de 2026 (modifica temporalmente la Resolución 2316 de 2023) de la Secretaría Distrital de Salud, se creó un módulo para llevar el control de asistencia y horas compensadas de fin de año de todos los funcionarios de la oficina.
+
+- **Autogestión de horas** — cada funcionario (no solo abogados: secretarios, auxiliar, abogados, admin, jefe) registra sus propias horas compensadas; admin/jefe ven y editan la de cualquiera. Mismo patrón de aislamiento por dueño que Matriz de Seguimiento, aplicado ahora a todos los roles.
+- **Elección de turno de descanso** — 3 turnos (21-24 dic 2026 / 28-31 dic 2026 / 4-7 ene 2027), 34h a compensar cada uno, ventana de compensación fija (17-sep a 5-nov-2026) independiente del turno elegido.
+- **Jornada corta 24 y 31 de diciembre** — 1.5h fijas de compensación por cada fecha trabajada, meta aparte (3h) en ventana posterior (6-10 nov 2026).
+- **Semáforo de meta** — reutiliza las mismas clases visuales que ya existían para vencimientos de casos (vigente/próximo/vencido/sin-plazo), calculado sobre horas registradas vs. meta y días hábiles restantes.
+- **Ciclo configurable, no hardcoded** — turnos, sábados habilitados, fechas y metas se administran desde `/compensatorios/ciclo` (solo admin/jefe), para reutilizar el módulo en años siguientes sin pedir cambios de código.
+- **Ajustes por justa causa** — admin/jefe pueden reducir la meta de una persona (incapacidades, licencias) con motivo registrado, ya que el sistema no tiene una tabla de incapacidades propia.
+- **Roster por permiso, no por lista fija** — el resumen de la oficina solo lista a quienes tienen "puede ver" habilitado para el módulo en `/admin/usuarios`; así se excluye a alguien (contratistas, a quienes no aplica la resolución, o personal que ya no está) sin afectar su acceso al resto del sistema. El día de publicación de este módulo se excluyó así a 7 personas señaladas por el usuario.
+- **Papelera de reciclaje e historial de cambios**, mismo patrón que los demás módulos de casos. No integrado a Backup General/ZIP ni a Búsqueda Global (decisión consciente, mismo criterio que Matriz de Seguimiento).
+- Probado con `TestClient` contra la base de datos real de producción (con backups previos): autogestión de abogado/secretario/admin, spoofing de nombre bloqueado, ajustes de justa causa, duplicados de Dic 24/31, papelera/restaurar/purgar, y exclusión de personal — todo verificado antes de dejar limpios los datos de prueba.
+
+---
+
+#### v5.3 — 2026-08-25 a 2026-09-16
+
+**Semáforos migrados a días hábiles Colombia, enlaces de interés y Matriz de Seguimiento**
+
+- Ver el detalle de la migración a días hábiles Colombia y los enlaces de interés del portal en la sección v5.2 más abajo (ambos cambios se hicieron sobre esa base, entre el 25 de agosto y el 4 de septiembre).
+
+**Nuevo módulo: Matriz de Seguimiento — Abogados (`/matriz/`)**
+
+Bitácora manual y exclusiva por abogado sobre en qué va cada trámite dentro del BPM (plataforma AgilSalud). No es un espejo automático de otros módulos — cada abogado la llena a mano como recordatorio de etapa y pendientes.
+
+- **Aislamiento por dueño forzado server-side** — el filtro por abogado se fuerza siempre a su propio nombre (probado con un POST spoofeado, confirmado bloqueado); admin/jefe supervisan todas las filas.
+- **Permisos invertidos respecto al resto del sistema** — abogados tienen escritura por defecto en su propia matriz; secretario/auxiliar quedan con visibilidad de solo supervisión, ajustable en `/admin/usuarios`.
+- **Semáforo de fecha límite** reutilizando `calcular_alerta()` (mismo cálculo de días hábiles que el resto del sistema, sin lógica nueva).
+- **Papelera de reciclaje e historial de cambios**, mismo patrón que los 5 módulos de casos existentes.
+- Integrado al Portal (tile con contador propio para abogados, total para el resto) y a la Búsqueda Global (`/buscar`), respetando el mismo aislamiento por dueño.
+- Sin importador Excel (es manual por diseño). No integrado al Backup General ni al ZIP (decisión consciente por alcance, no olvido).
+- Verificado corriendo `init_db()` contra la base de datos real de producción (con backup previo) y probando end-to-end: aislamiento cruzado entre abogados, exportación a Excel, bloqueo de escritura para secretario, panel admin mostrando el módulo nuevo.
+
+---
 
 #### v5.2 — 2026-08-19 a 2026-08-20
 

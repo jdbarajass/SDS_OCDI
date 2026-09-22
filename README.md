@@ -504,7 +504,26 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - Nuevo `tests/test_smoke_paginas.py` (22 páginas, una por módulo): detectó el problema de `/seguimiento` automáticamente al correr la suite tras la actualización — exactamente el tipo de regresión que este test está pensado para atrapar en futuras actualizaciones de dependencias.
 - Nuevo `SBOM.md`: inventario estructurado de las 12 dependencias directas con versión, propósito, licencia y estado de vulnerabilidades, más instrucciones para re-escanear.
 - Verificado: `pip-audit` sobre el `requirements.txt` final reporta **0 vulnerabilidades conocidas**; 73/73 tests pasando; módulo de PDF probado funcionalmente tras el salto de 7 versiones de `pypdf` (unir, rotar, extraer páginas); servidor real (`uvicorn`) levantado con las nuevas dependencias contra el sandbox.
-- **Pendiente operativo:** esta actualización queda instalada en el entorno Python del PC servidor pero solo toma efecto en el próximo reinicio de `iniciar.bat` (el proceso que ya está corriendo sigue con las versiones viejas en memoria) — reiniciar cuando sea un buen momento para la oficina, no es urgente-urgente porque el servidor activo no cambia de versión solo.
+- **Pendiente operativo:** esta actualización queda instalada en el entorno Python del PC servidor pero solo toma efecto en el próximo reinicio de `iniciar.bat` (el proceso que ya está corriendo sigue con las versiones viejas en memoria) — reiniciar cuando sea un buen momento para la oficina, no es urgente-urgente porque el servidor activo no cambia de versión solo. Confirmado: el usuario reinició `iniciar.bat` el 2026-09-22 y el servidor respondió correctamente con las nuevas dependencias.
+
+**Fase 8 — Cifrado en reposo de la base de datos: análisis y decisión (2026-09-22, documentado — sin ejecutar)**
+
+El numeral 5.4.1.c.2 del lineamiento exige que los datos sensibles en reposo (bases de datos, archivos, respaldos) estén cifrados con AES-256. Hoy `data/ocdi.db` es un archivo SQLite plano sin ningún cifrado — quien tenga acceso físico o al sistema de archivos del PC servidor puede leerlo directamente.
+
+Se evaluaron dos caminos:
+
+1. **SQLCipher (cifrado a nivel de motor de base de datos)** — descartado por ahora. Requeriría reemplazar el módulo `sqlite3` estándar de Python por una variante cifrada en absolutamente todas las conexiones del proyecto (`app/database.py` y cada router que abre su propia conexión), en un sistema que está en producción activa sirviendo a 11 usuarios. Es la migración de mayor riesgo de todo el plan de cumplimiento — mucho más invasiva que cualquiera de las Fases 1-7 — y la instalación de la librería en Windows suele requerir compilar una extensión C o encontrar un paquete precompilado compatible. Se reserva como opción solo si Dirección TIC exige explícitamente cifrado a nivel de motor de BD y no acepta un control equivalente a nivel de sistema operativo.
+2. **BitLocker (cifrado de disco a nivel de Windows) — recomendado.** Cifra todo el disco (o la carpeta `data/`) sin tocar ninguna línea de código de la aplicación; el riesgo de romper el sistema en producción es prácticamente nulo porque la app nunca se entera de que el disco está cifrado. Satisface la exigencia de "datos sensibles en reposo cifrados con AES-256" sin necesitar una migración de motor de base de datos. Requiere permisos de administrador de Windows para activarlo, que esta sesión de trabajo no tiene — debe activarlo un humano con esos permisos.
+
+**Guía rápida para activar BitLocker** (ejecutar como Administrador en el PC servidor):
+1. Panel de control → Sistema y seguridad → Cifrado de unidad BitLocker (o buscar "BitLocker" en el menú Inicio).
+2. Sobre la unidad donde vive el proyecto (normalmente `C:`) → "Activar BitLocker".
+3. Elegir cómo desbloquear el equipo al iniciar (contraseña, o TPM si el equipo lo tiene — la mayoría de PCs de oficina modernos sí).
+4. **Guardar la clave de recuperación** que Windows genera — sin ella, si algo falla, se pierde el acceso al disco completo. Guardarla impresa en un lugar físico seguro de la oficina y/o en el gestor de contraseñas institucional, nunca en el mismo PC.
+5. Elegir "Cifrar solo el espacio en disco usado" (más rápido) y "Nuevo modo de cifrado" si Windows lo ofrece.
+6. Iniciar el cifrado — puede tardar desde minutos hasta unas horas según el tamaño del disco; el PC se puede seguir usando mientras cifra en segundo plano.
+
+Sin ejecutar nada de código en esta fase — queda documentada para que el usuario la active cuando tenga acceso de administrador. **Fase 4 (TLS) y Fase 8 (BitLocker) quedan como las dos únicas fases pendientes del plan**, ambas esperando una acción del usuario fuera del código (hablar con Dirección TIC, y activar BitLocker con permisos de administrador, respectivamente).
 
 #### v5.4 — 2026-09-18
 

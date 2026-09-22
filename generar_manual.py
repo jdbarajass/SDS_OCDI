@@ -240,8 +240,8 @@ add_module_table([
     ("Seguimiento Mensual", "Tabla de actuaciones mes a mes por expediente. Haga clic en cualquier celda para registrar o editar la actuación de ese mes."),
 ], col_widths=[5, 11])
 
-# -- 4.2 Lista de Reparto de Abogados
-add_heading("4.2 Lista de Reparto de Abogados (Correspondencia)", size=13, color=AZUL_MEDIO)
+# -- 4.2 Control Trámites Internos OCDI
+add_heading("4.2 Control Trámites Internos OCDI (Correspondencia)", size=13, color=AZUL_MEDIO)
 add_body(
     "Registra y controla toda la correspondencia recibida: derechos de petición, tutelas, "
     "proposiciones del Consejo, requerimientos de entes de control y comunicaciones internas/externas."
@@ -250,7 +250,7 @@ add_module_table([
     ("Listar oficios", "Tabla con semáforo dual: verde si ya tiene respuesta, amarillo si está próximo a vencer, rojo si está vencido."),
     ("Nuevo oficio", "Formulario para registrar un nuevo radicado con abogado responsable, término en días, tipo de requerimiento y URL de respuesta."),
     ("Editar / Ver", "Consultar o modificar un oficio existente, incluyendo radicados de salida."),
-    ("Importar / Exportar", "Importar desde Excel histórico o exportar la lista con los 19 campos en el formato oficial."),
+    ("Importar / Exportar", "Importar desde Excel histórico o exportar la lista con el formato oficial SDS-CDO-FT-007."),
 ], col_widths=[5, 11])
 add_body(
     "El semáforo considera festivos colombianos y descuenta 2 días hábiles del plazo para dar margen de revisión previa.",

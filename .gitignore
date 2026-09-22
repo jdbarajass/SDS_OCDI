@@ -40,6 +40,7 @@ env/
 !app/static/favicon.png
 !app/static/img/avatar_ocdi.png
 !app/static/img/avatar_ocdi_head.png
+!app/static/img/escudo_bogota_sds.png
 *.gif
 Prompt SDS.txt
 

@@ -80,12 +80,6 @@
     <div class="det-card-label">Entidad</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.origen or '—' }}</div>
   </div>
-  {% if reg.correo_remitente %}
-  <div class="det-card det-card-full">
-    <div class="det-card-label">Correo Remitente</div>
-    <div class="det-card-value" style="font-weight:400;font-size:13px">{{ reg.correo_remitente }}</div>
-  </div>
-  {% endif %}
   <div class="det-card det-card-full">
     <div class="det-card-label">Asunto AGILSALUD</div>
     <div class="det-card-value" style="font-weight:400;font-size:13px;line-height:1.6">{{ reg.asunto or '—' }}</div>

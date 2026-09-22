@@ -425,7 +425,6 @@ async def nuevo_post(
     fecha_radicado_salida: str = Form(""),
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
-    correo_remitente: str = Form(""),
     sinproc_personeria: str = Form(""),
     tipo_requerimiento: str = Form(""),
     termino_dias: str = Form(""),
@@ -439,15 +438,15 @@ async def nuevo_post(
         INSERT INTO correspondencia
         (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
          responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
-         correo_remitente, sinproc_personeria, tipo_requerimiento, termino_dias)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         sinproc_personeria, tipo_requerimiento, termino_dias)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, [
         anio, _v(mes), _v(fecha_ingreso), _v(n_radicado),
         _v(origen).upper() if _v(origen) else None,
         _v(asunto).upper() if _v(asunto) else None,
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
-        _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento), termino_val,
+        _v(sinproc_personeria), _v(tipo_requerimiento), termino_val,
     ])
     new_id = cur.lastrowid
     conn.commit()
@@ -458,6 +457,64 @@ async def nuevo_post(
 
 
 # ── EXPORTAR EXCEL ─────────────────────────────────────────────────────────────
+
+_LOGO_ESCUDO = Path(__file__).parent.parent / "static" / "img" / "escudo_bogota_sds.png"
+
+
+def _agregar_membrete_control_tramites(ws):
+    """Membrete institucional que replica la cabecera del formato físico
+    oficial SDS-CDO-FT-007 "CONTROL TRAMITES INTERNOS OCDI" (escudo de
+    Bogotá + título + código/fecha/versión), extraído de la plantilla .xls
+    suministrada por el usuario. Ocupa las filas 1-2; los encabezados de
+    columna del export quedan en la fila 3 y los datos desde la fila 4.
+    Usado tanto por /correspondencia/exportar como por el Excel de
+    Correspondencia embebido en el Backup General (backup.py)."""
+    from openpyxl.styles import Font, Alignment, Border, Side
+
+    thin = Side(style="thin", color="000000")
+    borde = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    ws.merge_cells("A1:B2")
+    for r in (1, 2):
+        for c in (1, 2):
+            ws.cell(row=r, column=c).border = borde
+
+    if _LOGO_ESCUDO.exists():
+        from openpyxl.drawing.image import Image as XLImage
+        img = XLImage(str(_LOGO_ESCUDO))
+        img.width = 92
+        img.height = 76
+        ws.add_image(img, "A1")
+
+    ws.merge_cells("C1:Q1")
+    t = ws["C1"]
+    t.value = "CONTROL TRAMITES INTERNOS OCDI"
+    t.font = Font(bold=True, size=13)
+    t.alignment = center
+
+    labels = {"C2": ("Código:", True), "D2": ("SDS-CDO-FT-007", False),
+              "E2": ("Fecha:", True), "F2": (date.today().strftime("%d/%m/%Y"), False),
+              "G2": ("Versión:", True)}
+    for coord, (val, bold) in labels.items():
+        cell = ws[coord]
+        cell.value = val
+        cell.font = Font(bold=bold, size=9)
+        cell.alignment = center
+
+    ws.merge_cells("H2:Q2")
+    v = ws["H2"]
+    v.value = 1
+    v.font = Font(size=9)
+    v.alignment = center
+
+    for col in range(3, 18):
+        for r in (1, 2):
+            ws.cell(row=r, column=col).border = borde
+
+    ws.row_dimensions[1].height = 29
+    ws.row_dimensions[2].height = 37
+
 
 @router.get("/exportar")
 async def exportar():
@@ -484,32 +541,36 @@ async def exportar():
     ws = wb.active
     ws.title = "CORRESPONDENCIA"
 
-    h_fill = PatternFill("solid", fgColor="1B4F8A")
+    _agregar_membrete_control_tramites(ws)
+
+    # Encabezado azul y columnas replicando el formato oficial
+    # SDS-CDO-FT-007 "CONTROL TRAMITES INTERNOS OCDI" — mismo orden de
+    # columnas y color de encabezado del formato físico institucional.
+    h_fill = PatternFill("solid", fgColor="333399")
     h_font = Font(bold=True, color="FFFFFF", size=10)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     alt_fill = PatternFill("solid", fgColor="EBF1F8")
     link_font = Font(color="0563C1", underline="single", size=10)
 
     headers = [
-        "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
-        "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
-        "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
-        "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
+        "AÑO", "MES", "FECHA INGRESO DE OFICIO", "NUMERO RADICADOS",
+        "ENTIDAD REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
+        "TIPO DE REQUERIMIENTO", "TERMINO RESPUESTA (DIAS)", "TIPO DE DOCUMENTO",
+        "RESPONSABLE", "CASO BMP", "NUMERO RADICADO SALIDA",
         "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRÁMITE DE SALIDA",
-        "FECHA DE VENCIMIENTO LEGAL",
-        "FECHA REVISIÓN SUGERIDA (−2 días hábiles)",
-        "DÍAS TRANSCURRIDOS",
+        "FECHA DE VENCIMIENTO TRAMITE",
     ]
+    HEADER_ROW = 3
     for ci, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=ci, value=h)
+        cell = ws.cell(row=HEADER_ROW, column=ci, value=h)
         cell.fill = h_fill
         cell.font = h_font
         cell.alignment = center
-    ws.row_dimensions[1].height = 36
+    ws.row_dimensions[HEADER_ROW].height = 36
 
     _na = lambda v: v if (v is not None and str(v).strip() != "") else "N/A"
 
-    for ri, row in enumerate(rows, 2):
+    for ri, row in enumerate(rows, HEADER_ROW + 1):
         d = _calcular_semaforo_row(dict(row))
         fill = alt_fill if ri % 2 == 0 else None
 
@@ -523,7 +584,6 @@ async def exportar():
             _na(d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None),
             _na(d.get("n_radicado")),
             _na(d.get("origen")),
-            _na(d.get("correo_remitente")),
             _na(d.get("asunto")),
             _na(d.get("sinproc_personeria")),
             _na(d.get("tipo_requerimiento")),
@@ -531,30 +591,28 @@ async def exportar():
             _na(d.get("tipo_documento")),
             _na(d.get("responsable")),
             _na(d.get("caso_bmp")),
-            _na(d.get("radicados_salida")),      # col 14 — N RADICADO SALIDA
+            _na(d.get("radicados_salida")),      # col 13 — NUMERO RADICADO SALIDA
             _na(d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None),
             _na(d.get("tipo_respuesta")),
             _na(d.get("tramite_salida")),
-            _na(d.get("fecha_vencimiento")),     # col 18 — plazo legal real
-            _na(d.get("fecha_termino_respuesta")),  # col 19 — fecha revisión sugerida
-            d.get("dias_transcurridos") if d.get("dias_transcurridos") is not None else "N/A",
+            _na(d.get("fecha_vencimiento")),     # col 17 — plazo legal real
         ]
         for ci, v in enumerate(vals, 1):
             cell = ws.cell(row=ri, column=ci, value=v)
-            cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
+            cell.alignment = Alignment(vertical="center", wrap_text=ci == 6)
             if fill:
                 cell.fill = fill
 
-        # Add hyperlink on N RADICADO SALIDA (column 14) when URL exists
+        # Add hyperlink on NUMERO RADICADO SALIDA (column 13) when URL exists
         if first_url and d.get("radicados_salida"):
-            rad_cell = ws.cell(row=ri, column=14)
+            rad_cell = ws.cell(row=ri, column=13)
             rad_cell.hyperlink = first_url
             rad_cell.font = link_font
 
-    col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 20, 28, 8]
+    col_widths = [6, 12, 20, 18, 30, 40, 22, 28, 14, 20, 28, 12, 22, 20, 25, 30, 22]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-    ws.freeze_panes = "A2"
+    ws.freeze_panes = f"A{HEADER_ROW + 1}"
 
     output = io.BytesIO()
     wb.save(output)
@@ -692,6 +750,9 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
 
         else:
             # Formato exportado: hoja "CORRESPONDENCIA" con headers en fila 1
+            # (exports antiguos) o fila 3 (exports con membrete institucional
+            # SDS-CDO-FT-007, desde v5.6). Se busca la fila cuya primera
+            # celda sea "AÑO" en vez de asumir una posición fija.
             ws = None
             for nombre in ["CORRESPONDENCIA", "CORR", "2026"]:
                 if nombre in wb.sheetnames:
@@ -700,8 +761,15 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
             if ws is None:
                 ws = wb.active
 
+            header_row_idx = 1
+            for r in range(1, min(ws.max_row, 10) + 1):
+                v = ws.cell(row=r, column=1).value
+                if v is not None and str(v).strip().upper() == "AÑO":
+                    header_row_idx = r
+                    break
+
             # Build header→column-index map (handles any column order, old or new format)
-            header_row_cells = list(ws.iter_rows(min_row=1, max_row=1))[0]
+            header_row_cells = list(ws.iter_rows(min_row=header_row_idx, max_row=header_row_idx))[0]
             header_row = [str(c.value or "").strip().upper() for c in header_row_cells]
             hmap = {h: i for i, h in enumerate(header_row)}
 
@@ -714,26 +782,25 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                             break
                 return idx if idx is not None else -1
 
-            i_correo   = _hi("CORREO REMITENTE")
             i_asunto   = _hi("ASUNTO", "ASUNTO AGILSALUD")
             i_sinproc  = _hi("NUMERO SINPROC PERSONERIA", "SINPROC PERSONERIA")
             i_tiporeq  = _hi("TIPO DE REQUERIMIENTO")
-            i_termino  = _hi("TERMINO (DIAS)")
+            i_termino  = _hi("TERMINO RESPUESTA (DIAS)", "TERMINO (DIAS)")
             i_tipodoc  = _hi("TIPO DE DOCUMENTO")
             i_resp     = _hi("RESPONSABLE")
             i_bmp      = _hi("CASO BMP")
-            i_radsal   = _hi("N RADICADO SALIDA")
+            i_radsal   = _hi("NUMERO RADICADO SALIDA", "N RADICADO SALIDA")
             i_urlsal   = _hi("URL RADICADO SALIDA")   # legacy v1 column (may be absent)
             i_fechasal = _hi("FECHA RADICADO DE SALIDA")
             i_tipor    = _hi("TIPO DE RESPUESTA")
-            i_observ   = _hi("OBSERVACIONES")
+            i_observ   = _hi("TRÁMITE DE SALIDA", "OBSERVACIONES")
 
             def _cv(cells, idx):
                 if idx < 0 or idx >= len(cells):
                     return None
                 return _v(cells[idx].value)
 
-            for row_cells in ws.iter_rows(min_row=2):
+            for row_cells in ws.iter_rows(min_row=header_row_idx + 1):
                 if not any(c.value for c in row_cells):
                     continue
                 try:
@@ -745,7 +812,6 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                 fi_val      = _norm_fecha(_cv(row_cells, 2))
                 rad_val     = _cv(row_cells, 3)
                 orig_val    = _cv(row_cells, 4)
-                correo_val  = _cv(row_cells, i_correo)
                 asunto_val  = _cv(row_cells, i_asunto)
                 sinproc_val = _cv(row_cells, i_sinproc)
                 tiporeq_val = _cv(row_cells, i_tiporeq)
@@ -782,11 +848,11 @@ async def importar_post(request: Request, archivo: UploadFile = File(...)):
                     INSERT INTO correspondencia
                     (anio, mes, fecha_ingreso, n_radicado, origen, asunto, tipo_documento,
                      responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
-                     correo_remitente, sinproc_personeria, tipo_requerimiento, termino_dias)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     sinproc_personeria, tipo_requerimiento, termino_dias)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, [anio_val, mes_val, fi_val, rad_val, orig_val, asunto_val,
                       tipo_d_val, resp_val, bmp_val, fsal_val, tipor_val, tram_val,
-                      correo_val, sinproc_val, tiporeq_val, termino_val])
+                      sinproc_val, tiporeq_val, termino_val])
                 cid = cur.lastrowid
                 insertados += 1
 
@@ -1044,7 +1110,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
 
         n_radicado = str(row[0] or "").strip() if len(row) > 0 else ""
         origen = str(row[6] or "").strip() if len(row) > 6 else ""
-        correo_remitente = str(row[8] or "").strip() if len(row) > 8 else ""
         fecha_raw = row[10] if len(row) > 10 else None
         asunto = str(row[12] or "").strip() if len(row) > 12 else ""
 
@@ -1077,7 +1142,6 @@ async def importar_agilsalud_preview(request: Request, archivo: UploadFile = Fil
             "n_radicado": n_radicado,
             "responsable": responsable,
             "origen": origen,
-            "correo_remitente": correo_remitente,
             "fecha_ingreso": fecha_ingreso,
             "mes": mes,
             "anio": anio,
@@ -1119,12 +1183,12 @@ async def importar_agilsalud_confirmar(request: Request, datos_json: str = Form(
             conn.execute(
                 """INSERT INTO correspondencia
                    (anio, mes, fecha_ingreso, n_radicado, origen, asunto,
-                    responsable, correo_remitente)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                    responsable)
+                   VALUES (?,?,?,?,?,?,?)""",
                 (f.get("anio") or None, f.get("mes") or None,
                  f.get("fecha_ingreso") or None, f.get("n_radicado") or None,
                  f.get("origen") or None, f.get("asunto") or None,
-                 f.get("responsable") or None, f.get("correo_remitente") or None),
+                 f.get("responsable") or None),
             )
             insertados += 1
         conn.commit()
@@ -1299,7 +1363,6 @@ async def editar_post(
     fecha_radicado_salida: str = Form(""),
     tipo_respuesta: str = Form(""),
     tramite_salida: str = Form(""),
-    correo_remitente: str = Form(""),
     sinproc_personeria: str = Form(""),
     tipo_requerimiento: str = Form(""),
     termino_dias: str = Form(""),
@@ -1313,7 +1376,7 @@ async def editar_post(
         UPDATE correspondencia SET
         anio=?, mes=?, fecha_ingreso=?, n_radicado=?, origen=?, asunto=?,
         tipo_documento=?, responsable=?, caso_bmp=?, fecha_radicado_salida=?,
-        tipo_respuesta=?, tramite_salida=?, correo_remitente=?,
+        tipo_respuesta=?, tramite_salida=?,
         sinproc_personeria=?, tipo_requerimiento=?, termino_dias=?,
         updated_at=datetime('now','localtime')
         WHERE id=? AND eliminado_en IS NULL
@@ -1323,7 +1386,7 @@ async def editar_post(
         _v(asunto).upper() if _v(asunto) else None,
         _v(tipo_documento), _v(responsable), _v(caso_bmp),
         _v(fecha_radicado_salida), _v(tipo_respuesta), _v(tramite_salida),
-        _v(correo_remitente), _v(sinproc_personeria), _v(tipo_requerimiento),
+        _v(sinproc_personeria), _v(tipo_requerimiento),
         termino_val, reg_id,
     ])
     conn.commit()

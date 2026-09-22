@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.5** — Última actualización: 2026-09-22
+> **Versión actual: v5.6** — Última actualización: 2026-09-22
 
 ---
 
@@ -206,7 +206,7 @@ Módulo para el registro y seguimiento de autos de sustanciación disciplinaria.
 - `ABOGADOS_RESPONSABLES` (11): ANDRES EDUARDO SANDOVAL MAYORGA, CARLOS ALFONSO PARRA MALAVER, CESAR IVAN RODRIGUEZ DAMIAN, DAVID FELIPE MORALES NOGUERA, JANIK HERNANDO DE LA HOZ RIOS, JOSE DE JESUS BARAJAS SOTELO, LUNA GICELL GUZMAN YATE, MABEL GICELLA HURTADO SANCHEZ, MAGDA XIMENA PAREDES LIEVANO, MARA LUCIA UCROS MERLANO, MARTHA PATRICIA AÑEZ MAESTRE.
 - `ASUNTOS_COMUNES` (26): Apertura Indagación Preliminar, Apertura Investigación Disciplinaria, Auto Inhibitorio, Citar a descargos, Citar a diligencia de versión libre, Comisionar, Decretar pruebas, Dejar sin efecto, Desarchivo, Devolver expediente, Informe de gestión, Nulidad, Ordena traslado, Pliego de Cargos, Prórroga de términos, Recurso de apelación, Recurso de queja, Recurso de reposición, Remisión, Solicitar información, Suspensión provisional, Auto de Archivo, Traslado probatorio, Vista Fiscal, Declarar Prescripción, Envío de Expediente.
 
-### Módulo 2 — LISTA DE REPARTO DE ABOGADOS (`/correspondencia/`)
+### Módulo 2 — CONTROL TRÁMITES INTERNOS OCDI (`/correspondencia/`)
 
 Módulo para el control de oficios y correspondencia recibida. Incluye semáforo de respuesta dual (días transcurridos o fecha límite según configuración), catálogos configurables y gestión de múltiples radicados de salida con URL.
 
@@ -228,7 +228,8 @@ Módulo para el control de oficios y correspondencia recibida. Incluye semáforo
 | 12 | **Tipo de Respuesta — combobox** — 11 opciones predefinidas + texto libre (HTML5 `<datalist>`) | ✅ v2.4 |
 | 13 | **Importar desde Excel** — Detecta automáticamente formato antiguo (15 cols) vs. nuevo (19 cols, con SINPROC/TIPO_REQ/TERMINO/URL). Reemplaza todo | ✅ v2.5 |
 | 14 | **Importar desde AgilSalud** — Carga `Documentos.xlsx`; filtra por 2 destinatarias; previsualización obligatoria; modo ADD | ✅ v2.4 |
-| 15 | **Exportar a Excel** — 19 columnas: AÑO, MES, FECHA INGRESO, N. RADICADOS, ENTIDAD, CORREO REMITENTE, ASUNTO, TIPO DOC, RESPONSABLE, CASO BMP, SINPROC PERSONERIA, TIPO DE REQUERIMIENTO, TERMINO (DIAS), N RADICADO SALIDA, URL RADICADO SALIDA, FECHA RADICADO DE SALIDA, TIPO DE RESPUESTA, OBSERVACIONES, DÍAS TRANSCURRIDOS | ✅ v2.5 |
+| 15 | **Exportar a Excel** — Replica el formato oficial **SDS-CDO-FT-007** "CONTROL TRAMITES INTERNOS OCDI" (encabezado azul #333399): AÑO, MES, FECHA INGRESO DE OFICIO, NUMERO RADICADOS, ENTIDAD REMITENTE, ASUNTO, NUMERO SINPROC PERSONERIA, TIPO DE REQUERIMIENTO, TERMINO RESPUESTA (DIAS), TIPO DE DOCUMENTO, RESPONSABLE, CASO BMP, NUMERO RADICADO SALIDA, FECHA RADICADO DE SALIDA, TIPO DE RESPUESTA, TRÁMITE DE SALIDA, FECHA DE VENCIMIENTO TRAMITE | ✅ v5.6 |
+| 16 | **Sin campo Correo Remitente** — Eliminado de formulario, lista, detalle, importadores y exportaciones (la columna `correo_remitente` permanece en la BD por compatibilidad histórica, pero no se usa) | ✅ v5.6 |
 
 **Regla de negocio — semáforo:**
 - Sin `termino_dias`: semáforo activo cuenta días desde `fecha_ingreso` hasta hoy. Al registrar `fecha_radicado_salida` pasa a ✅ Respondido.
@@ -447,6 +448,7 @@ No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión conscient
 | 16 | v5.3 — Migración de todos los semáforos a días hábiles Colombia, enlaces de interés en el portal, módulo Matriz de Seguimiento (Abogados) | ✅ | 2026-08-25 a 2026-09-16 |
 | 17 | v5.4 — Módulo Compensatorios Fin de Año (Resolución 2307 de 2026) | ✅ | 2026-09-18 |
 | 18 | v5.5 — Cumplimiento del lineamiento SDS-TIC-LN-016 (Desarrollo Seguro de Software), implementado por fases | 🔄 En curso | desde 2026-09-22 |
+| 19 | v5.6 — Renombrado "Control Trámites Internos OCDI" (antes Lista de Reparto de Abogados), eliminación del campo Correo Remitente, exportación replicando el formato oficial SDS-CDO-FT-007 | ✅ | 2026-09-22 |
 
 ---
 
@@ -541,6 +543,27 @@ Se agregaron 6 tests de regresión permanentes para estos 4 bugs (`tests/test_lo
 **Hallazgo aparte, no relacionado con LN-016:** al probar funcionalmente el módulo de Herramientas PDF tras el upgrade de `pypdf` (Fase 7), se encontró que el endpoint `/pdf-tools/sello` (marca de agua) está roto — `page.insert_text(..., rotate=45)` en `app/routers/pdf_tools.py` lanza `ValueError: bad rotate value` porque PyMuPDF solo acepta múltiplos de 90 en ese parámetro. Confirmado con `git log` que este bug es preexistente (commit `8178d87`, ajeno por completo a este trabajo) y no se corrigió por estar fuera del alcance de la auditoría de cumplimiento — queda pendiente como un hallazgo separado para cuando el usuario decida abordarlo.
 
 Verificado tras los 4 arreglos: 78/78 tests pasando, servidor real respondiendo correctamente, base de datos de producción intacta (13 usuarios, 262 expedientes).
+
+#### v5.6 — 2026-09-22
+
+**Módulo Correspondencia renombrado a "Control Trámites Internos OCDI" + exportación con formato oficial SDS-CDO-FT-007**
+
+- El título visible del módulo (antes "Lista de Reparto de Abogados") pasó a **"CONTROL TRAMITES INTERNOS OCDI"** en la página de lista (`corr_lista.html`), la tarjeta del portal, el texto de ayuda en `/admin/usuarios` y el manual generado (`generar_manual.py`). La URL (`/correspondencia/`), el nombre de la tabla en BD (`correspondencia`) y el encabezado del sidebar ("CORRESPONDENCIA · Reparto Abogados · OCDI") no cambiaron — el usuario solo pidió el título de la página, no la ruta ni la identificación del módulo en el sidebar.
+- Se eliminó el campo **Correo Remitente** de todo lo visible: formulario de creación/edición, tabla de lista, vista de detalle, previsualización del importador de AgilSalud, exportación del módulo y las dos exportaciones que lo incluían dentro del Backup General (hoja "Correspondencia" y el Excel individual embebido en el ZIP `OCDI_Backup_Completo`). La columna `correo_remitente` **permanece en la base de datos** sin tocarse — los correos ya guardados de oficios existentes no se borraron, solo dejaron de mostrarse y exportarse, para no perder información histórica que el usuario no pidió eliminar.
+- El botón "Exportar Excel" del módulo ahora replica el formato del formulario físico oficial **SDS-CDO-FT-007 "CONTROL TRAMITES INTERNOS OCDI"** (Excel de referencia suministrado por el usuario): mismas 17 columnas en el mismo orden (AÑO, MES, FECHA INGRESO DE OFICIO, NUMERO RADICADOS, ENTIDAD REMITENTE, ASUNTO, NUMERO SINPROC PERSONERIA, TIPO DE REQUERIMIENTO, TERMINO RESPUESTA (DIAS), TIPO DE DOCUMENTO, RESPONSABLE, CASO BMP, NUMERO RADICADO SALIDA, FECHA RADICADO DE SALIDA, TIPO DE RESPUESTA, TRÁMITE DE SALIDA, FECHA DE VENCIMIENTO TRAMITE) y el mismo azul de encabezado del formato físico (`#333399`, extraído directamente de la plantilla `.xls` adjunta con `xlrd`), con texto blanco en negrita. Se retiraron del export las dos columnas calculadas que no existen en el formato oficial (Fecha Revisión Sugerida y Días Transcurridos) — siguen calculándose y usándose para el semáforo dentro de la plataforma, solo no se exportan.
+- El mismo rediseño (columnas + color) se aplicó también a la hoja de Correspondencia embebida en el Backup General en ZIP (`make_wb_correspondencia()` en `app/routers/backup.py`), para que ambas exportaciones del módulo queden consistentes entre sí.
+- **Verificación de integralidad:** al quitar la columna Correo Remitente de la hoja 6 "Correspondencia" del Backup General (`app/routers/backup.py`), la lógica de restauración de esa misma hoja leía las columnas por posición fija (`row[5]`, `row[9]`, etc.) — se recalcularon a mano los 13 índices posicionales que se recorrían después de la columna eliminada para que la restauración de un backup no quedara desfasada una columna y mezclara datos de columnas distintas.
+- El importador general (`/correspondencia/importar`, formato "exportado") mapea encabezados por nombre, no por posición, así que sigue aceptando tanto los archivos ya exportados con el formato anterior como los nuevos: se agregaron los nombres de columna nuevos como alias junto a los antiguos (`TERMINO RESPUESTA (DIAS)` / `TERMINO (DIAS)`, `NUMERO RADICADO SALIDA` / `N RADICADO SALIDA`). De paso se corrigió un bug preexistente ajeno a este cambio: la columna de Trámite de Salida se buscaba con el nombre `OBSERVACIONES`, que ningún export del sistema usó nunca (siempre fue `TRÁMITE DE SALIDA`), por lo que ese campo nunca se recuperaba al reimportar un Excel exportado por la propia plataforma; ahora busca primero `TRÁMITE DE SALIDA`.
+- El importador de AgilSalud (`/correspondencia/importar-agilsalud`) dejó de leer y guardar el correo remitente del archivo `Documentos.xlsx` de origen, consistente con que el campo ya no se usa en ningún lugar del sistema.
+- La carpeta dentro del ZIP de Backup General pasó de `02_Lista_Reparto_Abogados/` a `02_Control_Tramites_Internos_OCDI/`, solo el nombre de la carpeta — el archivo `.xlsx` y su contenido no cambiaron de estructura por este renombrado.
+
+**Membrete institucional completo en el export (mismo día, segunda vuelta)**
+
+- El usuario pidió además que el export replicara también la cabecera del formulario físico (escudo de la Alcaldía Mayor de Bogotá D.C. + Secretaría de Salud, título y fila Código/Fecha/Versión), no solo los encabezados de columna. El archivo `.xls` original venía protegido en "Vista protegida" por venir de Descargas; se desbloqueó con `Unblock-File` y se convirtió a `.xlsx` vía automatización COM de Excel (`win32com`, Excel sí está instalado en este equipo) únicamente para poder extraer la imagen del escudo incrustada — LibreOffice no está instalado en esta máquina. La imagen quedó guardada como asset permanente del proyecto en `app/static/img/escudo_bogota_sds.png`.
+- Nueva función compartida `_agregar_membrete_control_tramites()` en `correspondencia.py` (reutilizada desde `backup.py`, mismo patrón ya usado para `_calcular_semaforo_row`): dibuja el escudo en A1:B2, el título "CONTROL TRAMITES INTERNOS OCDI" fusionado en C1:Q1 y la fila Código/Fecha (fecha del día de la exportación)/Versión en la fila 2, con bordes replicando la caja del formato físico. Los encabezados de columna, antes en la fila 1, pasaron a la fila 3, y los datos a partir de la fila 4 — en `/correspondencia/exportar` y en el Excel embebido en el ZIP de Backup General.
+- **Verificación de integralidad:** mover los encabezados de columna de la fila 1 a la fila 3 habría roto silenciosamente la reimportación de cualquier Excel ya exportado por la plataforma, porque el importador general leía la fila de encabezados de forma fija (`min_row=1`). Se cambió esa lógica para que busque la fila cuya primera celda sea "AÑO" (hasta 10 filas), en vez de asumir una posición — así sigue aceptando tanto los exports antiguos (encabezado en fila 1) como los nuevos con membrete (fila 3).
+- Verificado extremo a extremo contra `data/ocdi_sandbox.db`: exportar → reimportar el mismo archivo con membrete (los datos quedaron en las columnas correctas), el ZIP de Backup General con el mismo membrete embebido, y una vista previa renderizada del Excel (Excel COM → PDF → imagen con PyMuPDF) comparada visualmente contra la plantilla oficial.
+- `.gitignore` ignora `*.png` por defecto (son "documentos de referencia", no código) con excepciones explícitas para los PNG que sí son assets de la app — se agregó `escudo_bogota_sds.png` a esa lista de excepciones; sin este ajuste el logo no se habría subido al repositorio y el export habría quedado sin escudo en cualquier otra instalación.
 
 #### v5.4 — 2026-09-18
 

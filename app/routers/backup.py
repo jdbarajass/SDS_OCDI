@@ -8,7 +8,7 @@ import io
 import zipfile
 
 from app.database import get_db
-from app.routers.correspondencia import _calcular_semaforo_row
+from app.routers.correspondencia import _calcular_semaforo_row, _agregar_membrete_control_tramites
 from app.auth_utils import puede_escribir as _pw, registrar_log
 
 _MOD = "backup"
@@ -379,7 +379,7 @@ async def backup_exportar():
 
     headers6 = [
         "AÑO", "MES", "FECHA INGRESO", "N. RADICADO", "ENTIDAD",
-        "CORREO REMITENTE", "ASUNTO", "SINPROC PERSONERÍA",
+        "ASUNTO", "SINPROC PERSONERÍA",
         "TIPO REQUERIMIENTO", "TÉRMINO (DÍAS)", "TIPO DOCUMENTO",
         "RESPONSABLE", "CASO BMP",
         "N. RADICADOS SALIDA", "URLS RAD SALIDA", "FECHA RAD SALIDA",
@@ -399,7 +399,7 @@ async def backup_exportar():
         vals6 = [
             d.get("anio"), d.get("mes"),
             d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None,
-            d.get("n_radicado"), d.get("origen"), d.get("correo_remitente"), d.get("asunto"),
+            d.get("n_radicado"), d.get("origen"), d.get("asunto"),
             d.get("sinproc_personeria"), d.get("tipo_requerimiento"), d.get("termino_dias"),
             d.get("tipo_documento"), d.get("responsable"), d.get("caso_bmp"),
             d.get("radicados_salida"),
@@ -411,11 +411,11 @@ async def backup_exportar():
         ]
         for col_idx, v in enumerate(vals6, 1):
             cell = ws6.cell(row=row_idx, column=col_idx, value=v)
-            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx in (5, 7)))
+            cell.alignment = Alignment(vertical="center", wrap_text=(col_idx == 6))
             if fill:
                 cell.fill = fill
 
-    col_widths6 = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 30, 50, 20, 25, 30, 20, 20]
+    col_widths6 = [6, 12, 20, 18, 30, 40, 20, 40, 10, 18, 28, 10, 30, 50, 20, 25, 30, 20, 20]
     for i, w in enumerate(col_widths6, 1):
         ws6.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws6.freeze_panes = "A2"
@@ -722,7 +722,7 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                 if not n_rad:
                     continue
                 termino = None
-                termino_raw = _v(row[9]) if len(row) > 9 else None
+                termino_raw = _v(row[8]) if len(row) > 8 else None
                 if termino_raw:
                     try:
                         termino = int(float(termino_raw))
@@ -730,25 +730,25 @@ async def backup_importar(request: Request, archivo: UploadFile = File(...)):
                         pass
                 cur = conn.execute("""
                     INSERT INTO correspondencia
-                    (anio, mes, fecha_ingreso, n_radicado, origen, correo_remitente, asunto,
+                    (anio, mes, fecha_ingreso, n_radicado, origen, asunto,
                      sinproc_personeria, tipo_requerimiento, termino_dias, tipo_documento,
                      responsable, caso_bmp, fecha_radicado_salida, tipo_respuesta, tramite_salida,
                      created_at, updated_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, [
                     _v(row[0]), _v(row[1]),
-                    _v(row[2]), n_rad, _v(row[4]), _v(row[5]), _v(row[6]),
-                    _v(row[7]), _v(row[8]), termino, _v(row[10]),
-                    _v(row[11]), _v(row[12]),
-                    _v(row[15]),   # fecha_radicado_salida
-                    _v(row[16]),   # tipo_respuesta
-                    _v(row[17]),   # tramite_salida / observaciones
-                    _v(row[18]),   # created_at
-                    _v(row[19]),   # updated_at
+                    _v(row[2]), n_rad, _v(row[4]), _v(row[5]),
+                    _v(row[6]), _v(row[7]), termino, _v(row[9]),
+                    _v(row[10]), _v(row[11]),
+                    _v(row[14]),   # fecha_radicado_salida
+                    _v(row[15]),   # tipo_respuesta
+                    _v(row[16]),   # tramite_salida / observaciones
+                    _v(row[17]),   # created_at
+                    _v(row[18]),   # updated_at
                 ])
                 corr_id = cur.lastrowid
-                radicados_str = _v(row[13]) or ""
-                urls_str = _v(row[14]) or ""
+                radicados_str = _v(row[12]) or ""
+                urls_str = _v(row[13]) or ""
                 if radicados_str:
                     rads = [r.strip() for r in radicados_str.split(" | ") if r.strip()]
                     urls = [u.strip() for u in urls_str.split(" | ")] if urls_str else []
@@ -1025,23 +1025,26 @@ async def backup_zip():
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "CORRESPONDENCIA"
-        fill = PatternFill("solid", fgColor="1B4F8A")
+        # Mismo formato oficial SDS-CDO-FT-007 "CONTROL TRAMITES INTERNOS OCDI"
+        # que usa /correspondencia/exportar — mismo membrete, columnas y azul
+        # de encabezado.
+        _agregar_membrete_control_tramites(ws)
+        fill = PatternFill("solid", fgColor="333399")
         link_font = Font(color="0563C1", underline="single", size=10)
         headers = [
-            "AÑO", "MES", "FECHA INGRESO DE OFICIO", "N. RADICADOS",
-            "ENTIDAD", "CORREO REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
-            "TIPO DE REQUERIMIENTO", "TERMINO (DIAS)", "TIPO DE DOCUMENTO",
-            "RESPONSABLE", "CASO BMP", "N RADICADO SALIDA",
+            "AÑO", "MES", "FECHA INGRESO DE OFICIO", "NUMERO RADICADOS",
+            "ENTIDAD REMITENTE", "ASUNTO", "NUMERO SINPROC PERSONERIA",
+            "TIPO DE REQUERIMIENTO", "TERMINO RESPUESTA (DIAS)", "TIPO DE DOCUMENTO",
+            "RESPONSABLE", "CASO BMP", "NUMERO RADICADO SALIDA",
             "FECHA RADICADO DE SALIDA", "TIPO DE RESPUESTA", "TRÁMITE DE SALIDA",
-            "FECHA DE VENCIMIENTO LEGAL",
-            "FECHA REVISIÓN SUGERIDA (−2 días hábiles)",
-            "DÍAS TRANSCURRIDOS",
+            "FECHA DE VENCIMIENTO TRAMITE",
         ]
+        CORR_HEADER_ROW = 3
         for ci, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=ci, value=h)
+            cell = ws.cell(row=CORR_HEADER_ROW, column=ci, value=h)
             cell.fill = fill; cell.font = h_font; cell.alignment = center
-        ws.row_dimensions[1].height = 36
-        for ri, d in enumerate(corr_rows, 2):
+        ws.row_dimensions[CORR_HEADER_ROW].height = 36
+        for ri, d in enumerate(corr_rows, CORR_HEADER_ROW + 1):
             rf = alt_fill if ri % 2 == 0 else None
             urls_str = d.get("radicados_urls") or ""
             urls_list = [u.strip() for u in urls_str.split(" | ")] if urls_str.strip() else []
@@ -1049,29 +1052,27 @@ async def backup_zip():
             vals = [
                 _na(d.get("anio")), _na(d.get("mes")),
                 _na(d.get("fecha_ingreso")[:10] if d.get("fecha_ingreso") else None),
-                _na(d.get("n_radicado")), _na(d.get("origen")), _na(d.get("correo_remitente")), _na(d.get("asunto")),
+                _na(d.get("n_radicado")), _na(d.get("origen")), _na(d.get("asunto")),
                 _na(d.get("sinproc_personeria")), _na(d.get("tipo_requerimiento")),
                 d.get("termino_dias") if d.get("termino_dias") is not None else "N/A",
                 _na(d.get("tipo_documento")), _na(d.get("responsable")), _na(d.get("caso_bmp")),
-                _na(d.get("radicados_salida")),      # col 14 — N RADICADO SALIDA
+                _na(d.get("radicados_salida")),      # col 13 — NUMERO RADICADO SALIDA
                 _na(d.get("fecha_radicado_salida")[:10] if d.get("fecha_radicado_salida") else None),
                 _na(d.get("tipo_respuesta")), _na(d.get("tramite_salida")),
-                _na(d.get("fecha_vencimiento")),     # col 18 — plazo legal real
-                _na(d.get("fecha_termino_respuesta")),  # col 19 — fecha revisión sugerida
-                d.get("dias_transcurridos") if d.get("dias_transcurridos") is not None else "N/A",
+                _na(d.get("fecha_vencimiento")),     # col 17 — plazo legal real
             ]
             for ci, v in enumerate(vals, 1):
                 cell = ws.cell(row=ri, column=ci, value=v)
-                cell.alignment = Alignment(vertical="center", wrap_text=ci in (5, 7))
+                cell.alignment = Alignment(vertical="center", wrap_text=ci == 6)
                 if rf: cell.fill = rf
             if first_url and d.get("radicados_salida"):
-                rad_cell = ws.cell(row=ri, column=14)
+                rad_cell = ws.cell(row=ri, column=13)
                 rad_cell.hyperlink = first_url
                 rad_cell.font = link_font
-        col_widths = [6, 12, 20, 18, 30, 30, 40, 20, 40, 10, 18, 28, 10, 22, 20, 25, 30, 20, 28, 8]
+        col_widths = [6, 12, 20, 18, 30, 40, 22, 28, 14, 20, 28, 12, 22, 20, 25, 30, 22]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-        ws.freeze_panes = "A2"
+        ws.freeze_panes = f"A{CORR_HEADER_ROW + 1}"
         buf = io.BytesIO(); wb.save(buf); buf.seek(0)
         return buf
 
@@ -1182,7 +1183,7 @@ async def backup_zip():
             make_wb_base().read(),
         )
         zf.writestr(
-            f"OCDI/02_Lista_Reparto_Abogados/Correspondencia_{hoy}.xlsx",
+            f"OCDI/02_Control_Tramites_Internos_OCDI/Correspondencia_{hoy}.xlsx",
             make_wb_correspondencia().read(),
         )
         zf.writestr(

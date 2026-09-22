@@ -77,7 +77,6 @@
           <th>Año</th>
           <th>Responsable</th>
           <th>Origen</th>
-          <th>Correo Remitente</th>
           <th>Asunto</th>
         </tr>
       </thead>
@@ -91,7 +90,6 @@
           <td>{{ f.anio or '—' }}</td>
           <td style="white-space:nowrap">{{ f.responsable or '—' }}</td>
           <td class="td-clip" title="{{ f.origen or '' }}">{{ f.origen or '—' }}</td>
-          <td class="td-clip" title="{{ f.correo_remitente or '' }}">{{ f.correo_remitente or '—' }}</td>
           <td class="td-clip" title="{{ f.asunto or '' }}">{{ f.asunto or '—' }}</td>
         </tr>
         {% endfor %}

@@ -1,20 +1,27 @@
 """
 Copia de seguridad diaria — Sistema OCDI
 =========================================
-Crea un ZIP con la base de datos (snapshot consistente via sqlite3.backup) y
-los archivos de referencia JSON. Conserva los últimos MAX_BACKUPS archivos.
-Registra cada operación en backup_log.txt dentro de la carpeta de backup.
+Crea un ZIP cifrado (AES-256, vía pyzipper) con la base de datos (snapshot
+consistente via sqlite3.backup) y los archivos de referencia JSON. Conserva
+los últimos MAX_BACKUPS archivos. Registra cada operación en backup_log.txt
+dentro de la carpeta de backup.
+
+La contraseña de cifrado se guarda en data/backup_password.key (nunca se
+sube a git ni se sincroniza a Google Drive — solo el .zip cifrado viaja ahí).
+Para abrir un backup manualmente: 7-Zip o WinRAR, con esa contraseña.
 
 Uso manual : python backup_diario.py
 Automático : Tarea programada de Windows (ver configurar_tarea_backup.bat)
              Lunes a Viernes, 4:00 PM  —  o desde la plataforma web
 """
 
+import secrets
 import sqlite3
 import sys
-import zipfile
 from datetime import datetime
 from pathlib import Path
+
+import pyzipper
 
 # La consola de Windows suele usar cp1252 (no UTF-8), que no puede imprimir
 # emojis como ✅ — sin esto, el script termina en error DESPUÉS de que el
@@ -40,7 +47,37 @@ ARCHIVOS_EXTRA = [
 
 # Archivo de control: fecha del último backup exitoso
 _ULTIMO_BACKUP_FILE = DIRECTORIO_APP / "data" / "ultimo_backup.txt"
+
+# Contraseña de cifrado de los backups (AES-256, SDS-TIC-LN-016 §5.4.1.c/d).
+# Se guarda en data/ — carpeta que NUNCA se sube a git (.gitignore) y que NO
+# se sincroniza a Google Drive (solo los .zip cifrados viajan ahí). Así la
+# llave y el dato cifrado quedan en dominios de seguridad distintos: quien
+# solo tenga acceso al Drive nunca puede abrir los backups.
+_PASSWORD_FILE = DIRECTORIO_APP / "data" / "backup_password.key"
 # ──────────────────────────────────────────────────────────────────────────────
+
+
+def _obtener_password_backup() -> str:
+    """Retorna la contraseña de cifrado de los backups. Prioridad: variable de
+    entorno OCDI_BACKUP_PASSWORD > archivo local data/backup_password.key
+    (se genera automáticamente la primera vez que corre el backup)."""
+    import os
+    env_pwd = os.environ.get("OCDI_BACKUP_PASSWORD")
+    if env_pwd:
+        return env_pwd
+    if _PASSWORD_FILE.exists():
+        return _PASSWORD_FILE.read_text(encoding="utf-8").strip()
+
+    password = secrets.token_urlsafe(32)
+    _PASSWORD_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _PASSWORD_FILE.write_text(password, encoding="utf-8")
+    print(
+        "[BACKUP] Se generó una nueva contraseña de cifrado para los backups.\n"
+        f"[BACKUP] GUÁRDALA en un lugar seguro (gestor de contraseñas): {password}\n"
+        "[BACKUP] Sin ella no se pueden abrir los .zip de backup en caso de desastre "
+        "(p.ej. si este PC se daña y hay que recuperar desde Google Drive en otro equipo)."
+    )
+    return password
 
 
 def hacer_backup() -> tuple[bool, str]:
@@ -78,11 +115,17 @@ def hacer_backup() -> tuple[bool, str]:
         tmp_db.unlink(missing_ok=True)
         return False, msg
 
-    # Empaquetar en ZIP
+    # Empaquetar en ZIP cifrado (AES-256)
+    password = _obtener_password_backup()
     zip_path = DIRECTORIO_BACKUP / f"ocdi_backup_{ts}.zip"
     extras_incluidos = []
     try:
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        with pyzipper.AESZipFile(
+            zip_path, "w",
+            compression=pyzipper.ZIP_DEFLATED,
+            encryption=pyzipper.WZ_AES,
+        ) as zf:
+            zf.setpassword(password.encode("utf-8"))
             zf.write(tmp_db, "ocdi.db")
             for extra in ARCHIVOS_EXTRA:
                 if extra.exists():
@@ -100,7 +143,8 @@ def hacer_backup() -> tuple[bool, str]:
 
     # Verificación
     try:
-        with zipfile.ZipFile(zip_path, "r") as zf:
+        with pyzipper.AESZipFile(zip_path, "r") as zf:
+            zf.setpassword(password.encode("utf-8"))
             data = zf.read("ocdi.db")
         tmp_verify = DIRECTORIO_BACKUP / f"_verify_{ts}.db"
         tmp_verify.write_bytes(data)
@@ -162,8 +206,9 @@ def main() -> int:
     ok, msg = hacer_backup()
     print(msg)
     if ok:
-        print(f"\n✅ Backup guardado en:\n   {DIRECTORIO_BACKUP}")
+        print(f"\n✅ Backup cifrado (AES-256) guardado en:\n   {DIRECTORIO_BACKUP}")
         print("   Se sincroniza automáticamente con Google Drive en la nube.")
+        print(f"   Contraseña de cifrado en: {_PASSWORD_FILE}")
     return 0 if ok else 1
 
 

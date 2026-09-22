@@ -479,6 +479,14 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - Nuevo manejador global `@app.exception_handler(Exception)`: cualquier error no controlado se registra en el log del servidor con detalle técnico completo, pero al usuario solo se le muestra una página genérica ("Ocurrió un error inesperado"), nunca trazas de pila ni detalles de la excepción. Verificado forzando un error real de base de datos: el cliente nunca vio `sqlite3` ni ningún traceback en la respuesta.
 - Cookie `ocdi_session` ahora fija `secure=True` automáticamente cuando la request llega por HTTPS (`request.url.scheme == "https"`) — no requiere tocar este código de nuevo cuando llegue la Fase 4.
 
+**Fase 5 — Backups cifrados (2026-09-22)**
+
+- `backup_diario.py` ahora cifra el ZIP con AES-256 (librería `pyzipper`, nueva dependencia en `requirements.txt`) antes de escribirlo en la carpeta sincronizada con Google Drive. Antes viajaba sin cifrar a la nube.
+- La contraseña de cifrado vive en `data/backup_password.key` — carpeta que nunca se sube a git ni se sincroniza a Drive (solo el `.zip` cifrado viaja ahí), así que la llave y el dato cifrado quedan en dominios de seguridad separados. Se genera sola la primera vez que corre el backup y se imprime una sola vez en consola para guardarla en un gestor de contraseñas.
+- El botón "Hacer backup ahora" del portal y la tarea programada de Windows siguen funcionando igual (llaman a la misma función `hacer_backup()`), ahora produciendo ZIPs cifrados.
+- `/backup/restauracion` actualizada: explica que el ZIP requiere la contraseña y recomienda 7-Zip/WinRAR para extraerlo (el explorador de Windows integrado no siempre soporta AES-256).
+- Verificado con un backup real de producción: el ZIP resultante está genuinamente cifrado (flag AES confirmado, `zipfile` estándar de Python rechaza leerlo sin contraseña), la contraseña correcta lo abre, una incorrecta lo rechaza.
+
 #### v5.4 — 2026-09-18
 
 **Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**

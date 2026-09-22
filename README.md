@@ -525,6 +525,23 @@ Se evaluaron dos caminos:
 
 Sin ejecutar nada de código en esta fase — queda documentada para que el usuario la active cuando tenga acceso de administrador. **Fase 4 (TLS) y Fase 8 (BitLocker) quedan como las dos únicas fases pendientes del plan**, ambas esperando una acción del usuario fuera del código (hablar con Dirección TIC, y activar BitLocker con permisos de administrador, respectivamente).
 
+**Auditoría del trabajo de las Fases 1-8 (2026-09-22)**
+
+A pedido del usuario, se auditó todo el trabajo de cumplimiento LN-016 (commits `5d64ae7..4ba0e23`) con una revisión de código formal (3 agentes en paralelo sobre el diff completo) más verificación funcional directa. Se encontraron y corrigieron 4 bugs reales:
+
+1. **Cabeceras de seguridad ausentes en la página de error 500** — `@app.exception_handler(Exception)` lo maneja Starlette en `ServerErrorMiddleware`, una capa por FUERA del stack de `@app.middleware("http")`; la respuesta de un error no controlado nunca pasaba por `security_headers_middleware`. Verificado con un 500 forzado: 0 de las 5 cabeceras llegaban al cliente. Corregido aplicando las cabeceras directamente dentro del manejador de excepciones.
+2. **El bloqueo de login se auto-perpetuaba** — el contador de intentos fallidos nunca se reseteaba al expirar un bloqueo de 15 minutos (solo se reseteaba en un login exitoso). Efecto real: después del primer bloqueo, un solo error de tipeo volvía a bloquear la cuenta de inmediato por otros 15 minutos, indefinidamente — un usuario legítimo quedaba con una sola oportunidad por ventana para siempre. Corregido: el contador arranca de cero si el bloqueo anterior ya expiró.
+3. **Reactivar un usuario no limpiaba un bloqueo previo** — si una cuenta estaba desactivada Y bloqueada por intentos fallidos a la vez, reactivarla desde `/admin/usuarios` no limpiaba el bloqueo, dejando al usuario sin poder entrar hasta 15 min más sin ninguna indicación de por qué. Corregido para que coincida con el comportamiento de "cambiar contraseña", que sí limpiaba el bloqueo.
+4. **Contraseñas semilla generadas automáticamente solo se imprimían en consola** — a diferencia de la contraseña de cifrado de backups (que sí se persiste en `data/backup_password.key`), las contraseñas generadas para los 5 usuarios semilla en una instalación nueva solo aparecían en la consola; si se perdía el scrollback antes de copiarlas, quedaban irrecuperables (no habría ningún admin con sesión para resetearlas desde el panel). Corregido: ahora también se guardan en `data/seed_passwords_iniciales.txt` (fuera de git), igual que el patrón ya usado para el backup.
+
+Se corrigieron además dos mejoras menores de robustez encontradas en la misma revisión: `cuenta_bloqueada()` ahora también tolera un valor inválido de tipo en `bloqueado_hasta` (antes solo capturaba `ValueError`, no `TypeError`), y el diccionario en memoria del rate limiter por IP (`_intentos_por_ip`) ahora purga las IPs sin actividad reciente en vez de crecer sin límite a lo largo de meses de actividad.
+
+Se agregaron 6 tests de regresión permanentes para estos 4 bugs (`tests/test_login_flujo.py`, `tests/test_auth_seguridad.py`) y se centralizó en `tests/conftest.py` un fixture `admin_client` (y `admin_client_sin_raise`, necesario específicamente para probar el manejador de errores) que ya usan varios archivos de test, eliminando la duplicación del helper de login que había en `test_smoke_paginas.py`.
+
+**Hallazgo aparte, no relacionado con LN-016:** al probar funcionalmente el módulo de Herramientas PDF tras el upgrade de `pypdf` (Fase 7), se encontró que el endpoint `/pdf-tools/sello` (marca de agua) está roto — `page.insert_text(..., rotate=45)` en `app/routers/pdf_tools.py` lanza `ValueError: bad rotate value` porque PyMuPDF solo acepta múltiplos de 90 en ese parámetro. Confirmado con `git log` que este bug es preexistente (commit `8178d87`, ajeno por completo a este trabajo) y no se corrigió por estar fuera del alcance de la auditoría de cumplimiento — queda pendiente como un hallazgo separado para cuando el usuario decida abordarlo.
+
+Verificado tras los 4 arreglos: 78/78 tests pasando, servidor real respondiendo correctamente, base de datos de producción intacta (13 usuarios, 262 expedientes).
+
 #### v5.4 — 2026-09-18
 
 **Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**

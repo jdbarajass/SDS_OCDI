@@ -7,18 +7,6 @@ directa del bug de TemplateResponse encontrado al actualizar Starlette).
 import pytest
 
 
-def _login_admin(client):
-    import app.database as dbmod
-    conn = dbmod.get_db()
-    admin = conn.execute("SELECT id FROM usuarios WHERE username='Admin'").fetchone()
-    from app.auth_utils import new_token
-    token = new_token()
-    conn.execute("INSERT INTO sesiones (token, user_id) VALUES (?,?)", (token, admin["id"]))
-    conn.commit()
-    conn.close()
-    client.cookies.set("ocdi_session", token)
-
-
 PAGINAS = [
     "/",
     "/dashboard",
@@ -46,8 +34,7 @@ PAGINAS = [
 
 
 @pytest.mark.parametrize("path", PAGINAS)
-def test_pagina_responde_200(client, path):
-    _login_admin(client)
-    r = client.get(path, follow_redirects=True)
+def test_pagina_responde_200(admin_client, path):
+    r = admin_client.get(path, follow_redirects=True)
     assert r.status_code == 200, f"{path} -> {r.status_code}"
     assert len(r.text) > 0

@@ -35,3 +35,41 @@ def client(db_temporal):
     from app.main import app
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture
+def admin_client(client):
+    """Igual que `client`, pero con sesión de Admin ya autenticada (cookie
+    ocdi_session puesta), para tests que necesitan navegar rutas protegidas."""
+    import app.database as dbmod
+    from app.auth_utils import new_token
+    conn = dbmod.get_db()
+    admin = conn.execute("SELECT id FROM usuarios WHERE username='Admin'").fetchone()
+    token = new_token()
+    conn.execute("INSERT INTO sesiones (token, user_id) VALUES (?,?)", (token, admin["id"]))
+    conn.commit()
+    conn.close()
+    client.cookies.set("ocdi_session", token)
+    return client
+
+
+@pytest.fixture
+def admin_client_sin_raise(db_temporal):
+    """Como `admin_client`, pero con raise_server_exceptions=False: en vez de
+    relanzar la excepción cruda (comportamiento por defecto de TestClient,
+    pensado para depurar), devuelve la respuesta HTTP real que vería un
+    navegador — necesario para probar el manejador de errores fail-closed
+    (@app.exception_handler(Exception)), que solo corre en ese camino."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.database as dbmod
+    from app.auth_utils import new_token
+    with TestClient(app, raise_server_exceptions=False) as c:
+        conn = dbmod.get_db()
+        admin = conn.execute("SELECT id FROM usuarios WHERE username='Admin'").fetchone()
+        token = new_token()
+        conn.execute("INSERT INTO sesiones (token, user_id) VALUES (?,?)", (token, admin["id"]))
+        conn.commit()
+        conn.close()
+        c.cookies.set("ocdi_session", token)
+        yield c

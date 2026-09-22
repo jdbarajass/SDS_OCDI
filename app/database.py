@@ -836,11 +836,14 @@ def _seed_usuarios(conn):
     import secrets
     from app.auth_utils import hash_password, MODULOS_SISTEMA
 
-    def _pwd_inicial(env_var: str) -> str:
+    _generadas: dict[str, str] = {}
+
+    def _pwd_inicial(env_var: str, username: str) -> str:
         pwd = os.environ.get(env_var)
         if pwd:
             return pwd
         pwd = secrets.token_urlsafe(12)
+        _generadas[username] = pwd
         print(
             f"[SEED] {env_var} no está definida en el entorno. "
             f"Se generó una contraseña temporal para este usuario: {pwd} "
@@ -850,12 +853,28 @@ def _seed_usuarios(conn):
 
     # (username, password_plaintext, nombre_completo, rol)
     usuarios_credencial = [
-        ("Admin",           _pwd_inicial("OCDI_SEED_PWD_ADMIN"),           "JOSE DE JESUS BARAJAS SOTELO",    "admin"),
-        ("JefeOficinaOcdi", _pwd_inicial("OCDI_SEED_PWD_JEFE"),            "MARTHA PATRICIA AÑEZ MAESTRE",    "jefe"),
-        ("Secretario1",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO1"),     "ANDRES EDUARDO SANDOVAL MAYORGA", "secretario"),
-        ("Secretario2",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO2"),     "MAGDA XIMENA PAREDES LIEVANO",    "secretario"),
-        ("AuxSecretario",   _pwd_inicial("OCDI_SEED_PWD_AUXSECRETARIO"),   "LUNA GICELL GUZMAN YATE",         "auxiliar"),
+        ("Admin",           _pwd_inicial("OCDI_SEED_PWD_ADMIN", "Admin"),                     "JOSE DE JESUS BARAJAS SOTELO",    "admin"),
+        ("JefeOficinaOcdi", _pwd_inicial("OCDI_SEED_PWD_JEFE", "JefeOficinaOcdi"),             "MARTHA PATRICIA AÑEZ MAESTRE",    "jefe"),
+        ("Secretario1",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO1", "Secretario1"),         "ANDRES EDUARDO SANDOVAL MAYORGA", "secretario"),
+        ("Secretario2",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO2", "Secretario2"),         "MAGDA XIMENA PAREDES LIEVANO",    "secretario"),
+        ("AuxSecretario",   _pwd_inicial("OCDI_SEED_PWD_AUXSECRETARIO", "AuxSecretario"),     "LUNA GICELL GUZMAN YATE",         "auxiliar"),
     ]
+
+    # Si alguna contraseña se generó automáticamente (no vino de env var), se
+    # persiste también en un archivo local — igual que backup_password.key en
+    # backup_diario.py — para que no se pierda si se cierra la consola antes
+    # de copiarla. Fuera de git (toda la carpeta data/ está en .gitignore).
+    if _generadas:
+        archivo = Path(__file__).parent.parent / "data" / "seed_passwords_iniciales.txt"
+        archivo.parent.mkdir(parents=True, exist_ok=True)
+        with open(archivo, "w", encoding="utf-8") as f:
+            f.write(
+                "Contraseñas iniciales generadas automáticamente al primer arranque.\n"
+                "Cámbialas desde /admin/usuarios y luego borra este archivo.\n\n"
+            )
+            for username, pwd in _generadas.items():
+                f.write(f"{username}: {pwd}\n")
+        print(f"[SEED] Contraseñas generadas también guardadas en: {archivo}")
     # Abogados (sin contraseña, solo seleccionan su nombre)
     abogados = [
         "CARLOS ALFONSO PARRA MALAVER",

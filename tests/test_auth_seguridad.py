@@ -13,6 +13,7 @@ from app.auth_utils import (
     cuenta_bloqueada,
     rate_limit_login,
     MAX_INTENTOS_POR_IP,
+    VENTANA_RATE_LIMIT_SEGUNDOS,
     _intentos_por_ip,
 )
 
@@ -68,6 +69,12 @@ def test_bloqueo_pasado_ya_no_bloquea():
     assert cuenta_bloqueada({"bloqueado_hasta": hasta}) == 0
 
 
+def test_bloqueado_hasta_con_tipo_invalido_no_rompe():
+    # Defensa en profundidad: un valor no-string/no-ISO no debe propagar una
+    # excepción (antes solo se capturaba ValueError, no TypeError).
+    assert cuenta_bloqueada({"bloqueado_hasta": 12345}) == 0
+
+
 # ── rate_limit_login ───────────────────────────────────────────────────────────
 
 def test_rate_limit_permite_hasta_el_maximo():
@@ -83,3 +90,18 @@ def test_rate_limit_permite_hasta_el_maximo():
 
 def test_rate_limit_ip_none_nunca_bloquea():
     assert rate_limit_login(None) is False
+
+
+def test_rate_limit_purga_ips_vencidas_del_diccionario():
+    """Regresión: antes, cada IP quedaba como llave en _intentos_por_ip para
+    siempre (cada una solo podaba su propia lista, nunca se auto-eliminaba),
+    creciendo sin límite a lo largo de meses de actividad."""
+    import time
+    ip_vieja = "10.0.0.200"
+    _intentos_por_ip[ip_vieja] = [time.monotonic() - VENTANA_RATE_LIMIT_SEGUNDOS - 1]
+    try:
+        rate_limit_login("10.0.0.201")  # cualquier llamada dispara la limpieza
+        assert ip_vieja not in _intentos_por_ip
+    finally:
+        _intentos_por_ip.pop(ip_vieja, None)
+        _intentos_por_ip.pop("10.0.0.201", None)

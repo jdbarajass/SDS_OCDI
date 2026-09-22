@@ -92,7 +92,7 @@ def cuenta_bloqueada(user: dict) -> int:
         return 0
     try:
         restante = datetime.fromisoformat(hasta) - datetime.now()
-    except ValueError:
+    except (ValueError, TypeError):
         return 0
     segundos = restante.total_seconds()
     if segundos <= 0:
@@ -104,12 +104,27 @@ def registrar_intento_fallido(conn, user_id: int) -> int:
     """Incrementa el contador de intentos fallidos de un usuario; si alcanza el
     máximo, bloquea la cuenta por MINUTOS_BLOQUEO minutos.
 
+    Si el bloqueo anterior ya expiró, el contador arranca de cero antes de
+    incrementar — si no, un solo intento fallido (p.ej. un error de tipeo)
+    justo después de expirar el bloqueo anterior volvería a bloquear la
+    cuenta de inmediato, dejando al usuario legítimo con una sola oportunidad
+    por ventana de 15 minutos para siempre.
+
     Retorna MINUTOS_BLOQUEO si este intento fue el que disparó el bloqueo
     (para poder avisarle al usuario de inmediato en vez de esperar a su
     siguiente intento), o 0 si el intento solo quedó registrado."""
     from datetime import datetime, timedelta
-    row = conn.execute("SELECT intentos_fallidos FROM usuarios WHERE id=?", (user_id,)).fetchone()
-    intentos = (row["intentos_fallidos"] or 0) + 1 if row else 1
+    row = conn.execute(
+        "SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE id=?", (user_id,)
+    ).fetchone()
+    if not row:
+        return 0
+
+    intentos_previos = row["intentos_fallidos"] or 0
+    if row["bloqueado_hasta"] and cuenta_bloqueada(dict(row)) == 0:
+        intentos_previos = 0  # el bloqueo anterior ya expiró: arranca de cero
+
+    intentos = intentos_previos + 1
     if intentos >= MAX_INTENTOS_FALLIDOS:
         hasta = (datetime.now() + timedelta(minutes=MINUTOS_BLOQUEO)).isoformat(timespec="seconds")
         conn.execute(
@@ -118,7 +133,10 @@ def registrar_intento_fallido(conn, user_id: int) -> int:
         )
         conn.commit()
         return MINUTOS_BLOQUEO
-    conn.execute("UPDATE usuarios SET intentos_fallidos=? WHERE id=?", (intentos, user_id))
+    conn.execute(
+        "UPDATE usuarios SET intentos_fallidos=?, bloqueado_hasta=NULL WHERE id=?",
+        (intentos, user_id),
+    )
     conn.commit()
     return 0
 
@@ -151,6 +169,18 @@ def rate_limit_login(ip: str | None) -> bool:
     if not ip:
         return False
     ahora = time.monotonic()
+
+    # Limpieza oportunista: sin esto, cada IP que alguna vez llamó a esta
+    # función se queda como llave del diccionario para siempre (cada IP solo
+    # poda su propia lista, nunca se borra a sí misma), creciendo sin límite
+    # a lo largo de meses de actividad con múltiples IPs de origen.
+    vencidas = [
+        k for k, v in _intentos_por_ip.items()
+        if not v or ahora - v[-1] >= VENTANA_RATE_LIMIT_SEGUNDOS
+    ]
+    for k in vencidas:
+        del _intentos_por_ip[k]
+
     intentos = _intentos_por_ip.setdefault(ip, [])
     intentos[:] = [t for t in intentos if ahora - t < VENTANA_RATE_LIMIT_SEGUNDOS]
     intentos.append(ahora)

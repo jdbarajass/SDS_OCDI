@@ -148,7 +148,17 @@ async def toggle_activo(request: Request, user_id: int):
     ).fetchone()
     if row:
         new_val = 0 if row["activo"] else 1
-        conn.execute("UPDATE usuarios SET activo = ? WHERE id = ?", (new_val, user_id))
+        if new_val == 1:
+            # Reactivar también limpia cualquier bloqueo por intentos fallidos
+            # — si no, un usuario reactivado por el admin podía seguir sin
+            # poder entrar hasta 15 min más por un bloqueo que ya no tenía
+            # sentido, sin ninguna indicación en pantalla de por qué.
+            conn.execute(
+                "UPDATE usuarios SET activo = ?, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?",
+                (new_val, user_id),
+            )
+        else:
+            conn.execute("UPDATE usuarios SET activo = ? WHERE id = ?", (new_val, user_id))
         conn.commit()
         registrar_log(user, "toggle_activo", "usuarios",
                       f"'{row['nombre_completo']}' activo → {new_val}",

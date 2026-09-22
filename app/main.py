@@ -143,15 +143,19 @@ _CSP = (
 )
 
 
-@app.middleware("http")
-async def security_headers_middleware(request: Request, call_next):
-    response = await call_next(request)
+def _set_security_headers(response):
     response.headers["Content-Security-Policy"] = _CSP
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     return response
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    return _set_security_headers(response)
 
 
 # ── Manejo de errores fail-closed (SDS-TIC-LN-016 §5.4.2.f) ──────────────────
@@ -181,8 +185,15 @@ _ERROR_500_HTML = """<!DOCTYPE html>
 
 @app.exception_handler(Exception)
 async def manejador_errores_no_controlados(request: Request, exc: Exception):
+    # Starlette maneja @app.exception_handler(Exception) en ServerErrorMiddleware,
+    # una capa por FUERA del stack de @app.middleware("http") — la respuesta que
+    # arma este handler nunca pasa por security_headers_middleware, así que las
+    # cabeceras se aplican aquí directamente (si no, la página de error, que es
+    # justo donde más importan por defensa en profundidad, quedaría sin CSP ni
+    # X-Frame-Options). Verificado con un 500 forzado: sin esto, 0 de las 5
+    # cabeceras llegaban al cliente en esa respuesta.
     logger.exception("Error no controlado en %s %s", request.method, request.url.path)
-    return HTMLResponse(content=_ERROR_500_HTML, status_code=500)
+    return _set_security_headers(HTMLResponse(content=_ERROR_500_HTML, status_code=500))
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────

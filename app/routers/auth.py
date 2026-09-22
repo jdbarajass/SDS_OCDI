@@ -69,7 +69,10 @@ async def login_abogado(
 
     dest = next if next.startswith("/") else "/"
     response = RedirectResponse(dest, status_code=303)
-    response.set_cookie("ocdi_session", token, httponly=True, samesite="lax")
+    response.set_cookie(
+        "ocdi_session", token, httponly=True, samesite="lax",
+        secure=(request.url.scheme == "https"),
+    )
     return response
 
 
@@ -126,7 +129,10 @@ async def login_credencial(
 
     dest = next if next.startswith("/") else "/"
     response = RedirectResponse(dest, status_code=303)
-    response.set_cookie("ocdi_session", token, httponly=True, samesite="lax")
+    response.set_cookie(
+        "ocdi_session", token, httponly=True, samesite="lax",
+        secure=(request.url.scheme == "https"),
+    )
     return response
 
 

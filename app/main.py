@@ -1,8 +1,11 @@
+import logging
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from app.template_utils import make_templates
 from pathlib import Path
+
+logger = logging.getLogger("ocdi")
 
 from app.database import init_db
 from app.routers import (
@@ -115,6 +118,71 @@ async def auth_middleware(request: Request, call_next):
                 break
 
     return await call_next(request)
+
+
+# ── Cabeceras de seguridad HTTP (SDS-TIC-LN-016 §5.4.4.b) ────────────────────
+# CSP permite 'unsafe-inline' en script/style porque las plantillas actuales
+# usan extensivamente atributos style="" y onclick="" inline — una CSP
+# estricta (nonces, sin inline) rompería la UI existente. Aun así esta
+# política ya bloquea la carga de recursos/scripts de dominios externos no
+# autorizados, iframes ajenos (clickjacking) y el envío de formularios a
+# otro origen, que es la parte que más importa contra XSS con exfiltración.
+# Strict-Transport-Security queda para la Fase 4 (TLS): HSTS sobre HTTP plano
+# no tiene efecto y los navegadores lo ignoran hasta que haya HTTPS real.
+
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = _CSP
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
+
+
+# ── Manejo de errores fail-closed (SDS-TIC-LN-016 §5.4.2.f) ──────────────────
+# Cualquier excepción no controlada se registra en el log del servidor con su
+# detalle técnico completo, pero al usuario solo se le muestra un mensaje
+# genérico — nunca trazas de pila, rutas de servidor ni nombres de librerías.
+
+_ERROR_500_HTML = """<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Error — OCDI</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f1f5f9;
+       display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .box{background:#fff;border-radius:12px;padding:36px 40px;box-shadow:0 4px 20px rgba(0,0,0,.08);
+       max-width:420px;text-align:center}
+  h1{font-size:20px;color:#1e293b;margin:0 0 8px}
+  p{font-size:14px;color:#64748b;margin:0 0 20px}
+  a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:9px 20px;
+    border-radius:7px;font-size:13px;font-weight:600}
+</style></head>
+<body><div class="box">
+  <h1>⚠️ Ocurrió un error inesperado</h1>
+  <p>El equipo técnico ya quedó notificado. Intente de nuevo en unos minutos.</p>
+  <a href="/">Volver al portal</a>
+</div></body></html>"""
+
+
+@app.exception_handler(Exception)
+async def manejador_errores_no_controlados(request: Request, exc: Exception):
+    logger.exception("Error no controlado en %s %s", request.method, request.url.path)
+    return HTMLResponse(content=_ERROR_500_HTML, status_code=500)
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────

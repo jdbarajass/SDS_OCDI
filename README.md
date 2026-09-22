@@ -472,6 +472,13 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - Cambiar la contraseña de un usuario desde el panel admin también limpia cualquier bloqueo activo que tuviera.
 - Verificado con un script ad-hoc contra una base de datos temporal (nunca contra `data/ocdi.db`): 5 intentos fallidos bloquean la cuenta, el 6° intento con contraseña correcta sigue rechazado mientras dure el bloqueo. Tests nuevos en `tests/test_auth_seguridad.py` (12 casos, sin tocar la BD real).
 
+**Fase 3 — Cabeceras HTTP de seguridad y manejo de errores fail-closed (2026-09-22)**
+
+- Nuevo middleware `security_headers_middleware` en `app/main.py`: agrega `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` y `Permissions-Policy` a toda respuesta. La CSP permite `'unsafe-inline'` en script/style porque las plantillas actuales usan atributos `style=""` y `onclick=""` inline extensivamente — quitarlo requeriría refactorizar decenas de plantillas, así que queda documentado como deuda técnica futura. Aun así ya bloquea carga de recursos de dominios externos no autorizados, iframes ajenos y envío de formularios a otro origen.
+- `Strict-Transport-Security` queda pendiente para la Fase 4 (TLS) — no tiene efecto sobre HTTP plano.
+- Nuevo manejador global `@app.exception_handler(Exception)`: cualquier error no controlado se registra en el log del servidor con detalle técnico completo, pero al usuario solo se le muestra una página genérica ("Ocurrió un error inesperado"), nunca trazas de pila ni detalles de la excepción. Verificado forzando un error real de base de datos: el cliente nunca vio `sqlite3` ni ningún traceback en la respuesta.
+- Cookie `ocdi_session` ahora fija `secure=True` automáticamente cuando la request llega por HTTPS (`request.url.scheme == "https"`) — no requiere tocar este código de nuevo cuando llegue la Fase 4.
+
 #### v5.4 — 2026-09-18
 
 **Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**

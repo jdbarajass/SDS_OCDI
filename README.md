@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.4** — Última actualización: 2026-09-18
+> **Versión actual: v5.5** — Última actualización: 2026-09-22
 
 ---
 
@@ -446,10 +446,23 @@ No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión conscient
 | 15 | v5.2 — Índices de BD, tests de regresión, historial de cambios, papelera de reciclaje, búsqueda global, banner de vencimientos próximos | ✅ | 2026-08-19 a 2026-08-20 |
 | 16 | v5.3 — Migración de todos los semáforos a días hábiles Colombia, enlaces de interés en el portal, módulo Matriz de Seguimiento (Abogados) | ✅ | 2026-08-25 a 2026-09-16 |
 | 17 | v5.4 — Módulo Compensatorios Fin de Año (Resolución 2307 de 2026) | ✅ | 2026-09-18 |
+| 18 | v5.5 — Cumplimiento del lineamiento SDS-TIC-LN-016 (Desarrollo Seguro de Software), implementado por fases | 🔄 En curso | desde 2026-09-22 |
 
 ---
 
 ### Changelog detallado
+
+#### v5.5 — Cumplimiento SDS-TIC-LN-016 (en curso desde 2026-09-22)
+
+La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "Desarrollo Seguro de Software"** (2026/09/11), de cumplimiento obligatorio para todo sistema de información de la entidad. Se está implementando por fases, sin interrumpir el uso diario de los 11 usuarios.
+
+**Fase 1 — Eliminación de secretos hardcodeados (2026-09-22)**
+
+- Las 5 contraseñas de los usuarios semilla (Admin, Jefe, 2 Secretarios, Auxiliar) vivían en texto plano en `app/database.py` desde el primer commit del proyecto (2026-02-24), expuestas en el historial público del repositorio de GitHub.
+- Se rotaron esas 5 contraseñas directamente en la base de datos de producción (con backup previo).
+- `_seed_usuarios()` ya no contiene contraseñas reales: lee variables de entorno opcionales (`OCDI_SEED_PWD_*`, ver `.env.example`) y, si no están definidas, genera una contraseña aleatoria fuerte que se imprime una sola vez en consola al primer arranque.
+- Se reescribió el historial de Git (`git filter-repo`) para eliminar las 5 contraseñas de todos los commits pasados, verificado con búsqueda exhaustiva sobre todos los blobs del historial.
+- Pendiente: `git push --force` a GitHub bloqueado por un problema de conectividad de red del equipo; el historial ya quedó limpio en local, falta sincronizar con el remoto.
 
 #### v5.4 — 2026-09-18
 

@@ -495,6 +495,17 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - Nuevos tests en `tests/test_login_flujo.py` (4 casos) que reproducen como regresión automatizada las verificaciones manuales hechas en las Fases 2 y 3: bloqueo por intentos fallidos end-to-end, redirección sin sesión, rechazo de contraseña débil, presencia de cabeceras de seguridad.
 - Verificado end-to-end: se levantó la app real (`uvicorn`) apuntando al sandbox vía `OCDI_DB_PATH`, respondió correctamente, y se confirmó que `data/ocdi.db` (262 expedientes reales) permaneció intacta durante todo el proceso.
 
+**Fase 7 — Dependencias fijadas y escaneo de vulnerabilidades (2026-09-22)**
+
+- Escaneo con `pip-audit` (base de datos OSV) encontró **34 vulnerabilidades conocidas reales** en `jinja2` (3, incluyendo RCE en el sandbox), `python-multipart` (8, DoS y path traversal) y `starlette` (14, incluyendo un SSRF vía UNC path específico de Windows en `StaticFiles` — relevante porque OCDI corre en Windows). También se encontró un CVE en `pypdf`, que `requirements.txt` dejaba sin fijar (`>=4.0.0`).
+- Actualizado: `fastapi` 0.115.0→0.141.1, `jinja2` 3.1.4→3.1.6, `python-multipart` 0.0.9→0.0.31, `pypdf` →6.19.0. `starlette` se fija ahora explícitamente en 1.3.1 (antes solo dependencia transitiva de fastapi). Todas las dependencias que usaban `>=` ahora tienen versión exacta con `==`.
+- La actualización de Starlette eliminó por completo el shim de compatibilidad de la firma antigua `TemplateResponse(name, context)` (antes solo generaba un warning, ahora rompía con un `TypeError` críptico de Jinja2). Se corrigió en un solo lugar (`app/template_utils.py`, clase `_CompatJinja2Templates`) en vez de tocar los 73 call sites del proyecto en 19 routers.
+- Se encontró y corrigió de paso un bug preexistente: `app/routers/seguimiento.py` instanciaba `Jinja2Templates` directamente en vez de usar `make_templates()` (quedó fuera de la migración a `make_templates()` documentada en v3.2) — no tenía el filtro `fmt_fecha` ni, ahora, el fix de compatibilidad. Corregido para seguir el mismo patrón que los demás 18 routers.
+- Nuevo `tests/test_smoke_paginas.py` (22 páginas, una por módulo): detectó el problema de `/seguimiento` automáticamente al correr la suite tras la actualización — exactamente el tipo de regresión que este test está pensado para atrapar en futuras actualizaciones de dependencias.
+- Nuevo `SBOM.md`: inventario estructurado de las 12 dependencias directas con versión, propósito, licencia y estado de vulnerabilidades, más instrucciones para re-escanear.
+- Verificado: `pip-audit` sobre el `requirements.txt` final reporta **0 vulnerabilidades conocidas**; 73/73 tests pasando; módulo de PDF probado funcionalmente tras el salto de 7 versiones de `pypdf` (unir, rotar, extraer páginas); servidor real (`uvicorn`) levantado con las nuevas dependencias contra el sandbox.
+- **Pendiente operativo:** esta actualización queda instalada en el entorno Python del PC servidor pero solo toma efecto en el próximo reinicio de `iniciar.bat` (el proceso que ya está corriendo sigue con las versiones viejas en memoria) — reiniciar cuando sea un buen momento para la oficina, no es urgente-urgente porque el servidor activo no cambia de versión solo.
+
 #### v5.4 — 2026-09-18
 
 **Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**

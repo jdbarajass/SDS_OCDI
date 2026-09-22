@@ -1,14 +1,15 @@
 import io
 from datetime import date
+from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
+from app.template_utils import make_templates
 
 from app.database import get_db
 from app.auth_utils import tpl, puede_escribir
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 
 MESES = [
     "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",

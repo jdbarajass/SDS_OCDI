@@ -1,10 +1,17 @@
+import os
 import sqlite3
 from pathlib import Path
 from datetime import date, timedelta
 
 from app.dias_habiles import dias_habiles_diff as _dias_habiles_diff
 
-DB_PATH = Path(__file__).parent.parent / "data" / "ocdi.db"
+# SDS-TIC-LN-016 §5.4.3.a: ningún ambiente de pruebas debe usar datos reales
+# de producción. OCDI corre en un solo PC con una sola BD por diseño (no hay
+# ambientes separados de infraestructura), así que la variable de entorno
+# OCDI_DB_PATH es el mecanismo para levantar la app contra una base de datos
+# de prueba (ver crear_bd_prueba.py) sin tocar nunca data/ocdi.db real. Sin
+# esa variable, el comportamiento es exactamente el de siempre.
+DB_PATH = Path(os.environ.get("OCDI_DB_PATH") or (Path(__file__).parent.parent / "data" / "ocdi.db"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS expedientes (

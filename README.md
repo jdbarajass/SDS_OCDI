@@ -487,6 +487,14 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - `/backup/restauracion` actualizada: explica que el ZIP requiere la contraseña y recomienda 7-Zip/WinRAR para extraerlo (el explorador de Windows integrado no siempre soporta AES-256).
 - Verificado con un backup real de producción: el ZIP resultante está genuinamente cifrado (flag AES confirmado, `zipfile` estándar de Python rechaza leerlo sin contraseña), la contraseña correcta lo abre, una incorrecta lo rechaza.
 
+**Fase 6 — Separar pruebas de la base de datos real (2026-09-22)**
+
+- `app/database.py` ahora lee `DB_PATH` de la variable de entorno opcional `OCDI_DB_PATH`; sin ella, el comportamiento es exactamente el de siempre (`data/ocdi.db`).
+- Nuevo `crear_bd_prueba.py`: genera una base de datos sandbox con los datos sintéticos que ya produce `init_db()` (5 usuarios semilla + 3 expedientes de ejemplo con nombres ficticios), para navegar la app real en el navegador sin tocar nunca la BD de producción.
+- Nuevo `tests/conftest.py` con fixtures `db_temporal`/`client`: cualquier test que use `client` corre contra una base de datos temporal aislada, nunca `data/ocdi.db`. Formaliza como convención permanente lo que antes eran scripts ad-hoc de un solo uso al verificar las Fases 2 y 3.
+- Nuevos tests en `tests/test_login_flujo.py` (4 casos) que reproducen como regresión automatizada las verificaciones manuales hechas en las Fases 2 y 3: bloqueo por intentos fallidos end-to-end, redirección sin sesión, rechazo de contraseña débil, presencia de cabeceras de seguridad.
+- Verificado end-to-end: se levantó la app real (`uvicorn`) apuntando al sandbox vía `OCDI_DB_PATH`, respondió correctamente, y se confirmó que `data/ocdi.db` (262 expedientes reales) permaneció intacta durante todo el proceso.
+
 #### v5.4 — 2026-09-18
 
 **Nuevo módulo: Compensatorios Fin de Año (`/compensatorios/`)**
@@ -900,6 +908,22 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 3. En cualquier PC de la red abrir Chrome/Edge: `http://<IP-del-servidor>:8000`
    - Para conocer la IP: ejecutar `ipconfig` en el servidor y buscar "Dirección IPv4"
 4. Para detener: `Ctrl+C` en la ventana de comandos
+
+### Ambiente de pruebas (sandbox)
+
+OCDI corre en un solo PC con una sola base de datos por diseño — no hay servidores separados de desarrollo/QA. Para verificar cambios o navegar la interfaz sin tocar nunca `data/ocdi.db` real (SDS-TIC-LN-016 §5.4.3.a: prohibido usar datos reales en ambientes no productivos):
+
+```bash
+# 1. Crear una BD de prueba con datos sintéticos (5 usuarios semilla + 3
+#    expedientes de ejemplo con nombres ficticios, nunca datos reales)
+python crear_bd_prueba.py
+
+# 2. Levantar la app apuntando a esa BD en vez de la real
+set OCDI_DB_PATH=data\ocdi_sandbox.db
+python -m uvicorn app.main:app --reload
+```
+
+`data/ocdi_sandbox.db` (como todo `data/`) está fuera de git. Los tests automatizados que necesitan una base de datos (`tests/conftest.py`, fixtures `client`/`db_temporal`) ya usan este mismo mecanismo automáticamente — ningún test toca la BD real.
 
 ### Importar datos históricos
 

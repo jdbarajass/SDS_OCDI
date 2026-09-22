@@ -42,6 +42,12 @@ TIPOS_REGISTRO = [
 ]
 TIPOS_DIC_FIJOS = {"DIC24": 1.5, "DIC31": 1.5}
 
+# Campo "Actividad / entregable" oculto a pedido del usuario (2026-09-21) para
+# mostrarle el módulo a la jefe sin ese campo primero; si ella pide que se
+# muestre, basta con volver esto a True (no se tocó nada del backend ni la
+# columna en BD, así que reactivarlo no pierde datos ya guardados).
+MOSTRAR_CAMPO_ACTIVIDAD = False
+
 
 # ── Helpers de datos ─────────────────────────────────────────────────────────
 
@@ -246,6 +252,7 @@ async def mis_horas(request: Request, nombre: str = "", msg: str = ""):
         ciclo=ciclo, turnos=turnos, sabados=sabados, resumen=resumen,
         registros=[dict(r) for r in registros], objetivo=objetivo, tipos=TIPOS_REGISTRO,
         tipos_dict=dict(TIPOS_REGISTRO), hoy=date.today().isoformat(),
+        mostrar_actividad=MOSTRAR_CAMPO_ACTIVIDAD,
         es_superuser_viendo_otro=(user.get("rol") in ROLES_SUPERUSUARIO and objetivo != user["nombre_completo"]),
         active="compensatorios_mis_horas", msg=msg,
     ))
@@ -401,6 +408,7 @@ async def registro_editar_form(request: Request, reg_id: int):
     conn.close()
     return templates.TemplateResponse("compensatorios_registro_editar.html", tpl(request, _MOD,
         reg=dict(reg), tipos=TIPOS_REGISTRO, tipos_dict=dict(TIPOS_REGISTRO),
+        mostrar_actividad=MOSTRAR_CAMPO_ACTIVIDAD,
         historial=historial, active="compensatorios_mis_horas",
     ))
 

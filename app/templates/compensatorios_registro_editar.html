@@ -25,10 +25,12 @@
             <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Horas</label>
             <input type="text" name="horas" id="horas-registro" class="form-control" value="{{ reg.horas }}" {% if reg.tipo in ('DIC24','DIC31') %}readonly{% endif %}>
         </div>
+        {% if mostrar_actividad %}
         <div style="margin-bottom:14px">
             <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Actividad / entregable</label>
             <input type="text" name="actividad" class="form-control" value="{{ reg.actividad or '' }}">
         </div>
+        {% endif %}
         <div style="margin-bottom:16px">
             <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Observaciones</label>
             <input type="text" name="observaciones" class="form-control" value="{{ reg.observaciones or '' }}">

@@ -127,6 +127,8 @@
         {% if error == 'credenciales_invalidas' %}🔒 Usuario o contraseña incorrectos. Intente de nuevo.
         {% elif error == 'usuario_invalido' %}⚠️ Usuario no encontrado o inactivo.
         {% elif error == 'sin_sesion' %}⚠️ Su sesión expiró. Por favor ingrese de nuevo.
+        {% elif error == 'cuenta_bloqueada' %}🔒 Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intente de nuevo en {{ minutos }} minuto{{ 's' if minutos != 1 else '' }}, o contacte al administrador.
+        {% elif error == 'demasiados_intentos' %}🚦 Demasiados intentos de ingreso desde esta red. Espere unos minutos e intente de nuevo.
         {% else %}⚠️ {{ error }}{% endif %}
     </div>
     {% endif %}

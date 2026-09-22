@@ -5,7 +5,8 @@ from app.template_utils import make_templates
 
 from app.database import get_db
 from app.auth_utils import (
-    hash_password, MODULOS_SISTEMA, ROLES_SUPERUSUARIO, ROLES_ESCRITURA_DEFAULT, registrar_log
+    hash_password, MODULOS_SISTEMA, ROLES_SUPERUSUARIO, ROLES_ESCRITURA_DEFAULT, registrar_log,
+    validar_politica_password,
 )
 
 router = APIRouter(prefix="/admin")
@@ -94,8 +95,10 @@ async def crear_usuario(
     if rol == "abogado":
         username, password_hash = None, None
     else:
-        if not username or len(password) < 8:
+        if not username:
             return RedirectResponse("/admin/usuarios?msg=error_usuario_obligatorios", status_code=303)
+        if validar_politica_password(password):
+            return RedirectResponse("/admin/usuarios?msg=password_corta", status_code=303)
         password_hash = hash_password(password)
 
     conn = get_db()
@@ -165,13 +168,17 @@ async def cambiar_password(
         return RedirectResponse("/admin/usuarios?msg=sin_permiso", status_code=303)
 
     nueva_password = (nueva_password or "").strip()
-    if len(nueva_password) < 8:
+    if validar_politica_password(nueva_password):
         return RedirectResponse("/admin/usuarios?msg=password_corta", status_code=303)
 
     hashed = hash_password(nueva_password)
     conn = get_db()
     row = conn.execute("SELECT nombre_completo FROM usuarios WHERE id = ?", (user_id,)).fetchone()
-    conn.execute("UPDATE usuarios SET password_hash = ? WHERE id = ?", (hashed, user_id))
+    # Cambiar la contraseña también limpia cualquier bloqueo por intentos fallidos.
+    conn.execute(
+        "UPDATE usuarios SET password_hash = ?, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?",
+        (hashed, user_id),
+    )
     conn.commit()
     if row:
         registrar_log(user, "cambiar_password", "usuarios",

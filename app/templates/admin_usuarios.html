@@ -45,7 +45,9 @@
 {% if msg == 'usuario_creado' %}
 <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#065f46">✓ Usuario creado correctamente.</div>
 {% elif msg == 'error_usuario_obligatorios' %}
-<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Complete nombre, rol y, si no es abogado, usuario + contraseña de mínimo 8 caracteres.</div>
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Complete nombre, rol y, si no es abogado, usuario + contraseña.</div>
+{% elif msg == 'password_corta' %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ La contraseña debe tener mínimo 12 caracteres, con mayúsculas, minúsculas, números y símbolos.</div>
 {% elif msg == 'error_usuario_duplicado' %}
 <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:7px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:#991b1b">⚠ Ese nombre de usuario ya existe.</div>
 {% endif %}
@@ -112,7 +114,7 @@
                         onclick="togglePass({{ u.id }})">🔑 Clave</button>
                 <div class="pass-form" id="pass-{{ u.id }}">
                     <form method="post" action="/admin/usuarios/{{ u.id }}/cambiar-password">
-                        <input type="password" name="nueva_password" placeholder="Nueva contraseña (mín. 8 chars)" autocomplete="new-password">
+                        <input type="password" name="nueva_password" placeholder="Nueva contraseña (mín. 12, con mayúsc./minúsc./número/símbolo)" minlength="12" autocomplete="new-password">
                         <button type="submit" class="btn-sm btn-primary" style="margin-left:6px">Guardar</button>
                         <button type="button" class="btn-sm btn-secondary" style="margin-left:4px"
                                 onclick="togglePass({{ u.id }})">Cancelar</button>
@@ -154,7 +156,7 @@
         </div>
         <div id="nu-credenciales-2">
             <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px">CONTRASEÑA</label>
-            <input type="password" name="password" id="nu-password" placeholder="mínimo 8 caracteres" autocomplete="new-password"
+            <input type="password" name="password" id="nu-password" placeholder="mín. 12: mayúsc./minúsc./número/símbolo" minlength="12" autocomplete="new-password"
                    style="width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:7px 10px;font-size:13px">
         </div>
         <div>

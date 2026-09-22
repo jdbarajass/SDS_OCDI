@@ -643,6 +643,16 @@ def init_db():
         conn.execute("ALTER TABLE usuarios ADD COLUMN tipo_contrato TEXT")
     except Exception:
         pass
+
+    # Migración LN-016 Fase 2: bloqueo temporal por intentos fallidos de login
+    try:
+        conn.execute("ALTER TABLE usuarios ADD COLUMN intentos_fallidos INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE usuarios ADD COLUMN bloqueado_hasta TEXT")
+    except Exception:
+        pass
     _abogados_planta = [
         "DAVID FELIPE MORALES NOGUERA",
         "JANIK HERNANDO DE LA HOZ RIOS",

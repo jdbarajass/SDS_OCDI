@@ -4,7 +4,11 @@ from pathlib import Path
 from app.template_utils import make_templates
 
 from app.database import get_db
-from app.auth_utils import verify_password, new_token, registrar_log, get_session_user
+from app.auth_utils import (
+    verify_password, new_token, registrar_log, get_session_user,
+    cuenta_bloqueada, registrar_intento_fallido, resetear_intentos_fallidos,
+    rate_limit_login,
+)
 
 router = APIRouter()
 templates = make_templates(str(Path(__file__).parent.parent / "templates"))
@@ -13,7 +17,7 @@ templates = make_templates(str(Path(__file__).parent.parent / "templates"))
 # ── LOGIN ─────────────────────────────────────────────────────────────────────
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request, next: str = "/", error: str = ""):
+async def login_form(request: Request, next: str = "/", error: str = "", minutos: int = 0):
     # Si ya está autenticado, redirigir al portal
     if get_session_user(request):
         return RedirectResponse("/")
@@ -27,6 +31,7 @@ async def login_form(request: Request, next: str = "/", error: str = ""):
         "abogados": [dict(r) for r in abogados],
         "next": next,
         "error": error,
+        "minutos": minutos,
     })
 
 
@@ -37,6 +42,10 @@ async def login_abogado(
     next: str = Form("/"),
 ):
     """Login para abogados: solo eligen su nombre, sin contraseña."""
+    ip = request.client.host if request.client else None
+    if rate_limit_login(ip):
+        return RedirectResponse("/login?error=demasiados_intentos", status_code=303)
+
     conn = get_db()
     user = conn.execute(
         "SELECT id, nombre_completo, rol FROM usuarios WHERE id = ? AND rol = 'abogado' AND activo = 1",
@@ -72,16 +81,37 @@ async def login_credencial(
     next: str = Form("/"),
 ):
     """Login con usuario y contraseña para secretarios, jefe y admin."""
+    ip = request.client.host if request.client else None
+    if rate_limit_login(ip):
+        return RedirectResponse("/login?error=demasiados_intentos", status_code=303)
+
     conn = get_db()
     user = conn.execute(
-        "SELECT id, username, nombre_completo, rol, password_hash FROM usuarios "
+        "SELECT id, username, nombre_completo, rol, password_hash, bloqueado_hasta FROM usuarios "
         "WHERE username = ? AND activo = 1 AND password_hash IS NOT NULL",
         (username.strip(),)
     ).fetchone()
 
+    if user:
+        minutos_restantes = cuenta_bloqueada(dict(user))
+        if minutos_restantes:
+            conn.close()
+            return RedirectResponse(
+                f"/login?error=cuenta_bloqueada&minutos={minutos_restantes}", status_code=303
+            )
+
     if not user or not verify_password(password, user["password_hash"]):
+        if user:
+            minutos_bloqueo = registrar_intento_fallido(conn, user["id"])
+            if minutos_bloqueo:
+                conn.close()
+                return RedirectResponse(
+                    f"/login?error=cuenta_bloqueada&minutos={minutos_bloqueo}", status_code=303
+                )
         conn.close()
         return RedirectResponse("/login?error=credenciales_invalidas", status_code=303)
+
+    resetear_intentos_fallidos(conn, user["id"])
 
     token = new_token()
     conn.execute(

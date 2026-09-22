@@ -96,7 +96,7 @@
             {% if msg == 'actualizado' %}✅ Cambio guardado correctamente.
             {% elif msg == 'permisos_actualizados' %}✅ Permisos actualizados correctamente.
             {% elif msg == 'password_actualizada' %}✅ Contraseña actualizada correctamente.
-            {% elif msg == 'password_corta' %}⚠️ La contraseña debe tener al menos 8 caracteres.
+            {% elif msg == 'password_corta' %}⚠️ La contraseña debe tener mínimo 12 caracteres, con mayúsculas, minúsculas, números y símbolos.
             {% elif msg == 'sin_permiso' %}⛔ No tienes permiso para realizar esta acción.
             {% elif msg == 'no_encontrado' %}⚠️ Usuario no encontrado.
             {% else %}{{ msg }}

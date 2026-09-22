@@ -462,7 +462,15 @@ La Secretaría Distrital de Salud emitió el lineamiento **SDS-TIC-LN-016 v2 "De
 - Se rotaron esas 5 contraseñas directamente en la base de datos de producción (con backup previo).
 - `_seed_usuarios()` ya no contiene contraseñas reales: lee variables de entorno opcionales (`OCDI_SEED_PWD_*`, ver `.env.example`) y, si no están definidas, genera una contraseña aleatoria fuerte que se imprime una sola vez en consola al primer arranque.
 - Se reescribió el historial de Git (`git filter-repo`) para eliminar las 5 contraseñas de todos los commits pasados, verificado con búsqueda exhaustiva sobre todos los blobs del historial.
-- Pendiente: `git push --force` a GitHub bloqueado por un problema de conectividad de red del equipo; el historial ya quedó limpio en local, falta sincronizar con el remoto.
+- Pendiente: `git push --force` a GitHub — el firewall de la red actual del equipo bloquea github.com; queda pendiente para cuando el usuario se conecte a la red donde sí hay salida (avisa antes de reintentarlo). El historial ya quedó limpio en local.
+
+**Fase 2 — Bloqueo por intentos fallidos y política de contraseñas (2026-09-22)**
+
+- Nuevas columnas `usuarios.intentos_fallidos` y `usuarios.bloqueado_hasta`. Tras 5 intentos fallidos consecutivos de login con usuario/contraseña, la cuenta queda bloqueada 15 minutos (se avisa de inmediato en el intento que dispara el bloqueo, no en el siguiente).
+- Rate limiting en memoria por IP en `/login/credencial` y `/login/abogado` (máx. 20 intentos / 5 min) — protección adicional contra fuerza bruta/fuzzing distribuido entre varios usuarios desde el mismo origen. No requiere Redis ni almacén externo porque la app corre en un único proceso uvicorn.
+- Política de contraseñas reforzada: mínimo 12 caracteres con mayúscula, minúscula, número y símbolo (antes solo exigía 8 caracteres sin más regla), aplicada tanto al crear un usuario como al cambiarle la contraseña desde `/admin/usuarios`.
+- Cambiar la contraseña de un usuario desde el panel admin también limpia cualquier bloqueo activo que tuviera.
+- Verificado con un script ad-hoc contra una base de datos temporal (nunca contra `data/ocdi.db`): 5 intentos fallidos bloquean la cuenta, el 6° intento con contraseña correcta sigue rechazado mientras dure el bloqueo. Tests nuevos en `tests/test_auth_seguridad.py` (12 casos, sin tocar la BD real).
 
 #### v5.4 — 2026-09-18
 

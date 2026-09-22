@@ -808,16 +808,36 @@ def init_db():
 
 
 def _seed_usuarios(conn):
-    """Crea los usuarios iniciales del sistema con contraseñas hasheadas."""
+    """Crea los usuarios iniciales del sistema con contraseñas hasheadas.
+
+    Las contraseñas de arranque NUNCA se hardcodean en el código fuente
+    (SDS-TIC-LN-016 §5.4.2.c): se leen de variables de entorno y, si faltan,
+    se genera una contraseña aleatoria fuerte que se imprime una sola vez en
+    consola para que el operador la guarde y la cambie desde /admin/usuarios.
+    """
+    import os
+    import secrets
     from app.auth_utils import hash_password, MODULOS_SISTEMA
+
+    def _pwd_inicial(env_var: str) -> str:
+        pwd = os.environ.get(env_var)
+        if pwd:
+            return pwd
+        pwd = secrets.token_urlsafe(12)
+        print(
+            f"[SEED] {env_var} no está definida en el entorno. "
+            f"Se generó una contraseña temporal para este usuario: {pwd} "
+            f"— cámbiala de inmediato desde /admin/usuarios."
+        )
+        return pwd
 
     # (username, password_plaintext, nombre_completo, rol)
     usuarios_credencial = [
-        ("Admin",           "***REDACTED-ROTATED-CREDENTIAL***",   "JOSE DE JESUS BARAJAS SOTELO",    "admin"),
-        ("JefeOficinaOcdi", "***REDACTED-ROTATED-CREDENTIAL***", "MARTHA PATRICIA AÑEZ MAESTRE",    "jefe"),
-        ("Secretario1",     "***REDACTED-ROTATED-CREDENTIAL***",    "ANDRES EDUARDO SANDOVAL MAYORGA", "secretario"),
-        ("Secretario2",     "***REDACTED-ROTATED-CREDENTIAL***",    "MAGDA XIMENA PAREDES LIEVANO",    "secretario"),
-        ("AuxSecretario",   "***REDACTED-ROTATED-CREDENTIAL***",    "LUNA GICELL GUZMAN YATE",         "auxiliar"),
+        ("Admin",           _pwd_inicial("OCDI_SEED_PWD_ADMIN"),           "JOSE DE JESUS BARAJAS SOTELO",    "admin"),
+        ("JefeOficinaOcdi", _pwd_inicial("OCDI_SEED_PWD_JEFE"),            "MARTHA PATRICIA AÑEZ MAESTRE",    "jefe"),
+        ("Secretario1",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO1"),     "ANDRES EDUARDO SANDOVAL MAYORGA", "secretario"),
+        ("Secretario2",     _pwd_inicial("OCDI_SEED_PWD_SECRETARIO2"),     "MAGDA XIMENA PAREDES LIEVANO",    "secretario"),
+        ("AuxSecretario",   _pwd_inicial("OCDI_SEED_PWD_AUXSECRETARIO"),   "LUNA GICELL GUZMAN YATE",         "auxiliar"),
     ]
     # Abogados (sin contraseña, solo seleccionan su nombre)
     abogados = [

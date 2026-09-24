@@ -550,11 +550,13 @@ def init_db():
         "JANIK HERNANDO DE LA HOZ RIOS",
         "JOSE DE JESUS BARAJAS SOTELO",
         "LUNA GICELL GUZMAN YATE",
+        "LUZ ALBA FARFAN CASALLAS",
         "MABEL GICELLA HURTADO SANCHEZ",
         "MAGDA XIMENA PAREDES LIEVANO",
         "MARA LUCIA UCROS MERLANO",
         "MARTHA PATRICIA AÑEZ MAESTRE",
         "RODOLFO CARRILLO QUINTERO",
+        "CARMEN ROSA AVILA ROBLES",
         "TODOS LOS PROFESIONALES",
     ]
     conn.execute("DELETE FROM corr_responsables")
@@ -581,6 +583,10 @@ def init_db():
         ("JOSE BARAJAS",                "JOSE DE JESUS BARAJAS SOTELO"),
         ("LUNA GUZMAN",                 "LUNA GICELL GUZMAN YATE"),
         ("LUNA GICELL GUZMAN",          "LUNA GICELL GUZMAN YATE"),
+        ("LUZ ALBA FARFAN",             "LUZ ALBA FARFAN CASALLAS"),
+        ("LUZ FARFAN",                  "LUZ ALBA FARFAN CASALLAS"),
+        ("CARMEN AVILA",                "CARMEN ROSA AVILA ROBLES"),
+        ("CARMEN ROSA AVILA",           "CARMEN ROSA AVILA ROBLES"),
         ("MABEL HURTADO",               "MABEL GICELLA HURTADO SANCHEZ"),
         ("MABEL GICELLA HURTADO",       "MABEL GICELLA HURTADO SANCHEZ"),
         ("GICELLA HURTADO",             "MABEL GICELLA HURTADO SANCHEZ"),
@@ -665,11 +671,13 @@ def init_db():
         "JANIK HERNANDO DE LA HOZ RIOS",
         "MABEL GICELLA HURTADO SANCHEZ",
         "RODOLFO CARRILLO QUINTERO",
+        "LUZ ALBA FARFAN CASALLAS",
     ]
     _abogados_contratista = [
         "CARLOS ALFONSO PARRA MALAVER",
         "CESAR IVAN RODRIGUEZ DAMIAN",
         "MARA LUCIA UCROS MERLANO",
+        "CARMEN ROSA AVILA ROBLES",
     ]
     for nombre in _abogados_planta:
         conn.execute(
@@ -878,9 +886,11 @@ def _seed_usuarios(conn):
     # Abogados (sin contraseña, solo seleccionan su nombre)
     abogados = [
         "CARLOS ALFONSO PARRA MALAVER",
+        "CARMEN ROSA AVILA ROBLES",
         "CESAR IVAN RODRIGUEZ DAMIAN",
         "DAVID FELIPE MORALES NOGUERA",
         "JANIK HERNANDO DE LA HOZ RIOS",
+        "LUZ ALBA FARFAN CASALLAS",
         "MABEL GICELLA HURTADO SANCHEZ",
         "MARA LUCIA UCROS MERLANO",
         "RODOLFO CARRILLO QUINTERO",

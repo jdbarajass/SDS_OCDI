@@ -288,7 +288,7 @@ Sistema completo de control de acceso implementado en v3.1.
 | `JefeOficinaOcdi` | jefe | MARTHA PATRICIA AÑEZ MAESTRE |
 | `Admin` | admin | JOSE DE JESUS BARAJAS SOTELO |
 
-Los 7 abogados inician sesión por dropdown (sin contraseña).
+Los abogados (rol `abogado`, 10 a 2026-09-24) inician sesión por dropdown (sin contraseña). Se dan de alta desde `/admin/usuarios` o directamente en la tabla `usuarios`; todos los desplegables de abogados/responsables del sistema leen de esa tabla, no de listas fijas en el código.
 
 **Modelo de permisos:**
 - `admin` y `jefe`: acceso total a todos los módulos (bypass directo, no configurable).
@@ -453,6 +453,12 @@ No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión conscient
 ---
 
 ### Changelog detallado
+
+#### 2026-09-24 — Alta de 2 abogadas
+
+- **LUZ ALBA FARFAN CASALLAS** (planta, carrera administrativa) y **CARMEN ROSA AVILA ROBLES** (contratista) creadas con rol `abogado` y su `tipo_contrato`. Aparecen en el login y en todos los desplegables de abogado/responsable (Base Expedientes, Control de Autos, Control Trámites Internos, SDQS, Digitales, Sala, Equipos, Matriz) y en los filtros Planta/Contratista.
+- Permisos: Luz con el mismo perfil de Nelcy (ve todos los módulos sin editarlos, escribe en su Matriz y en Compensatorios). Carmen con el perfil de los demás contratistas (ve Sala y Equipos, escribe en su Matriz, sin Compensatorios porque la Resolución 2307 aplica solo a planta).
+- Los 7 autos históricos de Control de Autos a nombre de "LUZ ALBA FARFAN" se unificaron al nombre completo (ya usado en sus 4 expedientes de Base Expedientes). Se agregaron sus variantes cortas a los mapas de normalización de los importadores de Correspondencia y SDQS.
 
 #### v5.5 — Cumplimiento SDS-TIC-LN-016 (en curso desde 2026-09-22)
 

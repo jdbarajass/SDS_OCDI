@@ -12,7 +12,9 @@ echo Si no tienes permisos de admin, usa el boton de backup
 echo que aparece directamente en el portal de la plataforma.
 echo.
 
-set APP_DIR=c:\Users\JJBarajas\Downloads\SSD\APLICACION_SDS_OCDI
+:: Carpeta donde está este .bat (funciona en cualquier PC, sin ruta fija)
+set APP_DIR=%~dp0
+if "%APP_DIR:~-1%"=="\" set APP_DIR=%APP_DIR:~0,-1%
 set SCRIPT=%APP_DIR%\backup_diario.py
 
 :: Buscar Python

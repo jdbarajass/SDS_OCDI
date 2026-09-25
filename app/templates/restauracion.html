@@ -108,9 +108,26 @@
         <div class="ba-icon">🕓</div>
         <div class="ba-text">
             <strong>Backup automático activo</strong>
-            El sistema crea una copia de seguridad automáticamente de <strong>lunes a viernes a las 4:00 PM</strong>
-            en Google Drive. Se conservan los últimos 30 backups.
+            El sistema crea una copia de seguridad cifrada de <strong>lunes a viernes a las 4:00 PM</strong>
+            en Google Drive. Se conservan los últimos 30 backups. Restauración probada con éxito el 2026-09-24.
         </div>
+    </div>
+
+    <div class="rs-warning" style="background:#fdecea;border-color:#f5c2c7;border-left-color:#dc3545;color:#842029">
+        📌 <strong>Esta página no estará disponible si el servidor se daña.</strong> La guía completa (plan de continuidad)
+        está también en GitHub: <code>RESTAURACION.md</code> en github.com/jdbarajass/SDS_OCDI.
+    </div>
+
+    <!-- Lo que debe estar guardado fuera -->
+    <div class="rs-card">
+        <div class="rs-card-title">🔐 Guardar HOY fuera del servidor</div>
+        <ul class="rs-list">
+            <li><strong>Contraseña de cifrado de los backups</strong> (archivo <code>data\backup_password.key</code> del servidor).
+                <strong>Sin ella ningún backup se puede abrir</strong> y no hay forma de recuperarla. Guárdala en un gestor de contraseñas
+                y en un sobre sellado en poder de la jefatura. No la guardes en la misma carpeta de Drive de los backups.</li>
+            <li><strong>Acceso a la cuenta de Google</strong> donde está la carpeta de backups.</li>
+            <li><strong>Contraseña del usuario Admin</strong> de la plataforma (se restaura con el backup, pero hay que conocerla).</li>
+        </ul>
     </div>
 
     <!-- Paso 0: Prerrequisitos -->
@@ -120,9 +137,9 @@
             Requisitos previos (instalar en el PC nuevo)
         </div>
         <ul class="rs-list">
-            <li><strong>Python 3.10 o superior</strong> — en python.org/downloads — marcar ✅ "Add Python to PATH" durante la instalación</li>
-            <li><strong>Git</strong> — en git-scm.com/download/win</li>
-            <li><strong>Google Drive para escritorio</strong> — en drive.google.com/drive/download — iniciar sesión con la cuenta de la oficina para que monte la unidad <code>G:</code></li>
+            <li><strong>Python 3.10 o superior</strong>, en python.org/downloads. Marca ✅ "Add Python to PATH" durante la instalación</li>
+            <li><strong>Git</strong>, en git-scm.com/download/win</li>
+            <li><strong>Google Drive para escritorio</strong>, en drive.google.com/drive/download. Inicia sesión con la cuenta de los backups para que monte la unidad <code>G:</code></li>
         </ul>
     </div>
 
@@ -132,11 +149,10 @@
             <span class="rs-step-num">1</span>
             Obtener el código fuente
         </div>
-        <p style="font-size:13px;color:#374151;margin-bottom:10px;">
-            Abre una terminal (CMD o PowerShell) y ejecuta:
-        </p>
-        <div class="rs-code">git clone https://github.com/jdbarajass/SDS_OCDI.git
+        <div class="rs-code">cd C:\
+git clone https://github.com/jdbarajass/SDS_OCDI.git
 cd SDS_OCDI</div>
+        <p style="font-size:12px;color:#6c757d;margin:4px 0 0;">Si la red de la oficina bloquea GitHub, hazlo desde otra red o usa <em>Code → Download ZIP</em> en github.com.</p>
     </div>
 
     <!-- Paso 2: Dependencias -->
@@ -152,102 +168,99 @@ cd SDS_OCDI</div>
     <div class="rs-card">
         <div class="rs-card-title">
             <span class="rs-step-num">3</span>
-            Restaurar la base de datos y archivos de referencia
+            Restaurar los datos (automático)
         </div>
-
-        <p style="font-size:13px;color:#374151;margin:0 0 10px;">
-            <strong>3.1</strong> — Abre esta carpeta en Google Drive y ordena por fecha (más reciente primero):
+        <div class="rs-code">python restaurar_backup.py</div>
+        <p style="font-size:13px;color:#374151;margin:10px 0 8px;">
+            Toma el ZIP más reciente de esta carpeta de Google Drive, pide la <strong>contraseña de cifrado</strong>, deja la base de datos en
+            <code>data\ocdi.db</code>, guarda la contraseña para los backups siguientes y comprueba que la aplicación arranca. Debe terminar con
+            <strong>✅ RESTAURACIÓN COMPLETA</strong>.
         </p>
         <div class="rs-path">G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO\Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI\</div>
 
-        <p style="font-size:13px;color:#374151;margin:14px 0 8px;">
-            <strong>3.2</strong> — Cada archivo ZIP contiene:
-        </p>
+        <p style="font-size:13px;color:#374151;margin:14px 0 8px;">Cada archivo ZIP contiene:</p>
         <div class="rs-zip-contents">
-            <div class="zf"><span class="zf-icon">🗄️</span><div><div class="zf-name">ocdi.db</div><div class="zf-desc">Base de datos completa — expedientes, SDQS, correspondencia, sala, autos, usuarios</div></div></div>
+            <div class="zf"><span class="zf-icon">🗄️</span><div><div class="zf-name">ocdi.db</div><div class="zf-desc">Toda la información: expedientes, autos, trámites, SDQS, digitales, sala, equipos, matriz, compensatorios, usuarios, permisos e historial</div></div></div>
             <div class="zf"><span class="zf-icon">📄</span><div><div class="zf-name">Tipologias_Json.txt</div><div class="zf-desc">Catálogo de tipologías disciplinarias</div></div></div>
             <div class="zf"><span class="zf-icon">📄</span><div><div class="zf-name">EntidadesDependencias_Json.txt</div><div class="zf-desc">Catálogo de entidades y dependencias</div></div></div>
         </div>
 
         <div class="rs-warning">
-            🔒 <strong>El ZIP está cifrado (AES-256)</strong> desde la Fase 5 de cumplimiento SDS-TIC-LN-016 (2026-09-22). Para abrirlo necesitas la contraseña guardada en <code>data\backup_password.key</code> en el PC que corre el backup — cópiala a un gestor de contraseñas antes de que ese PC deje de estar disponible. Usa <strong>7-Zip</strong> o <strong>WinRAR</strong> para extraer (el explorador de Windows integrado no siempre soporta AES-256).
+            🔒 <strong>Restauración manual (sin el script):</strong> abre el ZIP con <strong>7-Zip</strong> o <strong>WinRAR</strong> (el explorador de Windows no abre AES-256)
+            usando la contraseña. Copia <code>ocdi.db</code> a <code>SDS_OCDI\data\ocdi.db</code> y crea <code>data\backup_password.key</code> con la contraseña como único contenido.
+            Para restaurar un ZIP concreto: <code>python restaurar_backup.py "ruta\al\archivo.zip"</code>
         </div>
-
-        <div class="rs-warning">
-            ⚠️ <strong>Descomprime el ZIP más reciente</strong> y copia los tres archivos según se indica abajo.
-        </div>
-
-        <p style="font-size:13px;color:#374151;margin:12px 0 6px;">
-            <strong>3.3</strong> — Copia <code>ocdi.db</code> a la carpeta <code>data\</code> del proyecto:
-        </p>
-        <div class="rs-code">SDS_OCDI\data\ocdi.db</div>
-        <p style="font-size:12px;color:#6c757d;margin:4px 0 12px;">Si la carpeta <code>data\</code> no existe: <code>mkdir data</code></p>
-
-        <p style="font-size:13px;color:#374151;margin:12px 0 6px;">
-            <strong>3.4</strong> — Copia los archivos JSON a la raíz del proyecto:
-        </p>
-        <div class="rs-code">SDS_OCDI\Tipologias_Json.txt
-SDS_OCDI\EntidadesDependencias_Json.txt</div>
     </div>
 
     <!-- Paso 4: Arrancar servidor -->
     <div class="rs-card">
         <div class="rs-card-title">
             <span class="rs-step-num">4</span>
-            Arrancar el servidor
+            Arrancar el servidor y dar acceso a la red
         </div>
-        <div class="rs-code">python -m uvicorn app.main:app --host 0.0.0.0 --port 8000</div>
-        <p style="font-size:13px;color:#374151;margin:10px 0 4px;">
-            Abre el navegador en: <strong><a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a></strong>
-        </p>
-        <p style="font-size:12px;color:#6c757d;">
-            Para acceso desde otros equipos en la red: <code>http://192.168.X.X:8000</code> (usa la IP local del nuevo PC)
-        </p>
+        <ul class="rs-list">
+            <li>Doble clic en <strong>iniciar.bat</strong>. No cierres la ventana negra.</li>
+            <li>Abre <a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a> y entra con tu usuario de siempre.</li>
+            <li><code>ipconfig</code> → anota la <strong>Dirección IPv4</strong> y avisa a todos: <code>http://&lt;IP-nueva&gt;:8000</code></li>
+            <li>Abre el puerto en el firewall (cmd como administrador):</li>
+        </ul>
+        <div class="rs-code">netsh advfirewall firewall add rule name="OCDI 8000" dir=in action=allow protocol=TCP localport=8000</div>
     </div>
 
     <!-- Paso 5: Reactivar backup -->
     <div class="rs-card">
         <div class="rs-card-title">
             <span class="rs-step-num">5</span>
-            Reactivar el backup automático
+            Reactivar el backup automático (obligatorio)
         </div>
         <ul class="rs-list">
-            <li>Haz doble clic en <strong>configurar_tarea_backup.bat</strong> (en la raíz del proyecto)</li>
-            <li>El backup volverá a correr automáticamente de <strong>lunes a viernes a las 4:00 PM</strong></li>
+            <li>Si Google Drive quedó en otra ruta: <code>setx OCDI_BACKUP_DIR "G:\...\Backup_Automatico_OCDI"</code></li>
+            <li>Doble clic en <strong>configurar_tarea_backup.bat</strong> (como administrador si falla)</li>
+            <li>Verifica que la tarea exista: <code>schtasks /query /tn "OCDI_Backup_Diario" /v /fo list</code></li>
+            <li>Fuerza una ejecución: <code>schtasks /run /tn "OCDI_Backup_Diario"</code> → debe aparecer un ZIP nuevo y una línea <code>OK</code> en <code>backup_log.txt</code></li>
         </ul>
+    </div>
+
+    <!-- Simulacro -->
+    <div class="rs-card">
+        <div class="rs-card-title">🧪 Simulacro mensual (recomendado)</div>
+        <p style="font-size:13px;color:#374151;margin:0 0 8px;">
+            Prueba que el último backup sí restaura todo, <strong>sin tocar el sistema en uso</strong>. Desde la carpeta del proyecto en el servidor:
+        </p>
+        <div class="rs-code">python restaurar_backup.py --simulacro</div>
+        <p style="font-size:13px;color:#374151;margin:8px 0 0;">
+            Resultado esperado: <strong>✅ SIMULACRO EXITOSO</strong>. Queda registrado en <code>simulacros_log.txt</code> de la carpeta de backups.
+        </p>
     </div>
 
     <!-- Verificación -->
     <div class="rs-card">
         <div class="rs-card-title">
-            ✅ Verificación rápida
+            ✅ Verificación final
         </div>
         <table class="rs-table">
             <thead>
                 <tr><th>Qué revisar</th><th>Cómo</th></tr>
             </thead>
             <tbody>
-                <tr><td>La app arranca</td><td>Abre <a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a> — debe mostrar el portal OCDI</td></tr>
-                <tr><td>Los datos están</td><td>Entra a <strong>Base Expedientes</strong> y verifica que aparezcan los registros</td></tr>
-                <tr><td>Los usuarios están</td><td>Cierra sesión e inicia con tu usuario habitual</td></tr>
-                <tr><td>El backup funciona</td><td>Ejecuta <strong>ejecutar_backup.bat</strong> manualmente — debe crear un <code>.zip</code> en la carpeta de Google Drive</td></tr>
+                <tr><td>Los datos están</td><td>El resumen de <code>restaurar_backup.py</code> muestra los registros por módulo; revisa también <strong>Base Expedientes</strong></td></tr>
+                <tr><td>Los usuarios entran</td><td>Un abogado eligiendo su nombre; secretaría/admin con usuario y contraseña</td></tr>
+                <tr><td>La red accede</td><td>Desde otro PC: <code>http://&lt;IP-nueva&gt;:8000</code></td></tr>
+                <tr><td>El backup funciona</td><td>Botón <strong>"Hacer backup ahora"</strong> del portal y luego <code>python restaurar_backup.py --simulacro</code></td></tr>
             </tbody>
         </table>
     </div>
 
-    <!-- Credenciales por defecto -->
+    <!-- Credenciales -->
     <div class="rs-card">
         <div class="rs-card-title">
             🔑 Credenciales de acceso
         </div>
-        <p style="font-size:13px;color:#374151;margin:0 0 10px;">
-            Las credenciales están dentro del backup (<code>ocdi.db</code>) — se restauran automáticamente.<br>
-            Usuario administrador por defecto <em>solo si se inicia desde cero sin backup</em>:
+        <p style="font-size:13px;color:#374151;margin:0;">
+            Los usuarios y sus contraseñas están dentro del backup (<code>ocdi.db</code>) y se restauran automáticamente.
+            <strong>No existe una contraseña por defecto.</strong> Solo si se arranca sin ningún backup, el sistema crea los usuarios iniciales
+            con contraseñas aleatorias guardadas en <code>data\seed_passwords_iniciales.txt</code> (o las de las variables <code>OCDI_SEED_PWD_*</code>).
         </p>
-        <ul class="rs-list">
-            <li><strong>Usuario:</strong> admin</li>
-            <li><strong>Contraseña:</strong> admin123</li>
-        </ul>
     </div>
 
 </div>

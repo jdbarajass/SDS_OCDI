@@ -454,6 +454,14 @@ No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión conscient
 
 ### Changelog detallado
 
+#### 2026-09-24 — Plan de continuidad y simulacro de restauración
+
+- **Primer simulacro real de desastre**: clon limpio del repositorio + último backup de Google Drive descifrado + aplicación arrancada desde la copia. Resultado: 31/31 tablas con los mismos registros que producción y 14/14 páginas funcionando. Conclusión: el ZIP del backup sí restaura el sistema completo.
+- **Riesgo detectado**: la contraseña de cifrado de los backups (Fase 5 LN-016) solo existía en `data/backup_password.key` del servidor. Si ese disco falla sin una copia de la contraseña, ningún backup se puede abrir. Se entregó al responsable para guardarla fuera del servidor.
+- `RESTAURACION.md` reescrito como **plan de continuidad**: qué guardar fuera del servidor, qué se respalda, pérdida máxima de información y tiempo de recuperación, pasos desde `git clone`, firewall/IP, reactivación del backup, simulacro mensual y registro de pruebas. Se corrigieron la falta del paso de la contraseña y la credencial `admin/admin123`, que ya no existe. La página `/backup/restauracion` se actualizó igual.
+- Nuevo `restaurar_backup.py`: `python restaurar_backup.py` restaura el último ZIP (pide la contraseña, aparta la BD existente en vez de borrarla, guarda la contraseña para los backups siguientes, verifica integridad y arranque). `--simulacro` prueba el último backup sin tocar el sistema en uso y deja evidencia en `simulacros_log.txt` en Drive.
+- `configurar_tarea_backup.bat` ya no tiene fija la ruta de este PC (`c:\Users\JJBarajas\...`, que no existiría en otro PC); ahora usa la carpeta donde está el `.bat`. `backup_diario.py` acepta la variable `OCDI_BACKUP_DIR` para apuntar a otra carpeta de Drive sin tocar código.
+
 #### 2026-09-24 — Alta de 2 abogadas
 
 - **LUZ ALBA FARFAN CASALLAS** (planta, carrera administrativa) y **CARMEN ROSA AVILA ROBLES** (contratista) creadas con rol `abogado` y su `tipo_contrato`. Aparecen en el login y en todos los desplegables de abogado/responsable (Base Expedientes, Control de Autos, Control Trámites Internos, SDQS, Digitales, Sala, Equipos, Matriz) y en los filtros Planta/Contratista.
@@ -954,8 +962,14 @@ SDS_OCDI/
 ├── data/
 │   └── ocdi.db                             # Base de datos SQLite (se crea al iniciar)
 ├── iniciar.bat                             # Script Windows — libera puerto 8000 e inicia
+├── backup_diario.py                        # Backup cifrado (AES-256) de la BD a Google Drive
+├── ejecutar_backup.bat                     # Backup manual con doble clic
+├── configurar_tarea_backup.bat             # Crea la tarea programada Lun–Vie 4PM
+├── restaurar_backup.py                     # Restaura el último backup / --simulacro para probarlo
+├── crear_bd_prueba.py                      # BD sandbox con datos ficticios (pruebas)
 ├── requirements.txt                        # Dependencias Python
 ├── INSTALACION.md                          # Guía paso a paso para instalar en Windows
+├── RESTAURACION.md                         # Plan de continuidad: recuperar el sistema en otro PC
 └── README.md                               # Este archivo
 ```
 
@@ -1023,13 +1037,17 @@ python -m uvicorn app.main:app --reload
 
 ### Backup y respaldo
 
-**Backup ZIP completo (recomendado):**
-- En el portal principal, clic en **"📦 Descargar Backup Completo (.zip)"**
-- Descarga un ZIP con 5 carpetas, una por módulo, con el Excel actualizado de cada uno
+**Backup automático cifrado (el que permite recuperar TODO el sistema):**
+- `backup_diario.py`, ejecutado por la tarea programada `OCDI_Backup_Diario` de lunes a viernes a las 4:00 PM, o con el botón **"Hacer backup ahora"** del portal.
+- Crea en Google Drive un ZIP cifrado (AES-256) con un snapshot completo de `data/ocdi.db` + catálogos JSON. Conserva los últimos 30.
+- La contraseña de cifrado está en `data/backup_password.key` y **debe estar guardada también fuera del servidor**: sin ella los backups no se pueden abrir.
+- **Recuperar el sistema en otro PC:** ver **[RESTAURACION.md](RESTAURACION.md)** (plan de continuidad). Resumen: `git clone` → `pip install -r requirements.txt` → `python restaurar_backup.py` → `iniciar.bat` → `configurar_tarea_backup.bat`.
+- **Probar que el último backup restaura todo** (sin tocar el sistema en uso): `python restaurar_backup.py --simulacro`. Recomendado una vez al mes.
+- No copies `data/ocdi.db` a mano con el servidor encendido: la base usa modo WAL y la copia puede quedar incompleta. Usa siempre el backup.
 
-**Backup de base de datos:**
-- Copiar el archivo `data/ocdi.db` a una carpeta segura, USB o nube
-- Para restaurar: reemplazar ese archivo antes de iniciar el servidor
+**Backup ZIP de Excel por módulo (para consulta, no para restaurar el sistema):**
+- En el portal principal, clic en **"📦 Descargar Backup Completo (.zip)"**
+- Descarga un ZIP con una carpeta por módulo, con el Excel actualizado de cada uno
 
 ### Exportar reportes
 

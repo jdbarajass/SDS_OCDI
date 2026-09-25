@@ -143,7 +143,7 @@ Inicio → Seguridad de Windows → Firewall → Configuración avanzada → Nue
 | Puerto | 8000 |
 | Acceso | LAN (red local), sin internet |
 
-La base de datos se guarda en `data/ocdi.db`. **Hacer copias de seguridad periódicas de este archivo** para no perder la información.
+La base de datos se guarda en `data/ocdi.db`. El backup automático cifrado a Google Drive y el procedimiento para recuperar el sistema en otro PC están en **[RESTAURACION.md](RESTAURACION.md)** (plan de continuidad).
 
 También puede usar el botón **"📦 Descargar Backup Completo (.zip)"** en la página principal del sistema, que descarga un ZIP con un Excel por cada módulo.
 

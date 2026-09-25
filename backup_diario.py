@@ -15,6 +15,7 @@ Automático : Tarea programada de Windows (ver configurar_tarea_backup.bat)
              Lunes a Viernes, 4:00 PM  —  o desde la plataforma web
 """
 
+import os
 import secrets
 import sqlite3
 import sys
@@ -33,9 +34,14 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 # ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 DIRECTORIO_APP    = Path(__file__).resolve().parent
 BASE_DATOS        = DIRECTORIO_APP / "data" / "ocdi.db"
+# OCDI_BACKUP_DIR permite apuntar a otra carpeta de Google Drive en un PC
+# nuevo (p.ej. otra cuenta u otra letra de unidad) sin tocar el código:
+#   setx OCDI_BACKUP_DIR "G:\Mi unidad\...\Backup_Automatico_OCDI"
+# Sin esa variable, se usa la ruta de siempre.
 DIRECTORIO_BACKUP = Path(
-    r"G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO"
-    r"\Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI"
+    os.environ.get("OCDI_BACKUP_DIR")
+    or r"G:\Mi unidad\5) DOCUMENTOS PARA CONSEGUIR TRABAJO"
+       r"\Simo\Soportes_SDS\BACKUP_APP_OCDI\Backup_Automatico_OCDI"
 )
 MAX_BACKUPS = 30
 
@@ -61,7 +67,6 @@ def _obtener_password_backup() -> str:
     """Retorna la contraseña de cifrado de los backups. Prioridad: variable de
     entorno OCDI_BACKUP_PASSWORD > archivo local data/backup_password.key
     (se genera automáticamente la primera vez que corre el backup)."""
-    import os
     env_pwd = os.environ.get("OCDI_BACKUP_PASSWORD")
     if env_pwd:
         return env_pwd

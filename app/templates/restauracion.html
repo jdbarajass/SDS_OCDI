@@ -201,7 +201,7 @@ cd SDS_OCDI</div>
         <ul class="rs-list">
             <li>Doble clic en <strong>iniciar.bat</strong>. No cierres la ventana negra.</li>
             <li>Abre <a href="http://localhost:8000" style="color:#1B4F8A;">http://localhost:8000</a> y entra con tu usuario de siempre.</li>
-            <li><code>ipconfig</code> → anota la <strong>Dirección IPv4</strong> y avisa a todos: <code>http://&lt;IP-nueva&gt;:8000</code></li>
+            <li>Avisa a todos la dirección por <strong>nombre del equipo</strong> (no cambia aunque cambie la IP): <code>http://&lt;NOMBRE-DEL-PC&gt;:8000</code>. <code>iniciar.bat</code> muestra el nombre y la IP al arrancar. Alternativa: <code>http://&lt;IP-nueva&gt;:8000</code> (<code>ipconfig</code> → Dirección IPv4)</li>
             <li>Abre el puerto en el firewall (cmd como administrador):</li>
         </ul>
         <div class="rs-code">netsh advfirewall firewall add rule name="OCDI 8000" dir=in action=allow protocol=TCP localport=8000</div>
@@ -245,7 +245,7 @@ cd SDS_OCDI</div>
             <tbody>
                 <tr><td>Los datos están</td><td>El resumen de <code>restaurar_backup.py</code> muestra los registros por módulo; revisa también <strong>Base Expedientes</strong></td></tr>
                 <tr><td>Los usuarios entran</td><td>Un abogado eligiendo su nombre; secretaría/admin con usuario y contraseña</td></tr>
-                <tr><td>La red accede</td><td>Desde otro PC: <code>http://&lt;IP-nueva&gt;:8000</code></td></tr>
+                <tr><td>La red accede</td><td>Desde otro PC: <code>http://&lt;NOMBRE-DEL-PC&gt;:8000</code> o <code>http://&lt;IP-nueva&gt;:8000</code></td></tr>
                 <tr><td>El backup funciona</td><td>Botón <strong>"Hacer backup ahora"</strong> del portal y luego <code>python restaurar_backup.py --simulacro</code></td></tr>
             </tbody>
         </table>

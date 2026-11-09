@@ -1,7 +1,7 @@
 # OCDI — Sistema de Gestión Disciplinaria
 ### Secretaría Distrital de Salud (SDS) · Oficina de Control Disciplinario Interno
 
-> **Versión actual: v5.6** — Última actualización: 2026-09-22
+> **Versión actual: v5.6** — Última actualización: 2026-11-09
 
 ---
 
@@ -76,11 +76,13 @@ Aplicación **web local** (LAN) que:
        │
    [Red LAN — SDS]
        │
-[PC Usuario 1]  → Chrome → http://192.168.X.X:8000
-[PC Usuario 2]  → Chrome → http://192.168.X.X:8000
+[PC Usuario 1]  → Chrome → http://400ASUNDIS015:8000
+[PC Usuario 2]  → Chrome → http://400ASUNDIS015:8000
      ...
-[PC Usuario 11] → Chrome → http://192.168.X.X:8000
+[PC Usuario 11] → Chrome → http://400ASUNDIS015:8000
 ```
+
+- **Acceso por nombre de equipo, no por IP:** el DNS del dominio `sds.saludcapital.gov.co` registra solo el nombre del PC servidor, así que la dirección sigue sirviendo aunque TIC cambie la IP. Servidor actual: `400ASUNDIS015` (IP `10.40.28.23`; antes `10.1.56.186`, cambió en noviembre de 2026 con el reemplazo de switches). Solo funciona dentro de la red de la SDS (cable de la oficina o, eventualmente, VPN institucional); no está expuesto a internet.
 
 - **Sin instalación en PCs clientes:** solo necesitan un navegador (Chrome/Edge).
 - **Sin internet requerido:** todo corre en la red interna de la SDS.
@@ -453,6 +455,12 @@ No integrado al Backup General/ZIP ni a la Búsqueda Global (decisión conscient
 ---
 
 ### Changelog detallado
+
+#### 2026-11-09 — Caída del servidor (WinError 10055) y cambio de IP por switches
+
+- **Caída del servidor**: `OSError: [WinError 10055] ... no tiene suficiente espacio de búfer` en `select.select`. Causa: `iniciar.bat` arrancaba con `--reload`; en Windows uvicorn 0.30 fuerza `WindowsSelectorEventLoopPolicy` cuando hay subproceso de recarga, y `select()` tiene límite de sockets. Además, al morir el worker el proceso vigilante seguía ocupando el puerto 8000, así que nadie entraba aunque la ventana siguiera abierta. Se quitó `--reload` (queda el bucle Proactor nativo de Windows).
+- **Cambio de IP**: con el reemplazo de switches de la SDS, el servidor pasó de `10.1.56.186` a `10.40.28.23`. Se adopta el acceso por **nombre de equipo** (`http://400ASUNDIS015:8000`), que el DNS del dominio mantiene actualizado solo. `iniciar.bat` ahora muestra el nombre y la IP real (filtrando direcciones `169.254.*`). Actualizados `INSTALACION.md`, `RESTAURACION.md` (paso 5) y la página `/backup/restauracion`.
+- **Continuidad**: simulacro de restauración con el backup del 2026-11-06 ✅ (31 tablas, 14/14 páginas). Se verificó que la contraseña de cifrado que guarda el responsable fuera del servidor es idéntica a la del servidor y abre los 30 backups de Drive.
 
 #### 2026-09-24 — Plan de continuidad y simulacro de restauración
 
@@ -995,8 +1003,9 @@ Ver [INSTALACION.md](INSTALACION.md) para la guía completa paso a paso.
 
 1. Doble clic en `iniciar.bat` en el PC servidor
 2. Esperar el mensaje `Application startup complete`
-3. En cualquier PC de la red abrir Chrome/Edge: `http://<IP-del-servidor>:8000`
-   - Para conocer la IP: ejecutar `ipconfig` en el servidor y buscar "Dirección IPv4"
+3. En cualquier PC de la red abrir Chrome/Edge: `http://<NOMBRE-DEL-PC-SERVIDOR>:8000` (hoy `http://400ASUNDIS015:8000`)
+   - `iniciar.bat` muestra al arrancar el nombre del equipo y su IP actual. Alternativa: `http://<IP-del-servidor>:8000`, pero la IP puede cambiar
+   - En producción **no usar `--reload`**: en Windows obliga a uvicorn a usar `select()` y el servidor se cae con `WinError 10055` cuando hay muchas conexiones. `--reload` solo para el sandbox de desarrollo
 4. Para detener: `Ctrl+C` en la ventana de comandos
 
 ### Ambiente de pruebas (sandbox)

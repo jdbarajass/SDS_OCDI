@@ -113,13 +113,15 @@ Doble clic en **`iniciar.bat`**. Se abre una ventana negra: **no la cierres**, p
 
 ### Paso 5 — Dar acceso a los demás equipos de la oficina
 
-1. En cmd ejecuta `ipconfig` y anota la **Dirección IPv4** (ej. `192.168.1.15`).
+1. `iniciar.bat` muestra al arrancar el **nombre del equipo** y su **IP**. También puedes verlos con `hostname` e `ipconfig` en cmd.
 2. Abre el puerto 8000 en el firewall. En cmd **como administrador**:
    ```
    netsh advfirewall firewall add rule name="OCDI 8000" dir=in action=allow protocol=TCP localport=8000
    ```
-3. Avisa a todos que la nueva dirección es `http://<IP-nueva>:8000` (actualicen sus favoritos).
+3. Avisa a todos la nueva dirección **por nombre de equipo**: `http://<NOMBRE-DEL-PC>:8000` (actualicen sus favoritos). El DNS del dominio SDS registra el nombre solo y sigue funcionando aunque cambie la IP. Alternativa: `http://<IP-nueva>:8000`.
 4. Recomendado: pide a TIC que le deje una **IP fija** a este PC, para que la dirección no cambie después.
+
+> Servidor actual (noviembre de 2026): `http://400ASUNDIS015:8000` — IP `10.40.28.23` (antes `10.1.56.186`, cambió con el reemplazo de switches).
 
 ### Paso 6 — Reactivar el backup automático (obligatorio)
 
@@ -171,6 +173,7 @@ Resultado esperado: `✅ SIMULACRO EXITOSO`. Si dice `❌ SIMULACRO FALLIDO`, re
 | 2026-09-24 | Simulacro de desastre completo: clon limpio del repositorio + último ZIP de Drive (`ocdi_backup_20260924_164412.zip`) descifrado + aplicación arrancada desde la copia | ✅ 31/31 tablas con los mismos registros que el sistema en uso (262 expedientes, 257 autos, 581 trámites internos, 274 SDQS, 80 digitales, 116 eventos de sala, 15 usuarios, 137 permisos), contraseñas de usuarios intactas, 14/14 páginas y exportación a Excel funcionando |
 | 2026-09-24 | `restaurar_backup.py` en un clon sin carpeta `data` (PC nuevo) y luego sobre una base de datos existente | ✅ Restauró todo, guardó la contraseña para los backups siguientes y, en el segundo caso, apartó la base anterior sin borrarla |
 | 2026-09-24 | ZIP con contraseña incorrecta o sin contraseña | ✅ Rechazado (el cifrado funciona) |
+| 2026-11-09 | Simulacro (`--simulacro`) con `ocdi_backup_20261106_160001.zip` | ✅ Integridad ok, 31 tablas, conteos iguales al sistema en uso (salvo 1 evento de sala y 2 logs registrados después del backup), 14/14 páginas |
 
 ---
 

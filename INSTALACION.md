@@ -80,12 +80,16 @@ pip install -r requirements.txt
 http://localhost:8000
 ```
 
-**Acceso desde otros equipos de la red:**
+**Acceso desde otros equipos de la red (recomendado — por nombre de equipo):**
 ```
-http://<IP-del-servidor>:8000
+http://<NOMBRE-DEL-EQUIPO>:8000
 ```
 
-Para conocer la IP del servidor: abrir cmd y escribir `ipconfig`, buscar la línea "Dirección IPv4" (ejemplo: `192.168.1.15`). Los demás usuarios deben ingresar `http://192.168.1.15:8000` en su navegador.
+Ejemplo actual: `http://400ASUNDIS015:8000` (o el nombre completo `http://400ASUNDIS015.sds.saludcapital.gov.co:8000`). El nombre lo registra automáticamente el DNS del dominio SDS, así que **sigue funcionando aunque TIC cambie la IP** del equipo (como pasó en noviembre de 2026 al cambiar los switches: la IP pasó de `10.1.56.186` a `10.40.28.23`). `iniciar.bat` muestra el nombre y la IP actuales al arrancar.
+
+**Alternativa por IP:** `http://<IP-del-servidor>:8000`. Para conocerla: abrir cmd, escribir `ipconfig` y buscar "Dirección IPv4". Ojo: la IP puede cambiar.
+
+> **No usar `--reload`** al iniciar el servidor en la oficina. En Windows esa opción hace que uvicorn use `select()`, que se cae con `OSError: [WinError 10055] ... no tiene suficiente espacio de búfer` cuando hay muchas conexiones. `--reload` es solo para desarrollo.
 
 ---
 

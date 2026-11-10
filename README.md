@@ -675,6 +675,7 @@ Los semáforos de SDQS, Base Expedientes y Expedientes Digitales contaban días 
 **Enlaces de interés en el portal (2026-09-04)**
 
 - Nueva sección "Enlaces de interés" en el Portal Central con accesos directos a las plataformas externas que el equipo usa a diario: AgilSalud, Mesa de Ayuda (Aranda / Línea 55), Intranet SDS, Isolución, SharePoint OCDI y el aplicativo OCDI local (marcado como disponible solo dentro de la red de la oficina).
+- (2026-11-10) Se agregó **PERNO (Talento Humano)** (`http://sdsorcas04.sds.saludcapital.gov.co:7778/forms/frmservlet?config=sdsprodrh`). Es Oracle Forms y solo abre en Microsoft Edge en modo Internet Explorer. Debajo de las tarjetas hay una guía desplegable con los pasos para Edge (`edge://settings/defaultBrowser` → Permitir modo IE → Agregar una página; se vence a los 30 días) y la aclaración de que Chrome no tiene modo IE. Incluye botones "Copiar", que usan un método alternativo porque el portal se sirve por HTTP y ahí no existe `navigator.clipboard`.
 
 ---
 

@@ -198,6 +198,22 @@
         .tip-card .t { font-size: 12.5px; font-weight: 700; color: var(--gold-ink); }
         .tip-card .s { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.5; }
 
+        .guide { margin-top: 14px; border: 1px solid var(--gold-line); border-radius: 12px; background: var(--panel); }
+        .guide summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; font-size: 12.5px; color: var(--ink-soft); }
+        .guide summary::-webkit-details-marker { display: none; }
+        .guide summary b { color: var(--gold-ink); }
+        .guide summary::after { content: "▾"; margin-left: auto; color: var(--gold); transition: transform .15s; }
+        .guide[open] summary::after { transform: rotate(180deg); }
+        .guide .g-ico { color: var(--gold); flex: none; display: flex; } .guide .g-ico svg { width: 20px; height: 20px; }
+        .guide .g-body { padding: 4px 20px 16px 48px; font-size: 12.5px; line-height: 1.6; color: var(--ink); }
+        .guide h4 { font-family: "Source Serif 4", serif; font-size: 13.5px; margin: 14px 0 6px; color: var(--gold-ink); }
+        .guide p { margin: 6px 0; } .guide ol { margin: 6px 0; padding-left: 20px; } .guide li { margin-bottom: 6px; }
+        .guide code { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+        .guide .g-note { font-size: 11.5px; color: var(--ink-soft); }
+        .guide .g-copy { font-size: 11px; font-weight: 600; padding: 2px 9px; margin-left: 4px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--gold-tint); color: var(--gold-ink); cursor: pointer; }
+        .guide .g-copy:hover { border-color: var(--gold); }
+        @media (max-width: 640px) { .guide .g-body { padding-left: 20px; } }
+
         .mcard.game { border-color: var(--forest-line); background: linear-gradient(120deg, var(--forest-tint), transparent 80%); max-width: 340px; }
 
         @media (max-width: 980px) {
@@ -627,8 +643,56 @@
                     <div class="body"><div class="title">Aplicativo OCDI (Local)</div><div class="desc">Solo funciona en la red de la oficina, no desde casa</div></div>
                 </a>
 
+                <a href="http://sdsorcas04.sds.saludcapital.gov.co:7778/forms/frmservlet?config=sdsprodrh" target="_blank" rel="noopener noreferrer" class="mcard small mc-gold" title="Abrir en Microsoft Edge con modo Internet Explorer (ver guía abajo)">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span>
+                    <div class="body"><div class="title">PERNO (Talento Humano)</div><div class="desc">Solo en Edge modo IE · ver guía ↓</div></div>
+                </a>
+
             </div>
+
+            <details class="guide">
+                <summary>
+                    <span class="g-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+                    <span><b>¿PERNO muestra «Este complemento no es compatible»?</b> Cómo habilitarlo en Edge y qué hacer en Chrome</span>
+                </summary>
+                <div class="g-body">
+                    <p>PERNO está hecho en <b>Oracle Forms</b>, que necesita el motor de Internet Explorer y Java. Los navegadores modernos ya no lo traen, por eso aparece el ícono de la pieza de rompecabezas. No es un problema de permisos de usuario: solo hay que abrirlo en modo Internet Explorer.</p>
+
+                    <h4>Microsoft Edge (recomendado)</h4>
+                    <ol>
+                        <li>En la barra de direcciones de Edge escribe <code>edge://settings/defaultBrowser</code> y presiona Enter. <button type="button" class="g-copy" data-copy="edge://settings/defaultBrowser">Copiar</button><br><span class="g-note">Por seguridad el navegador no deja abrir esta dirección con un clic; hay que pegarla.</span></li>
+                        <li>En <b>«Permitir que los sitios se vuelvan a cargar en modo Internet Explorer (modo IE)»</b> elige <b>Permitir</b>. Si Edge lo pide, dale <b>Reiniciar</b>.</li>
+                        <li>En la sección <b>«Modo de páginas de Internet Explorer»</b> haz clic en <b>Agregar una página</b>.</li>
+                        <li>Pega esta dirección y haz clic en <b>Agregar</b>:<br><code class="g-url">http://sdsorcas04.sds.saludcapital.gov.co:7778/forms/frmservlet?config=sdsprodrh</code> <button type="button" class="g-copy" data-copy="http://sdsorcas04.sds.saludcapital.gov.co:7778/forms/frmservlet?config=sdsprodrh">Copiar</button></li>
+                        <li>Abre la tarjeta <b>PERNO</b> de arriba <b>desde Edge</b>. Junto a la barra de direcciones debe aparecer el ícono de Internet Explorer. Si sale un aviso de Java, acéptalo o dale <b>Ejecutar</b>.</li>
+                    </ol>
+                    <p class="g-note">Edge solo guarda la página en modo IE durante <b>30 días</b>. Cuando vuelva a salir el error, repite los pasos 3 y 4.</p>
+
+                    <h4>Google Chrome</h4>
+                    <p>Chrome <b>no tiene modo Internet Explorer</b> ni ningún permiso que se pueda activar para esto, así que en Chrome PERNO siempre va a mostrar «Este complemento no es compatible». Copia el enlace, ábrelo en <b>Microsoft Edge</b> y sigue los pasos de arriba. <button type="button" class="g-copy" data-copy="http://sdsorcas04.sds.saludcapital.gov.co:7778/forms/frmservlet?config=sdsprodrh">Copiar enlace de PERNO</button></p>
+                    <p class="g-note">Si después de esto sigue sin cargar (pantalla en blanco o error de Java), pide ayuda a la Mesa de Ayuda (Línea 55) para que revisen la versión de Java del equipo. No instales Java por tu cuenta.</p>
+                </div>
+            </details>
         </div>
+        <script>
+            document.querySelectorAll('.g-copy').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var txt = btn.getAttribute('data-copy');
+                    var done = function () { var o = btn.textContent; btn.textContent = '¡Copiado!'; setTimeout(function () { btn.textContent = o; }, 1500); };
+                    // navigator.clipboard solo existe en contextos seguros (HTTPS/localhost); en http://400ASUNDIS015 se usa el método clásico.
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(txt).then(done, function () { fallback(); });
+                    } else { fallback(); }
+                    function fallback() {
+                        var ta = document.createElement('textarea');
+                        ta.value = txt; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+                        document.body.appendChild(ta); ta.select();
+                        try { document.execCommand('copy'); done(); } catch (e) { window.prompt('Copia este texto:', txt); }
+                        document.body.removeChild(ta);
+                    }
+                });
+            });
+        </script>
 
         <div class="section">
             <div class="section-head"><h3>Extra OCDI</h3><div class="rule"></div></div>
